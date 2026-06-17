@@ -199,14 +199,6 @@
   <div class="sidebar-section">Riwayat Percakapan</div>
   <div id="conv-list"><div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div></div>
   <div class="sidebar-footer">
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 4px;margin-bottom:8px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
-      <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#1a4fc4,var(--gold));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;" id="user-avatar">U</div>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="user-display">-</div>
-        <div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text-dim);" id="user-role">Member</div>
-      </div>
-      <button onclick="doLogout()" title="Keluar" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;padding:4px;border-radius:6px;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#f87171';this.style.background='rgba(220,38,38,0.15)'" onmouseout="this.style.color='var(--text-dim)';this.style.background='none'">⏻</button>
-    </div>
     <a href="baba.html" target="_blank" class="sidebar-link">MINDBOT GENIUS · BINARY GLOBAL NETWORK ↗</a>
   </div>
 </div>
@@ -305,20 +297,6 @@
 </div>
 
 <script>
-  // ── AUTH CHECK ──
-  const token = localStorage.getItem('mbg_token');
-  const username = localStorage.getItem('mbg_username');
-  if (!token) window.location.href = '/auth.html';
-
-  function authHeaders() { return { 'Authorization': 'Bearer ' + token }; }
-
-  async function doLogout() {
-    try { await fetch('/api/logout', { method:'POST', headers: authHeaders() }); } catch(e) {}
-    localStorage.removeItem('mbg_token');
-    localStorage.removeItem('mbg_username');
-    window.location.href = '/auth.html';
-  }
-
   let sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
   let isLoading = false;
   let selectedFile = null;
@@ -403,7 +381,7 @@
   // ── CONVERSATIONS ──
   async function loadConversations() {
     try {
-      const list = await (await fetch('/api/conversations', { headers: authHeaders() })).json();
+      const list = await (await fetch('/api/conversations', {})).json();
       const el = document.getElementById('conv-list');
       if (!list.length) { el.innerHTML='<div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div>'; return; }
       el.innerHTML = list.map(c=>`
@@ -419,7 +397,7 @@
   async function loadConv(id) {
     if (id===sessionId) return;
     try {
-      const conv = await (await fetch('/api/conversations/'+id, { headers: authHeaders() })).json();
+      const conv = await (await fetch('/api/conversations/'+id, {})).json();
       sessionId = id;
       document.getElementById('chat-title').textContent = conv.title;
       document.getElementById('chat-title').classList.remove('new');
@@ -592,7 +570,7 @@
           }
           isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus();
           // Save to server for history
-          const fd=new FormData(); fd.append('message',text); fd.append('sessionId',sessionId); fd.append('token',token);
+          const fd=new FormData(); fd.append('message',text); fd.append('sessionId',sessionId);
           fetch('/api/chat',{method:'POST',body:fd}).then(()=>loadConversations()).catch(()=>{});
         }, 800);
         return;
@@ -608,7 +586,6 @@
       formData.append('model', currentModel);
       if(fileToSend) formData.append('file', fileToSend);
 
-      formData.append('token', token);
       const res = await fetch('/api/chat', { method:'POST', body: formData });
       const data = await res.json();
       removeTyping();
@@ -782,24 +759,7 @@
   let autoSpeak = false;
 
   // Init
-  // Set username display
-  if (username) {
-    const ud = document.getElementById('user-display');
-    const ua = document.getElementById('user-avatar');
-    const ur = document.getElementById('user-role');
-    if (ud) ud.textContent = username;
-    if (ua) ua.textContent = username.charAt(0).toUpperCase();
-    if (ur) {
-      const lower = username.toLowerCase();
-      if (lower === 'arziki') {
-        ur.textContent = 'CEO & CTO';
-        ur.style.color = '#c8a84b';
-      } else if (lower === 'aray') {
-        ur.textContent = 'VP Binary Global Network';
-        ur.style.color = '#93b4ff';
-      }
-    }
-  }
+
   loadConversations();
   setInterval(loadConversations, 10000);
 </script>
