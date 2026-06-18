@@ -199,7 +199,7 @@
   <div class="sidebar-section">Riwayat Percakapan</div>
   <div id="conv-list"><div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div></div>
   <div class="sidebar-footer">
-    <a href="baba.html" target="_blank" class="sidebar-link">MINDBOT GENIUS · BINARY GLOBAL NETWORK ↗</a>
+    <a href="baba.html" target="_blank" class="sidebar-link" style="opacity:0.7;letter-spacing:0.5px;">🌐 MINDBOT GENIUS · BINARY GLOBAL NETWORK</a>
   </div>
 </div>
 
@@ -297,6 +297,13 @@
 </div>
 
 <script>
+  // Device ID - stored in localStorage, unique per device
+  let deviceId = localStorage.getItem('mbg_device_id');
+  if (!deviceId) {
+    deviceId = 'dev_' + Math.random().toString(36).substr(2, 12);
+    localStorage.setItem('mbg_device_id', deviceId);
+  }
+
   let sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
   let isLoading = false;
   let selectedFile = null;
@@ -381,7 +388,7 @@
   // ── CONVERSATIONS ──
   async function loadConversations() {
     try {
-      const list = await (await fetch('/api/conversations', {})).json();
+      const list = await (await fetch('/api/conversations?deviceId='+deviceId)).json();
       const el = document.getElementById('conv-list');
       if (!list.length) { el.innerHTML='<div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div>'; return; }
       el.innerHTML = list.map(c=>`
@@ -389,15 +396,24 @@
           <div class="conv-title">${escapeHtml(c.title)}</div>
           <div class="conv-preview">${escapeHtml(c.preview)}</div>
           <div class="conv-date">${formatDate(c.updatedAt)}</div>
-          <button class="conv-del" onclick="event.stopPropagation();deleteConv('${c.id}')" title="Hapus">✕</button>
+          <button class="conv-del" data-id="${c.id}" title="Hapus">✕</button>
         </div>`).join('');
+
+      // Attach delete events after rendering
+      el.querySelectorAll('.conv-del').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          e.preventDefault();
+          deleteConv(this.getAttribute('data-id'));
+        });
+      });
     } catch(e){}
   }
 
   async function loadConv(id) {
     if (id===sessionId) return;
     try {
-      const conv = await (await fetch('/api/conversations/'+id, {})).json();
+      const conv = await (await fetch('/api/conversations/'+id+'?deviceId='+deviceId)).json();
       sessionId = id;
       document.getElementById('chat-title').textContent = conv.title;
       document.getElementById('chat-title').classList.remove('new');
@@ -414,7 +430,7 @@
   }
 
   async function deleteConv(id) {
-    await fetch('/api/conversations/'+id,{method:'DELETE', headers: authHeaders()});
+    await fetch('/api/conversations/'+id+'?deviceId='+deviceId, {method:'DELETE'});
     if(id===sessionId) newChat();
     loadConversations();
   }
@@ -570,7 +586,7 @@
           }
           isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus();
           // Save to server for history
-          const fd=new FormData(); fd.append('message',text); fd.append('sessionId',sessionId);
+          const fd=new FormData(); fd.append('message',text); fd.append('sessionId',sessionId); fd.append('deviceId',deviceId);
           fetch('/api/chat',{method:'POST',body:fd}).then(()=>loadConversations()).catch(()=>{});
         }, 800);
         return;
@@ -583,6 +599,7 @@
       const formData = new FormData();
       if(text) formData.append('message', text);
       formData.append('sessionId', sessionId);
+      formData.append('deviceId', deviceId);
       formData.append('model', currentModel);
       if(fileToSend) formData.append('file', fileToSend);
 

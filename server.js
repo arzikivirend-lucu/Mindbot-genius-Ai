@@ -44,7 +44,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ── CONVERSATIONS ──
 app.get('/api/conversations', (req, res) => {
+  const deviceId = req.query.deviceId;
   const list = Object.values(db.conversations)
+    .filter(c => !deviceId || !c.deviceId || c.deviceId === deviceId)
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .map(({ id, title, createdAt, updatedAt, messages }) => ({
       id, title, createdAt, updatedAt,
@@ -56,11 +58,17 @@ app.get('/api/conversations', (req, res) => {
 
 app.get('/api/conversations/:id', (req, res) => {
   const conv = db.conversations[req.params.id];
+  const deviceId = req.query.deviceId;
   if (!conv) return res.status(404).json({ error: 'Tidak ditemukan' });
+  if (deviceId && conv.deviceId && conv.deviceId !== deviceId) return res.status(403).json({ error: 'Akses ditolak' });
   res.json(conv);
 });
 
 app.delete('/api/conversations/:id', (req, res) => {
+  const conv = db.conversations[req.params.id];
+  const deviceId = req.query.deviceId;
+  if (!conv) return res.json({ ok: true });
+  if (deviceId && conv.deviceId && conv.deviceId !== deviceId) return res.status(403).json({ error: 'Akses ditolak' });
   delete db.conversations[req.params.id];
   saveDB();
   res.json({ ok: true });
@@ -75,11 +83,13 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
   const file  = req.file;
   if (!text && !file) return res.status(400).json({ error: 'Pesan atau file diperlukan' });
 
+  const deviceId = req.body.deviceId || null;
   if (!db.conversations[sessionId]) {
     const title = text.slice(0,40) || (file ? `📎 ${file.originalname}` : 'Percakapan');
     db.conversations[sessionId] = {
       id: sessionId, title, messages: [],
-      createdAt: Date.now(), updatedAt: Date.now()
+      createdAt: Date.now(), updatedAt: Date.now(),
+      deviceId: deviceId
     };
   }
 
