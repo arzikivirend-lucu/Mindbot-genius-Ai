@@ -2,783 +2,1281 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mindbot Genius</title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NexusAI — Binary Global Network</title>
+  <link rel="icon" type="image/png" href="assets/logo-icon.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
   <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     :root {
-      --bg: #0a0c14; --surface: #0f1220; --surface2: #171b2e;
-      --border: #1e2540; --gold: #c8a84b; --text: #e8eaf0;
-      --text-dim: #5a6380; --user-bg: #101830; --sidebar-w: 280px;
+      --bg:       #0a0a0f;
+      --surface:  #111118;
+      --sidebar:  #0d0d13;
+      --border:   #1e1e2e;
+      --accent:   #7c6af7;
+      --accent2:  #a78bfa;
+      --glow:     rgba(124,106,247,0.18);
+      --text:     #e8e8f0;
+      --muted:    #6b6b85;
+      --user-bg:  #1a1a2e;
+      --ai-bg:    #13131f;
+      --error:    #ff5e6c;
+      --font:     'Space Grotesk', sans-serif;
+      --mono:     'JetBrains Mono', monospace;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
 
-    /* SIDEBAR */
-    #sidebar { width: var(--sidebar-w); background: #080a12; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; transition: transform 0.3s ease; z-index: 20; }
-    .sidebar-head { padding: 14px 14px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
-    .sidebar-logo { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); flex-shrink: 0; }
-    .sidebar-brand .name { font-size: 13px; font-weight: 800; } .sidebar-brand .name span { color: var(--gold); }
-    .sidebar-brand .sub { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
-    .btn-new { width: calc(100% - 28px); margin: 12px 14px 0; padding: 10px 14px; background: linear-gradient(135deg, #1a4fc4, var(--gold)); border: none; border-radius: 10px; color: #fff; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: opacity 0.2s; }
-    .btn-new:hover { opacity: 0.85; }
-    .sidebar-section { padding: 14px 14px 6px; font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
-    #conv-list { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
-    #conv-list::-webkit-scrollbar { width: 3px; } #conv-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    .conv-item { padding: 10px; border-radius: 10px; cursor: pointer; margin-bottom: 2px; transition: background 0.15s; position: relative; }
-    .conv-item:hover { background: var(--surface2); } .conv-item.active { background: var(--surface2); border: 1px solid var(--border); }
-    .conv-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 24px; }
-    .conv-preview { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-    .conv-date { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-top: 3px; }
-    .conv-del { position: absolute; top: 8px; right: 8px; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 2px 5px; border-radius: 5px; opacity: 0; transition: opacity 0.15s; }
-    .conv-item:hover .conv-del { opacity: 1; } .conv-del:hover { background: rgba(220,38,38,0.2); color: #f87171; }
-    .conv-empty { text-align: center; padding: 32px 16px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-dim); line-height: 1.8; }
-    .sidebar-footer { padding: 12px 14px; border-top: 1px solid var(--border); }
-    .sidebar-link { display: block; text-align: center; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); text-decoration: none; letter-spacing: 1px; padding: 6px; border-radius: 8px; transition: all 0.2s; }
-    .sidebar-link:hover { color: var(--gold); background: rgba(200,168,75,0.06); }
+    html, body { height: 100%; }
 
-    /* MAIN */
-    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
-    #main::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 40% at 20% 10%, rgba(37,99,235,0.06) 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 80% 85%, rgba(200,168,75,0.04) 0%, transparent 60%); pointer-events: none; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      display: flex;
+      overflow: hidden;
+    }
 
-    header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-bottom: 1px solid var(--border); background: rgba(10,12,20,0.85); backdrop-filter: blur(20px); position: relative; z-index: 10; }
-    .header-title { font-size: 14px; font-weight: 700; color: var(--text-dim); font-family: 'DM Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
-    .header-right { display: flex; align-items: center; gap: 10px; }
-    .status-dot { display: flex; align-items: center; gap: 6px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); }
-    .dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px #4ade80; animation: pulse-dot 2s infinite; }
-    @keyframes pulse-dot { 0%,100%{opacity:1}50%{opacity:.4} }
-    .btn-icon { padding: 6px 12px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); border-radius: 8px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 11px; transition: all 0.2s; }
-    .btn-icon:hover { border-color: var(--gold); color: var(--gold); }
+    .app { display: flex; width: 100%; height: 100%; }
 
-    /* CHAT */
-    #chat { flex: 1; overflow-y: auto; padding: 24px 0; position: relative; z-index: 1; scroll-behavior: smooth; }
-    #chat::-webkit-scrollbar { width: 4px; } #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-    .message-wrap { max-width: 720px; margin: 0 auto; padding: 0 24px; }
-    .message { display: flex; gap: 12px; margin-bottom: 20px; animation: msg-in 0.3s cubic-bezier(0.16,1,0.3,1) both; }
-    @keyframes msg-in { from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)} }
-    .message.user { flex-direction: row-reverse; }
-    .avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    .avatar.ai { border: 2px solid var(--gold); } .avatar.ai img { width: 100%; height: 100%; object-fit: cover; }
-    .avatar.user-av { background: var(--surface2); border: 1px solid var(--border); font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-dim); }
-    .bubble { max-width: 75%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.7; }
-    .message.ai .bubble { background: var(--surface); border: 1px solid var(--border); border-top-left-radius: 4px; }
-    .message.user .bubble { background: var(--user-bg); border: 1px solid rgba(37,99,235,0.25); border-top-right-radius: 4px; color: #c8d8ff; }
-    .bubble code { font-family: 'DM Mono', monospace; font-size: 12px; background: rgba(37,99,235,0.12); border: 1px solid rgba(37,99,235,0.2); padding: 1px 5px; border-radius: 4px; color: #93b4ff; }
+    .main-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      height: 100%;
+    }
 
-    /* Image in bubble */
-    .bubble-img { max-width: 100%; max-height: 280px; border-radius: 10px; margin-bottom: 8px; display: block; border: 1px solid var(--border); cursor: pointer; transition: opacity 0.2s; }
-    .bubble-img:hover { opacity: 0.9; }
-    .file-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(200,168,75,0.1); border: 1px solid rgba(200,168,75,0.3); border-radius: 8px; padding: 5px 10px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--gold); margin-bottom: 6px; }
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      width: 260px;
+      flex-shrink: 0;
+      background: var(--sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      transition: margin-left 0.25s ease;
+    }
 
-    /* Code blocks */
-    .code-block { margin: 10px 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
-    .code-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #060810; border-bottom: 1px solid var(--border); }
-    .code-lang { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--gold); letter-spacing: 1px; text-transform: uppercase; }
-    .code-actions { display: flex; gap: 5px; }
-    .code-btn { font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 9px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim); cursor: pointer; transition: all 0.2s; }
-    .code-btn:hover { border-color: var(--gold); color: var(--gold); } .code-btn.copied { border-color: #4ade80; color: #4ade80; }
-    .code-block pre { font-family: 'DM Mono', monospace; font-size: 12px; background: #060810; padding: 12px 14px; overflow-x: auto; color: #a8d8a8; line-height: 1.7; margin: 0; }
+    .sidebar.collapsed { margin-left: -260px; }
 
-    .typing-indicator { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
-    .typing-indicator span { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; animation: bounce 1.2s infinite; }
-    .typing-indicator span:nth-child(2){animation-delay:.2s} .typing-indicator span:nth-child(3){animation-delay:.4s}
-    @keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
+    .sidebar-header { padding: 16px 14px 10px; flex-shrink: 0; }
 
-    /* Welcome */
-    #welcome { max-width: 520px; margin: 28px auto 0; padding: 0 24px; text-align: center; }
-    .welcome-logo { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; margin: 0 auto 18px; display: block; border: 3px solid var(--gold); box-shadow: 0 0 36px rgba(200,168,75,0.2); }
-    #welcome h2 { font-size: 22px; font-weight: 800; margin-bottom: 6px; } #welcome h2 span { color: var(--gold); }
-    #welcome p { color: var(--text-dim); font-size: 12px; font-family: 'DM Mono', monospace; line-height: 1.6; margin-bottom: 24px; }
-    .suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .suggestion { padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; text-align: left; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-dim); transition: all 0.2s; line-height: 1.5; }
-    .suggestion:hover { border-color: var(--gold); color: var(--text); background: rgba(200,168,75,0.05); transform: translateY(-2px); }
+    .new-chat-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--glow);
+      border: 1px solid #7c6af740;
+      color: var(--accent2);
+      font-family: var(--font);
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .new-chat-btn:hover { background: #7c6af730; border-color: var(--accent); }
+    .new-chat-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
 
-    /* INPUT AREA */
-    footer { position: relative; z-index: 10; padding: 10px 24px 14px; background: rgba(10,12,20,0.92); backdrop-filter: blur(20px); border-top: 1px solid var(--border); }
-    .input-area { max-width: 720px; margin: 0 auto; }
+    .sidebar-search { margin: 8px 14px 4px; position: relative; }
+    .sidebar-search input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12.5px;
+      padding: 8px 10px 8px 30px;
+      border-radius: 8px;
+      outline: none;
+    }
+    .sidebar-search input:focus { border-color: var(--accent); }
+    .sidebar-search svg {
+      position: absolute; left: 9px; top: 50%;
+      transform: translateY(-50%);
+      width: 13px; height: 13px;
+      color: var(--muted);
+    }
 
-    /* File preview bar */
-    #file-preview-bar { display: none; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
-    #file-preview-bar.show { display: flex; }
-    #preview-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border); display: none; }
-    #preview-icon { font-size: 28px; display: none; }
-    #preview-name { flex: 1; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    #preview-size { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); flex-shrink: 0; }
-    #remove-file { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 5px; transition: all 0.2s; flex-shrink: 0; }
-    #remove-file:hover { background: rgba(220,38,38,0.2); color: #f87171; }
+    .session-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .session-list::-webkit-scrollbar { width: 4px; }
+    .session-list::-webkit-scrollbar-track { background: transparent; }
+    .session-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
 
-    .input-row { display: flex; gap: 8px; align-items: flex-end; }
-    .input-box { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 14px; resize: none; outline: none; min-height: 48px; max-height: 150px; transition: border-color 0.2s, box-shadow 0.2s; line-height: 1.5; }
-    .input-box::placeholder { color: var(--text-dim); }
-    .input-box:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,168,75,0.08); }
+    .session-group-label {
+      font-size: 10.5px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 14px 8px 6px;
+      font-weight: 600;
+    }
+    .session-group-label:first-child { padding-top: 4px; }
 
-    .upload-btn { width: 48px; height: 48px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; font-size: 18px; position: relative; }
-    .upload-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(200,168,75,0.06); }
-    .upload-btn.has-file { border-color: var(--gold); color: var(--gold); background: rgba(200,168,75,0.1); }
+    .session-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 13px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .session-item:hover { background: var(--surface); color: var(--text); }
+    .session-item.active { background: var(--glow); color: var(--accent2); }
 
-    .send-btn { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #1a4fc4, var(--gold)); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform 0.15s; }
-    .send-btn:hover{transform:scale(1.05)} .send-btn:active{transform:scale(0.95)} .send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
-    .send-btn svg { width: 16px; height: 16px; fill: white; }
+    .session-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
 
-    /* Image lightbox */
-    #lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; cursor: pointer; }
-    #lightbox.show { display: flex; }
-    #lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 12px; }
+    .session-delete {
+      opacity: 0;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .session-item:hover .session-delete { opacity: 1; }
+    .session-delete:hover { background: var(--error); color: #fff; }
+    .session-delete svg { width: 13px; height: 13px; }
 
-    .gen-img-wrap { margin-top: 10px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: var(--surface2); }
-    .gen-img { width: 100%; max-height: 360px; object-fit: cover; display: block; cursor: pointer; transition: opacity 0.2s; opacity: 0; }
-    .gen-img.loaded { opacity: 1; }
-    .gen-loading { padding: 44px 20px; text-align: center; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-dim); display: flex; flex-direction: column; align-items: center; gap: 10px; }
-    .gen-spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .gen-actions { display: flex; gap: 6px; padding: 8px 10px; background: #060810; border-top: 1px solid var(--border); }
-    /* Model selector */
-    .model-selector { position: relative; }
-    .model-btn { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); border-radius: 8px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 11px; transition: all 0.2s; white-space: nowrap; }
-    .model-btn:hover { border-color: var(--gold); color: var(--gold); }
-    .model-btn .dot-model { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
-    .model-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: #080a12; border: 1px solid var(--border); border-radius: 12px; padding: 6px; min-width: 260px; z-index: 100; box-shadow: 0 12px 40px rgba(0,0,0,0.5); display: none; }
-    .model-dropdown.open { display: block; animation: msg-in 0.15s ease; }
-    .model-group-label { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; padding: 6px 10px 4px; }
-    .model-option { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
-    .model-option:hover { background: var(--surface2); }
-    .model-option.active { background: var(--surface2); border: 1px solid rgba(200,168,75,0.3); }
-    .model-icon { font-size: 16px; flex-shrink: 0; }
-    .model-info { flex: 1; min-width: 0; }
-    .model-name { font-size: 12px; font-weight: 700; }
-    .model-desc { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-top: 1px; }
-    .model-badge { font-size: 9px; font-family: 'DM Mono', monospace; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
-    .badge-fast { background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.2); }
-    .badge-smart { background: rgba(200,168,75,0.1); color: var(--gold); border: 1px solid rgba(200,168,75,0.2); }
-    .badge-vision { background: rgba(37,99,235,0.15); color: #93b4ff; border: 1px solid rgba(37,99,235,0.25); }
-    /* Voice */
-    .voice-btn { width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; transition: all 0.2s; }
-    .voice-btn:hover { border-color: var(--gold); color: var(--gold); }
-    .voice-btn.listening { border-color: #f87171; color: #f87171; background: rgba(248,113,113,0.1); animation: pulse-rec 1s infinite; }
-    @keyframes pulse-rec { 0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0.4)} 50%{box-shadow:0 0 0 8px rgba(248,113,113,0)} }
-    .tts-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 13px; padding: 3px 7px; border-radius: 6px; transition: all 0.2s; margin-left: 4px; vertical-align: middle; }
-    .tts-btn:hover { color: var(--gold); background: rgba(200,168,75,0.1); }
-    .tts-btn.speaking { color: var(--gold); animation: pulse-dot 0.8s infinite; }
-    .voice-status { text-align: center; font-size: 11px; font-family: 'DM Mono', monospace; color: #f87171; margin-top: 6px; display: none; }
-    .voice-status.show { display: block; }
-    .error-toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #dc2626; color: white; padding: 9px 18px; border-radius: 9px; font-family: 'DM Mono', monospace; font-size: 12px; z-index: 100; animation: slide-up 0.3s ease; }
-    @keyframes slide-up{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+    .session-empty {
+      color: var(--muted);
+      font-size: 12.5px;
+      text-align: center;
+      padding: 24px 10px;
+      line-height: 1.6;
+    }
 
-    .menu-toggle { display: none; background: none; border: none; color: var(--text); font-size: 18px; cursor: pointer; padding: 4px; }
-    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 15; }
-    .overlay.show { display: block; }
-    @media (max-width: 640px) {
-      .menu-toggle { display: block; }
-      #sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
-      #sidebar.open { transform: translateX(0); }
+    .sidebar-footer {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .sidebar-toggle {
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .sidebar-toggle:hover { border-color: var(--accent); color: var(--accent2); }
+    .sidebar-toggle svg { width: 16px; height: 16px; }
+
+    /* ─── HEADER ─── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      backdrop-filter: blur(20px);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 10;
+      gap: 14px;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .logo { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: #0a1420;
+      border-radius: 10px;
+      display: grid; place-items: center;
+      box-shadow: 0 0 20px var(--glow);
+      flex-shrink: 0;
+      overflow: hidden;
+      padding: 3px;
+    }
+    .logo-icon img { width: 100%; height: 100%; object-fit: contain; }
+
+    .logo-name {
+      font-size: 18px; font-weight: 700; letter-spacing: -0.3px;
+      background: linear-gradient(120deg, var(--accent2), #c4b5fd);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .logo-sub {
+      font-size: 10px; color: var(--muted); font-weight: 400;
+      letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1px;
+    }
+
+    .header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+    .model-select {
+      background: var(--border);
+      border: 1px solid #2a2a3e;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .model-select:hover { border-color: var(--accent); }
+
+    .btn-clear {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--font);
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-clear:hover { border-color: var(--error); color: var(--error); }
+
+    /* ─── CHAT AREA ─── */
+    .chat-wrap { flex: 1; overflow-y: auto; padding: 24px 0; scroll-behavior: smooth; }
+    .chat-wrap::-webkit-scrollbar { width: 4px; }
+    .chat-wrap::-webkit-scrollbar-track { background: transparent; }
+    .chat-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+    .messages {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 60vh; text-align: center; gap: 16px;
+    }
+
+    .empty-glyph {
+      width: 80px; height: 80px;
+      background: #0a1420;
+      border: 1px solid #7c6af730;
+      border-radius: 22px;
+      display: grid; place-items: center;
+      margin-bottom: 4px;
+      padding: 10px;
+      box-shadow: 0 0 30px var(--glow);
+    }
+    .empty-glyph img { width: 100%; height: 100%; object-fit: contain; }
+    .empty-state h2 { font-size: 22px; font-weight: 600; color: var(--text); }
+    .empty-state p { font-size: 14px; color: var(--muted); max-width: 360px; line-height: 1.6; }
+
+    .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+    .chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--font);
+      font-size: 13px;
+      padding: 8px 14px;
+      border-radius: 99px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chip:hover { border-color: var(--accent); color: var(--accent2); background: var(--glow); }
+
+    .msg { display: flex; gap: 12px; animation: fadeUp 0.25s ease; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .msg.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0;
+      display: grid; place-items: center; font-size: 13px; font-weight: 600;
+      overflow: hidden;
+    }
+    .msg.user .avatar { background: linear-gradient(135deg, #7c6af7, #4f46e5); color: #fff; }
+    .msg.ai .avatar {
+      background: #0a1420;
+      border: 1px solid var(--border);
+      color: var(--accent2);
+      padding: 4px;
+    }
+    .msg.ai .avatar img { width: 100%; height: 100%; object-fit: contain; }
+
+    .bubble { max-width: 88%; padding: 14px 18px; border-radius: 16px; line-height: 1.7; font-size: 14.5px; }
+    .msg.user .bubble { background: var(--user-bg); border: 1px solid #2a2a4e; border-top-right-radius: 4px; color: #d0d0f0; }
+    .msg.ai .bubble { background: var(--ai-bg); border: 1px solid var(--border); border-top-left-radius: 4px; color: var(--text); }
+
+    .bubble p { margin-bottom: 8px; }
+    .bubble p:last-child { margin-bottom: 0; }
+    .bubble strong { color: var(--accent2); font-weight: 600; }
+    .bubble em { color: #b0b0d0; }
+    .bubble ul, .bubble ol { padding-left: 20px; margin-bottom: 8px; }
+    .bubble li { margin-bottom: 4px; }
+    .bubble h1,.bubble h2,.bubble h3 { color: var(--accent2); margin: 14px 0 8px; font-weight: 600; }
+    .bubble h1 { font-size: 1.2em; }
+    .bubble h2 { font-size: 1.1em; }
+    .bubble h3 { font-size: 1em; }
+    .bubble a { color: var(--accent2); }
+
+    .bubble pre {
+      background: #0d0d14; border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px; overflow-x: auto; margin: 10px 0; position: relative;
+    }
+    .bubble code:not(pre code) {
+      background: #1a1a2e; border: 1px solid var(--border); color: #c4b5fd;
+      font-family: var(--mono); font-size: 12.5px; padding: 2px 6px; border-radius: 5px;
+    }
+    .bubble pre code { font-family: var(--mono); font-size: 12.5px; background: none; border: none; padding: 0; }
+
+    .bubble-images { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .bubble-images img {
+      max-width: 180px; max-height: 180px; border-radius: 10px;
+      border: 1px solid var(--border); object-fit: cover; cursor: zoom-in;
+    }
+
+    .copy-btn {
+      position: absolute; top: 8px; right: 8px;
+      background: var(--border); border: none; color: var(--muted);
+      font-family: var(--font); font-size: 11px; padding: 4px 8px;
+      border-radius: 6px; cursor: pointer; transition: all 0.2s;
+    }
+    .copy-btn:hover { background: var(--accent); color: #fff; }
+
+    .typing-dots { display: flex; align-items: center; gap: 4px; padding: 6px 4px; }
+    .typing-dots span { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: dot 1.2s infinite; }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dot { 0%,80%,100% { opacity: 0.2; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1.1); } }
+
+    .input-wrap { padding: 16px 20px 20px; background: var(--bg); border-top: 1px solid var(--border); flex-shrink: 0; }
+
+    .input-box {
+      max-width: 780px; margin: 0 auto; display: flex; gap: 8px; align-items: flex-end;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 10px; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+
+    #composer { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+    #attachBtn {
+      width: 38px; height: 38px; background: var(--border); border: 1px solid #2a2a3e;
+      border-radius: 10px; cursor: pointer; display: grid; place-items: center;
+      flex-shrink: 0; color: var(--muted); transition: all 0.2s;
+    }
+    #attachBtn:hover { color: var(--accent2); border-color: var(--accent); }
+    #attachBtn svg { width: 17px; height: 17px; }
+
+    #micBtn {
+      width: 38px; height: 38px; background: var(--border); border: 1px solid #2a2a3e;
+      border-radius: 10px; cursor: pointer; display: grid; place-items: center;
+      flex-shrink: 0; color: var(--muted); transition: all 0.2s; position: relative;
+    }
+    #micBtn:hover { color: var(--accent2); border-color: var(--accent); }
+    #micBtn svg { width: 17px; height: 17px; }
+    #micBtn.listening {
+      background: var(--error);
+      border-color: var(--error);
+      color: #fff;
+      animation: micPulse 1.4s infinite;
+    }
+    @keyframes micPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(255,94,108,0.5); }
+      70%  { box-shadow: 0 0 0 10px rgba(255,94,108,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,94,108,0); }
+    }
+
+    .tts-toggle {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--border); border: 1px solid #2a2a3e;
+      color: var(--muted); font-family: var(--font); font-size: 11.5px;
+      padding: 6px 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .tts-toggle:hover { border-color: var(--accent); }
+    .tts-toggle.active { background: var(--glow); border-color: var(--accent); color: var(--accent2); }
+    .tts-toggle svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+    .speak-btn {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; padding: 3px; border-radius: 6px;
+      display: inline-grid; place-items: center; vertical-align: middle;
+      transition: all 0.15s; margin-left: 6px;
+    }
+    .speak-btn:hover { color: var(--accent2); background: var(--glow); }
+    .speak-btn.speaking { color: var(--accent); animation: speakBlink 1s infinite; }
+    .speak-btn svg { width: 14px; height: 14px; }
+    @keyframes speakBlink { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .msg-actions { margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+
+    #previewStrip { display: flex; flex-wrap: wrap; gap: 8px; }
+    #previewStrip:empty { display: none; }
+
+    .preview-thumb {
+      position: relative; width: 56px; height: 56px; border-radius: 10px;
+      overflow: hidden; border: 1px solid var(--border); flex-shrink: 0;
+    }
+    .preview-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .preview-thumb .remove-thumb {
+      position: absolute; top: 2px; right: 2px; width: 16px; height: 16px;
+      background: rgba(0,0,0,0.7); border: none; border-radius: 50%; color: #fff;
+      font-size: 10px; line-height: 1; cursor: pointer; display: grid; place-items: center;
+    }
+    .preview-thumb .remove-thumb:hover { background: var(--error); }
+
+    #userInput {
+      flex: 1; background: none; border: none; outline: none; color: var(--text);
+      font-family: var(--font); font-size: 14.5px; line-height: 1.6; resize: none;
+      max-height: 140px; min-height: 24px;
+    }
+    #userInput::placeholder { color: var(--muted); }
+
+    #sendBtn {
+      width: 38px; height: 38px; background: linear-gradient(135deg, var(--accent), #4f46e5);
+      border: none; border-radius: 10px; cursor: pointer; display: grid; place-items: center;
+      flex-shrink: 0; transition: opacity 0.2s, transform 0.15s; box-shadow: 0 0 16px var(--glow);
+    }
+    #sendBtn:hover { opacity: 0.9; transform: scale(1.05); }
+    #sendBtn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    #sendBtn svg { width: 16px; height: 16px; }
+
+    .footer-note { text-align: center; font-size: 11px; color: var(--muted); margin-top: 10px; }
+
+    @media (max-width: 860px) {
+      .sidebar { position: fixed; top: 0; left: 0; height: 100%; z-index: 100; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
+      .sidebar.collapsed { margin-left: -260px; }
+      .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; }
+      .sidebar-overlay.show { display: block; }
+    }
+
+    @media (max-width: 600px) {
+      .logo-sub { display: none; }
+      .model-select { font-size: 11px; padding: 5px 8px; }
+      .btn-clear { display: none; }
     }
   </style>
 </head>
 <body>
 
-<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+<div class="app">
 
-<!-- Lightbox -->
-<div id="lightbox" onclick="closeLightbox()"><img id="lb-img" src="" alt=""/></div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-<!-- SIDEBAR -->
-<div id="sidebar">
-  <div style="padding:14px;">
-    <div class="sidebar-head" style="padding:0 0 12px;">
-      <img class="sidebar-logo" src="logo.png" alt="Logo"/>
-      <div class="sidebar-brand">
-        <div class="name">Mindbot <span>Genius</span></div>
-        <div class="sub">Binary Global Network</div>
-      </div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <button class="new-chat-btn" id="newChatBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Percakapan Baru
+      </button>
     </div>
-    <button class="btn-new" onclick="newChat()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
-      Percakapan Baru
-    </button>
-  </div>
-  <div class="sidebar-section">Riwayat Percakapan</div>
-  <div id="conv-list"><div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div></div>
-  <div class="sidebar-footer">
-    <a href="baba.html" target="_blank" class="sidebar-link" style="opacity:0.7;letter-spacing:0.5px;">🌐 MINDBOT GENIUS · BINARY GLOBAL NETWORK</a>
-  </div>
-</div>
-
-<!-- MAIN -->
-<div id="main">
-  <header>
-    <div style="display:flex;align-items:center;gap:10px;">
-      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-      <div class="header-title new" id="chat-title">Percakapan Baru</div>
+    <div class="sidebar-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" id="searchSessions" placeholder="Cari percakapan..."/>
     </div>
-    <div class="header-right">
-      <div class="status-dot"><div class="dot"></div>online</div>
-      <div class="model-selector" id="modelSelector">
-        <button class="model-btn" onclick="toggleModelDropdown()" id="modelBtn">
-          <div class="dot-model"></div>
-          <span id="modelBtnLabel">Mindbot v1.0</span>
-          <span>▾</span>
+    <div class="session-list" id="sessionList"></div>
+    <div class="sidebar-footer">
+      NexusAI — <a href="baba.html" style="cursor: pointer; color: var(--accent2); text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--accent2)'">Binary Global Network</a>
+    </div>
+  </aside>
+
+  <div class="main-col">
+    <header>
+      <div class="header-left">
+        <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <line x1="9" y1="3" x2="9" y2="21"/>
+          </svg>
         </button>
-        <div class="model-dropdown" id="modelDropdown">
-          <div class="model-group-label">⚡ Cepat & Efisien</div>
-          <div class="model-option active" id="opt_llama33" onclick="selectModel('llama-3.3-70b-versatile','Mindbot v1.0','opt_llama33')">
-            <span class="model-icon">🦙</span>
-            <div class="model-info"><div class="model-name">Mindbot v1.0</div><div class="model-desc">Model default, serba bisa</div></div>
-            <span class="model-badge badge-fast">Cepat</span>
+        <div class="logo">
+          <div class="logo-icon">
+            <img src="assets/logo-icon.png" alt="NexusAI"/>
           </div>
-          <div class="model-option" id="opt_llama31" onclick="selectModel('llama-3.1-8b-instant','Mindbot v1.5','opt_llama31')">
-            <span class="model-icon">⚡</span>
-            <div class="model-info"><div class="model-name">Mindbot v1.5</div><div class="model-desc">Super cepat & ringan</div></div>
-            <span class="model-badge badge-fast">Tercepat</span>
-          </div>
-          <div class="model-group-label">🧠 Cerdas & Konteks Panjang</div>
-          <div class="model-option" id="opt_qwen" onclick="selectModel('qwen/qwen3-32b','Genius v1.5','opt_qwen')">
-            <span class="model-icon">🐉</span>
-            <div class="model-info"><div class="model-name">Genius v1.5</div><div class="model-desc">Reasoning kuat, multilingual</div></div>
-            <span class="model-badge badge-smart">Pintar</span>
-          </div>
-          <div class="model-option" id="opt_kimi" onclick="selectModel('openai/gpt-oss-120b','Genius v2.5','opt_kimi')">
-            <span class="model-icon">🤖</span>
-            <div class="model-info"><div class="model-name">Genius v2.5</div><div class="model-desc">Paling cerdas, konteks 131K</div></div>
-            <span class="model-badge badge-smart">131K ctx</span>
-          </div>
-          <div class="model-group-label">👁️ Vision (Gambar)</div>
-          <div class="model-option" id="opt_llama4" onclick="selectModel('meta-llama/llama-4-scout-17b-16e-instruct','Mindbot v2.0','opt_llama4')">
-            <span class="model-icon">🦅</span>
-            <div class="model-info"><div class="model-name">Mindbot v2.0</div><div class="model-desc">Analisis gambar & vision</div></div>
-            <span class="model-badge badge-vision">Vision</span>
+          <div>
+            <div class="logo-name">NexusAI</div>
+            <div class="logo-sub" style="cursor: pointer;" onclick="window.location.href='baba.html'" title="Klik untuk membuka Binary Global Network">Binary Global Network</div>
           </div>
         </div>
       </div>
-      <button class="btn-icon" onclick="newChat()">+ Baru</button>
-    </div>
-  </header>
+      <div class="header-right">
+        <select class="model-select" id="modelSelect">
+          <option value="llama-3.3-70b-versatile">Llama 3.3 70B ⭐</option>
+          <option value="llama-3.1-8b-instant">Llama 3.1 8B (Cepat)</option>
+          <option value="qwen/qwen3-32b">Qwen3 32B</option>
+          <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+        </select>
+        <button class="tts-toggle" id="ttsToggle" title="Aktifkan suara AI">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
+          </svg>
+          <span>Suara</span>
+        </button>
+        <button class="btn-clear" id="clearBtn">Hapus Chat</button>
+      </div>
+    </header>
 
-  <div id="chat">
-    <div class="message-wrap">
-      <div id="welcome">
-        <img class="welcome-logo" src="logo.png" alt="Mindbot Genius"/>
-        <h2>Halo! Saya <span>Mindbot Genius</span></h2>
-        <p>Asisten AI dari Binary Global Network.<br/>Kirim pesan atau upload gambar/file!</p>
-        <div class="suggestions">
-          <div class="suggestion" onclick="sendSuggestion(this.textContent)">💡 Jelaskan machine learning</div>
-          <div class="suggestion" onclick="sendSuggestion(this.textContent)">🎮 Ide game Roblox seru</div>
-          <div class="suggestion" onclick="sendSuggestion(this.textContent)">📷 Upload gambar untuk dianalisis</div>
-          <div class="suggestion" onclick="sendSuggestion(this.textContent)">🔧 Contoh kode Python</div>
+    <div class="chat-wrap" id="chatWrap">
+      <div class="messages" id="messages">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-glyph">
+            <img src="assets/logo-icon.png" alt="NexusAI"/>
+          </div>
+          <h2>Selamat datang di NexusAI</h2>
+          <p>Asisten AI cerdas siap membantu kamu coding, menulis, belajar, dan berkreasi.</p>
+          <div class="suggestions">
+            <button class="chip" onclick="sendChip(this)">Buatkan kode login form HTML</button>
+            <button class="chip" onclick="sendChip(this)">Jelaskan cara kerja async/await</button>
+            <button class="chip" onclick="sendChip(this)">Tulis pantun tentang teknologi</button>
+            <button class="chip" onclick="sendChip(this)">Rangkum konsep REST API</button>
+          </div>
         </div>
       </div>
     </div>
+
+    <div class="input-wrap">
+      <div class="input-box">
+        <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple style="display:none"/>
+        <button id="attachBtn" title="Lampirkan gambar" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+          </svg>
+        </button>
+        <button id="micBtn" title="Bicara dengan AI" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+            <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        </button>
+        <div id="composer">
+          <div id="previewStrip"></div>
+          <textarea id="userInput" placeholder="Tanya apa saja, atau lampirkan gambar..." rows="1"></textarea>
+        </div>
+        <button id="sendBtn" title="Kirim">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+      <p class="footer-note">NexusAI bisa salah. Verifikasi informasi penting. Gambar dianalisis otomatis dengan model vision.</p>
+    </div>
   </div>
 
-  <footer>
-    <div class="input-area">
-      <!-- File preview -->
-      <div id="file-preview-bar">
-        <img id="preview-thumb" src="" alt=""/>
-        <span id="preview-icon"></span>
-        <span id="preview-name"></span>
-        <span id="preview-size"></span>
-        <button id="remove-file" onclick="removeFile()" title="Hapus file">✕</button>
-      </div>
-      <!-- Input row -->
-      <div class="input-row">
-        <button class="upload-btn" id="upload-btn" onclick="document.getElementById('file-input').click()" title="Upload gambar/file">
-          📎
-        </button>
-        <input type="file" id="file-input" accept="image/*,.txt,.pdf" style="display:none" onchange="handleFileSelect(event)"/>
-        <textarea id="input" class="input-box" placeholder="Ketik pesan atau upload file/gambar..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-        <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="Bicara ke AI">🎙️</button>
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
-          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-        </button>
-      </div>
-      <div class="voice-status" id="voiceStatus">🎙️ Mendengarkan... bicara sekarang</div>
-    </div>
-  </footer>
 </div>
 
 <script>
-  // Device ID - stored in localStorage, unique per device
-  let deviceId = localStorage.getItem('mbg_device_id');
-  if (!deviceId) {
-    deviceId = 'dev_' + Math.random().toString(36).substr(2, 12);
-    localStorage.setItem('mbg_device_id', deviceId);
-  }
+  const chatWrap   = document.getElementById('chatWrap');
+  const messages    = document.getElementById('messages');
+  const input       = document.getElementById('userInput');
+  const sendBtn     = document.getElementById('sendBtn');
+  const emptyState  = document.getElementById('emptyState');
+  const modelSel    = document.getElementById('modelSelect');
+  const fileInput   = document.getElementById('fileInput');
+  const attachBtn   = document.getElementById('attachBtn');
+  const micBtn      = document.getElementById('micBtn');
+  const ttsToggle   = document.getElementById('ttsToggle');
+  const previewStrip = document.getElementById('previewStrip');
+  const sidebar     = document.getElementById('sidebar');
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+  const newChatBtn  = document.getElementById('newChatBtn');
+  const sessionList = document.getElementById('sessionList');
+  const searchInput = document.getElementById('searchSessions');
 
-  let sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
-  let isLoading = false;
-  let selectedFile = null;
+  let history = [];
+  let isStreaming = false;
+  let pendingImages = [];
+  let currentSessionId = null;
+  let sessions = {};
 
-  // ── UTILS ──
-  function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,150)+'px'; }
-  function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
-  function escapeHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function formatSize(b) { return b>1048576?(b/1048576).toFixed(1)+' MB':(b/1024).toFixed(0)+' KB'; }
-  function formatDate(ts) {
-    const d=new Date(ts), now=new Date(), diff=now-d;
-    if(diff<60000)return'Baru saja';
-    if(diff<3600000)return Math.floor(diff/60000)+' menit lalu';
-    if(diff<86400000)return Math.floor(diff/3600000)+' jam lalu';
-    return d.toLocaleDateString('id-ID',{day:'numeric',month:'short'});
-  }
+  const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+  const MAX_IMAGES = 5;
+  const STORAGE_KEY = 'nexusai_sessions';
+  const TTS_KEY = 'nexusai_tts_enabled';
 
-  function formatMessage(text) {
-    text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_,lang,code)=>{
-      const id='c_'+Math.random().toString(36).substr(2,6);
-      return `<div class="code-block"><div class="code-toolbar"><span class="code-lang">${lang||'code'}</span><div class="code-actions"><button class="code-btn" onclick="copyCode('${id}',this)">📋 Salin</button><button class="code-btn" onclick="dlCode('${id}','${lang||'txt'}')">💾 Unduh</button></div></div><pre id="${id}">${escapeHtml(code.trim())}</pre></div>`;
-    });
-    text = text.replace(/`([^`]+)`/g,'<code>$1</code>');
-    text = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
-    text = text.replace(/\n/g,'<br/>');
-    return text;
-  }
+  let ttsEnabled = localStorage.getItem(TTS_KEY) === 'true';
+  let isListening = false;
+  let recognition = null;
+  let currentUtterance = null;
+  let indonesianVoice = null;
 
-  function copyCode(id,btn) {
-    navigator.clipboard.writeText(document.getElementById(id).innerText).then(()=>{
-      btn.textContent='✅ Tersalin!'; btn.classList.add('copied');
-      setTimeout(()=>{btn.textContent='📋 Salin';btn.classList.remove('copied');},2000);
-    });
-  }
-  function dlCode(id,lang) {
-    const ext={javascript:'js',python:'py',html:'html',css:'css',java:'java',cpp:'cpp',c:'c',typescript:'ts',json:'json',bash:'sh',shell:'sh'};
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(new Blob([document.getElementById(id).innerText],{type:'text/plain'}));
-    a.download='mindbot_code.'+(ext[lang.toLowerCase()]||'txt'); a.click();
-  }
+  marked.setOptions({ breaks: true, gfm: true });
 
-  // ── LIGHTBOX ──
-  function openLightbox(src) { document.getElementById('lb-img').src=src; document.getElementById('lightbox').classList.add('show'); }
-  function closeLightbox() { document.getElementById('lightbox').classList.remove('show'); }
-
-  // ── FILE UPLOAD ──
-  function handleFileSelect(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    selectedFile = file;
-    const bar = document.getElementById('file-preview-bar');
-    const thumb = document.getElementById('preview-thumb');
-    const icon = document.getElementById('preview-icon');
-    document.getElementById('preview-name').textContent = file.name;
-    document.getElementById('preview-size').textContent = formatSize(file.size);
-    bar.classList.add('show');
-    document.getElementById('upload-btn').classList.add('has-file');
-
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = ev => { thumb.src = ev.target.result; thumb.style.display='block'; icon.style.display='none'; };
-      reader.readAsDataURL(file);
-    } else {
-      icon.textContent = file.type==='application/pdf' ? '📄' : '📝';
-      icon.style.display = 'block'; thumb.style.display = 'none';
-    }
-    e.target.value = '';
-  }
-
-  function removeFile() {
-    selectedFile = null;
-    document.getElementById('file-preview-bar').classList.remove('show');
-    document.getElementById('upload-btn').classList.remove('has-file');
-    document.getElementById('preview-thumb').style.display = 'none';
-    document.getElementById('preview-icon').style.display = 'none';
-  }
-
-  // ── SIDEBAR ──
-  function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); }
-  function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
-
-  // ── CONVERSATIONS ──
-  async function loadConversations() {
+  function loadSessions() {
     try {
-      const list = await (await fetch('/api/conversations?deviceId='+deviceId)).json();
-      const el = document.getElementById('conv-list');
-      if (!list.length) { el.innerHTML='<div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div>'; return; }
-      el.innerHTML = list.map(c=>`
-        <div class="conv-item ${c.id===sessionId?'active':''}" onclick="loadConv('${c.id}')" id="ci_${c.id}">
-          <div class="conv-title">${escapeHtml(c.title)}</div>
-          <div class="conv-preview">${escapeHtml(c.preview)}</div>
-          <div class="conv-date">${formatDate(c.updatedAt)}</div>
-          <button class="conv-del" data-id="${c.id}" title="Hapus">✕</button>
-        </div>`).join('');
+      const raw = localStorage.getItem(STORAGE_KEY);
+      sessions = raw ? JSON.parse(raw) : {};
+    } catch {
+      sessions = {};
+    }
+  }
 
-      // Attach delete events after rendering
-      el.querySelectorAll('.conv-del').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          e.preventDefault();
-          deleteConv(this.getAttribute('data-id'));
-        });
+  function saveSessions() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+    } catch (e) {
+      console.warn('Gagal menyimpan sesi:', e);
+    }
+  }
+
+  function createSession() {
+    const id = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    sessions[id] = { id, title: 'Percakapan baru', messages: [], updatedAt: Date.now() };
+    return id;
+  }
+
+  function deleteSession(id) {
+    delete sessions[id];
+    saveSessions();
+    if (currentSessionId === id) {
+      const remaining = Object.values(sessions).sort((a, b) => b.updatedAt - a.updatedAt);
+      if (remaining.length) switchSession(remaining[0].id);
+      else startNewChat();
+    } else {
+      renderSessionList();
+    }
+  }
+
+  function timeGroupLabel(ts) {
+    const now = new Date();
+    const d = new Date(ts);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfYesterday = startOfToday - 86400000;
+    const startOf7d = startOfToday - 7 * 86400000;
+    const startOf30d = startOfToday - 30 * 86400000;
+
+    if (ts >= startOfToday) return 'Hari ini';
+    if (ts >= startOfYesterday) return 'Kemarin';
+    if (ts >= startOf7d) return '7 hari terakhir';
+    if (ts >= startOf30d) return '30 hari terakhir';
+    return 'Lebih lama';
+  }
+
+  function renderSessionList(filterText = '') {
+    const all = Object.values(sessions).sort((a, b) => b.updatedAt - a.updatedAt);
+    const filtered = filterText
+      ? all.filter(s => s.title.toLowerCase().includes(filterText.toLowerCase()))
+      : all;
+
+    sessionList.innerHTML = '';
+
+    if (!filtered.length) {
+      const empty = document.createElement('div');
+      empty.className = 'session-empty';
+      empty.textContent = filterText ? 'Tidak ada percakapan yang cocok.' : 'Belum ada percakapan. Mulai chat baru!';
+      sessionList.appendChild(empty);
+      return;
+    }
+
+    let lastGroup = null;
+    filtered.forEach(s => {
+      const group = timeGroupLabel(s.updatedAt);
+      if (group !== lastGroup) {
+        const label = document.createElement('div');
+        label.className = 'session-group-label';
+        label.textContent = group;
+        sessionList.appendChild(label);
+        lastGroup = group;
+      }
+
+      const item = document.createElement('div');
+      item.className = 'session-item' + (s.id === currentSessionId ? ' active' : '');
+      item.dataset.id = s.id;
+
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'session-title';
+      titleSpan.textContent = s.title;
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'session-delete';
+      delBtn.title = 'Hapus percakapan';
+      delBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>`;
+      delBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm(`Hapus "${s.title}"?`)) deleteSession(s.id);
+      };
+
+      item.appendChild(titleSpan);
+      item.appendChild(delBtn);
+      item.onclick = () => switchSession(s.id);
+
+      sessionList.appendChild(item);
+    });
+  }
+
+  searchInput.addEventListener('input', () => renderSessionList(searchInput.value.trim()));
+
+  function switchSession(id) {
+    if (!sessions[id]) return;
+    stopSpeaking();
+    currentSessionId = id;
+    const sess = sessions[id];
+    history = sess.messages.map(m => ({ role: m.role, content: m.content }));
+
+    messages.innerHTML = '';
+    messages.appendChild(emptyState);
+
+    if (!sess.messages.length) {
+      emptyState.style.display = 'flex';
+    } else {
+      emptyState.style.display = 'none';
+      sess.messages.forEach(m => {
+        const bubble = addMessage(m.role === 'user' ? 'user' : 'ai', m.displayHtml || '', m.images || []);
+        if (m.role === 'assistant') {
+          attachCopyButtons(bubble);
+          addSpeakButton(bubble, m.content);
+        }
       });
-    } catch(e){}
-  }
-
-  async function loadConv(id) {
-    if (id===sessionId) return;
-    try {
-      const conv = await (await fetch('/api/conversations/'+id+'?deviceId='+deviceId)).json();
-      sessionId = id;
-      document.getElementById('chat-title').textContent = conv.title;
-      document.getElementById('chat-title').classList.remove('new');
-      const chat = document.getElementById('chat');
-      chat.innerHTML='<div class="message-wrap"></div>';
-      const wrap = chat.querySelector('.message-wrap');
-      conv.messages.forEach(m => appendMessageTo(wrap, m.role==='user'?'user':'ai', m.textContent||'', m.imageData, m.fileName, false));
-      chat.scrollTop = chat.scrollHeight;
-      document.querySelectorAll('.conv-item').forEach(el=>el.classList.remove('active'));
-      const item = document.getElementById('ci_'+id);
-      if(item) item.classList.add('active');
-      closeSidebar();
-    } catch(e){ showError('Gagal memuat percakapan'); }
-  }
-
-  async function deleteConv(id) {
-    await fetch('/api/conversations/'+id+'?deviceId='+deviceId, {method:'DELETE'});
-    if(id===sessionId) newChat();
-    loadConversations();
-  }
-
-  // ── CHAT ──
-  function appendMessageTo(wrap, role, text, imageData, fileName, animate=true, generatedImageUrl=null) {
-    const div = document.createElement('div');
-    div.className = 'message ' + role;
-    let content = '';
-    if (imageData) {
-      content += `<img class="bubble-img" src="${imageData}" alt="gambar" onclick="openLightbox('${imageData}')"/>`;
-    } else if (fileName && !imageData) {
-      content += `<div class="file-chip">📄 ${escapeHtml(fileName)}</div>`;
-    }
-    if (text) content += role==='ai' ? formatMessage(text) : escapeHtml(text).replace(/\n/g,'<br/>');
-    if (generatedImageUrl) {
-      const gid = 'g_'+Math.random().toString(36).substr(2,6);
-      content += `<div class="gen-img-wrap" id="wrap_${gid}">
-        <div class="gen-loading" id="load_${gid}"><div class="gen-spinner"></div><span>Sedang membuat gambar... (10-20 detik)</span></div>
-        <img class="gen-img" src="${generatedImageUrl}"
-          alt="generated"
-          onload="this.classList.add('loaded');document.getElementById('load_${gid}').style.display='none';document.getElementById('act_${gid}').style.display='flex'"
-          onerror="document.getElementById('load_${gid}').innerHTML='<span style=\'color:#f87171\'>❌ Gagal memuat.<br/><a href=\'${generatedImageUrl}\' target=\'_blank\' style=\'color:var(--gold);text-decoration:underline\'>Klik di sini untuk buka gambar</a></span>'"
-          onclick="openLightbox('${generatedImageUrl}')"/>
-        <div class="gen-actions" id="act_${gid}" style="display:none">
-          <button class="code-btn" onclick="window.open('${generatedImageUrl}','_blank')">🔗 Buka</button>
-          <button class="code-btn" onclick="window.open('${generatedImageUrl}','_blank')">💾 Unduh</button>
-          <button class="code-btn" onclick="openLightbox('${generatedImageUrl}')">🔍 Perbesar</button>
-        </div>
-      </div>`;
     }
 
-    if (role==='ai') {
-      const modelLabel = (animate && currentModel) ? `<div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text-dim);margin-bottom:6px;display:flex;align-items:center;gap:4px;"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80;display:inline-block;"></span>${currentModelName}</div>` : '';
-      const ttsId = 'tts_'+Math.random().toString(36).substr(2,6);
-      const plainText = text ? text.replace(/[*_`#]/g,'').replace(/<[^>]+>/g,'') : '';
-      const ttsBtn = text ? `<button class="tts-btn" id="${ttsId}" onclick="speakText(this,'${ttsId}')" title="Dengarkan">🔊</button>` : '';
-      div.setAttribute('data-text', plainText);
-      div.innerHTML=`<div class="avatar ai"><img src="logo.png"/></div><div class="bubble">${modelLabel}${content}${ttsBtn}</div>`;
-    } else {
-      div.innerHTML=`<div class="avatar user-av">U</div><div class="bubble">${content}</div>`;
-    }
-    wrap.appendChild(div);
+    pendingImages = [];
+    renderPreviews();
+    renderSessionList(searchInput.value.trim());
+    closeMobileSidebar();
   }
 
-  function appendMessage(role, text, imageData, fileName, generatedImageUrl=null) {
-    const welcome = document.getElementById('welcome');
-    if(welcome) welcome.remove();
-    const chat = document.getElementById('chat');
-    let wrap = chat.querySelector('.message-wrap');
-    if(!wrap){ wrap=document.createElement('div'); wrap.className='message-wrap'; chat.appendChild(wrap); }
-    appendMessageTo(wrap, role, text, imageData, fileName, true, generatedImageUrl);
-    chat.scrollTop = chat.scrollHeight;
+  function startNewChat() {
+    const id = createSession();
+    saveSessions();
+    switchSession(id);
   }
 
-  function downloadGenImg(url) {
-    const a = document.createElement('a');
-    a.href = url; a.download = 'mindbot_image.jpg'; a.target = '_blank'; a.click();
-  }
+  newChatBtn.addEventListener('click', startNewChat);
 
-  function showTyping() {
-    const chat=document.getElementById('chat');
-    let wrap=chat.querySelector('.message-wrap');
-    if(!wrap){wrap=document.createElement('div');wrap.className='message-wrap';chat.appendChild(wrap);}
-    const t=document.createElement('div'); t.className='message ai'; t.id='typing';
-    t.innerHTML=`<div class="avatar ai"><img src="logo.png"/></div><div class="bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
-    wrap.appendChild(t); chat.scrollTop=chat.scrollHeight;
-  }
-  function removeTyping(){ const t=document.getElementById('typing'); if(t)t.remove(); }
+  function isMobile() { return window.innerWidth <= 860; }
 
-  function showError(msg){ const t=document.createElement('div'); t.className='error-toast'; t.textContent='⚠ '+msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3500); }
-
-  // ── MODEL SELECTION ──
-  let currentModel = 'llama-3.3-70b-versatile';
-  let currentModelName = 'Mindbot v1.0';
-
-  function toggleModelDropdown() {
-    document.getElementById('modelDropdown').classList.toggle('open');
-  }
-
-  function selectModel(modelId, modelName, optId) {
-    currentModel = modelId;
-    currentModelName = modelName;
-    document.getElementById('modelBtnLabel').textContent = modelName;
-    document.querySelectorAll('.model-option').forEach(el => el.classList.remove('active'));
-    document.getElementById(optId).classList.add('active');
-    document.getElementById('modelDropdown').classList.remove('open');
-  }
-
-  // Close dropdown when clicking outside
-  document.addEventListener('click', e => {
-    if (!document.getElementById('modelSelector').contains(e.target)) {
-      document.getElementById('modelDropdown').classList.remove('open');
-    }
+  sidebarToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('collapsed');
+    if (isMobile()) sidebarOverlay.classList.toggle('show', !sidebar.classList.contains('collapsed'));
   });
 
-  // Image generation keywords
-  const IMG_KEYWORDS = ['buat gambar','buatkan gambar','generate gambar','bikin gambar',
-    'tolong buat gambar','gambarkan','ilustrasikan','create image','generate image',
-    'make image','draw me','draw a','draw an','/imagine'];
+  sidebarOverlay.addEventListener('click', () => {
+    sidebar.classList.add('collapsed');
+    sidebarOverlay.classList.remove('show');
+  });
 
-  function detectImgRequest(text) {
-    const lower = text.toLowerCase();
-    return IMG_KEYWORDS.some(kw => lower.includes(kw));
-  }
-
-  function extractImgPrompt(text) {
-    const lower = text.toLowerCase();
-    for (const kw of IMG_KEYWORDS) {
-      const idx = lower.indexOf(kw);
-      if (idx !== -1) return text.slice(idx + kw.length).trim().replace(/^[:=\-\s]+/, '');
+  function closeMobileSidebar() {
+    if (isMobile()) {
+      sidebar.classList.add('collapsed');
+      sidebarOverlay.classList.remove('show');
     }
-    return text;
   }
 
-  function buildPollinationsUrl(prompt) {
-    // Use simplest possible URL - no extra params that might cause issues
-    const encoded = encodeURIComponent(prompt);
-    return `https://image.pollinations.ai/prompt/${encoded}`;
+  if (isMobile()) sidebar.classList.add('collapsed');
+
+  attachBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files || []);
+    for (const file of files) {
+      if (pendingImages.length >= MAX_IMAGES) { alert(`Maksimal ${MAX_IMAGES} gambar per pesan.`); break; }
+      if (!file.type.startsWith('image/')) continue;
+      if (file.size > 10 * 1024 * 1024) { alert(`${file.name} terlalu besar (maks 10MB).`); continue; }
+      const dataUrl = await fileToDataUrl(file);
+      const base64 = dataUrl.split(',')[1];
+      pendingImages.push({ dataUrl, base64, mimeType: file.type, name: file.name });
+    }
+    fileInput.value = '';
+    renderPreviews();
+  });
+
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderPreviews() {
+    previewStrip.innerHTML = '';
+    pendingImages.forEach((img, idx) => {
+      const thumb = document.createElement('div');
+      thumb.className = 'preview-thumb';
+      thumb.innerHTML = `<img src="${img.dataUrl}" alt="${img.name}"/><button class="remove-thumb" data-idx="${idx}">✕</button>`;
+      previewStrip.appendChild(thumb);
+    });
+    previewStrip.querySelectorAll('.remove-thumb').forEach(btn => {
+      btn.onclick = () => { pendingImages.splice(parseInt(btn.dataset.idx), 1); renderPreviews(); };
+    });
+  }
+
+  const inputBox = document.querySelector('.input-box');
+  inputBox.addEventListener('dragover', e => { e.preventDefault(); inputBox.style.borderColor = 'var(--accent)'; });
+  inputBox.addEventListener('dragleave', () => { inputBox.style.borderColor = ''; });
+  inputBox.addEventListener('drop', async e => {
+    e.preventDefault();
+    inputBox.style.borderColor = '';
+    const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
+    for (const file of files) {
+      if (pendingImages.length >= MAX_IMAGES) break;
+      const dataUrl = await fileToDataUrl(file);
+      const base64 = dataUrl.split(',')[1];
+      pendingImages.push({ dataUrl, base64, mimeType: file.type, name: file.name });
+    }
+    renderPreviews();
+  });
+
+  input.addEventListener('paste', async e => {
+    const items = Array.from(e.clipboardData?.items || []);
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (!file || pendingImages.length >= MAX_IMAGES) continue;
+        const dataUrl = await fileToDataUrl(file);
+        const base64 = dataUrl.split(',')[1];
+        pendingImages.push({ dataUrl, base64, mimeType: file.type, name: 'pasted-image.png' });
+      }
+    }
+    if (items.some(i => i.type.startsWith('image/'))) renderPreviews();
+  });
+
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  sendBtn.addEventListener('click', sendMessage);
+
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    if (!currentSessionId) return;
+    if (!confirm('Hapus semua pesan di percakapan ini?')) return;
+    sessions[currentSessionId].messages = [];
+    sessions[currentSessionId].title = 'Percakapan baru';
+    saveSessions();
+    switchSession(currentSessionId);
+  });
+
+  function sendChip(el) { input.value = el.textContent; sendMessage(); }
+
+  function scrollBottom() { chatWrap.scrollTo({ top: chatWrap.scrollHeight, behavior: 'smooth' }); }
+
+  function addMessage(role, html, images = []) {
+    if (emptyState) emptyState.style.display = 'none';
+
+    const div = document.createElement('div');
+    div.className = `msg ${role}`;
+
+    const avatarDiv = document.createElement('div');
+    avatarDiv.className = 'avatar';
+    if (role === 'user') {
+      avatarDiv.textContent = 'K';
+    } else {
+      avatarDiv.innerHTML = '<img src="assets/logo-icon.png" alt="AI"/>';
+    }
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+
+    if (images.length) {
+      const imgWrap = document.createElement('div');
+      imgWrap.className = 'bubble-images';
+      images.forEach(src => {
+        const im = document.createElement('img');
+        im.src = src;
+        im.onclick = () => window.open(src, '_blank');
+        imgWrap.appendChild(im);
+      });
+      bubble.appendChild(imgWrap);
+    }
+
+    const textPart = document.createElement('div');
+    if (html) textPart.innerHTML = html;
+    bubble.appendChild(textPart);
+
+    div.appendChild(avatarDiv);
+    div.appendChild(bubble);
+    messages.appendChild(div);
+    scrollBottom();
+    return textPart;
+  }
+
+  function addTyping() {
+    if (emptyState) emptyState.style.display = 'none';
+    const div = document.createElement('div');
+    div.className = 'msg ai';
+    div.id = 'typing-indicator';
+
+    const ava = document.createElement('div');
+    ava.className = 'avatar';
+    ava.innerHTML = '<img src="assets/logo-icon.png" alt="AI"/>';
+
+    const bub = document.createElement('div');
+    bub.className = 'bubble';
+    bub.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+
+    div.appendChild(ava);
+    div.appendChild(bub);
+    messages.appendChild(div);
+    scrollBottom();
+    return bub;
+  }
+
+  function removeTyping() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+  }
+
+  function renderMarkdown(text) { return marked.parse(text); }
+
+  function attachCopyButtons(bubble) {
+    bubble.querySelectorAll('pre').forEach(pre => {
+      if (pre.querySelector('.copy-btn')) return;
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Salin';
+      btn.onclick = () => {
+        const code = pre.querySelector('code');
+        navigator.clipboard.writeText(code ? code.textContent : pre.textContent);
+        btn.textContent = 'Tersalin!';
+        setTimeout(() => btn.textContent = 'Salin', 1800);
+      };
+      pre.style.position = 'relative';
+      pre.appendChild(btn);
+    });
+    bubble.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function deriveTitle(text) {
+    const clean = text.trim().replace(/\s+/g, ' ');
+    if (!clean) return 'Gambar terlampir';
+    return clean.length > 42 ? clean.slice(0, 42) + '…' : clean;
   }
 
   async function sendMessage() {
-    if(isLoading) return;
-    const input = document.getElementById('input');
     const text = input.value.trim();
-    if(!text && !selectedFile) return;
+    const hasImages = pendingImages.length > 0;
+    if (!text && !hasImages) return;
+    if (isStreaming) return;
+    if (!currentSessionId) startNewChat();
 
-    const fileToSend = selectedFile;
-    const imagePreview = fileToSend && fileToSend.type.startsWith('image/') ? await readFileAsDataURL(fileToSend) : null;
-    const fileName = fileToSend?.name;
+    isStreaming = true;
+    sendBtn.disabled = true;
 
-    input.value=''; input.style.height='auto';
-    removeFile();
-    isLoading=true; document.getElementById('sendBtn').disabled=true;
+    const imagesForThisMsg = [...pendingImages];
+    const imageDataUrls = imagesForThisMsg.map(i => i.dataUrl);
 
-    appendMessage('user', text, imagePreview, fileName);
+    input.value = '';
+    input.style.height = 'auto';
+    pendingImages = [];
+    renderPreviews();
 
-    // ── CLIENT-SIDE IMAGE GENERATION ──
-    if (!fileToSend && detectImgRequest(text)) {
-      const prompt = extractImgPrompt(text);
-      if (prompt) {
-        const imgUrl = buildPollinationsUrl(prompt);
-        // Show typing briefly then render image
-        showTyping();
-        setTimeout(() => {
-          removeTyping();
-          const replyText = `Membuat gambar: **"${prompt}"** — tunggu sebentar ya! 🎨`;
-          appendMessage('ai', replyText, null, null, imgUrl);
-          // Update title
-          if (document.getElementById('chat-title').classList.contains('new')) {
-            document.getElementById('chat-title').textContent = '🎨 ' + prompt.slice(0,35);
-            document.getElementById('chat-title').classList.remove('new');
-          }
-          isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus();
-          // Save to server for history
-          const fd=new FormData(); fd.append('message',text); fd.append('sessionId',sessionId); fd.append('deviceId',deviceId);
-          fetch('/api/chat',{method:'POST',body:fd}).then(()=>loadConversations()).catch(()=>{});
-        }, 800);
-        return;
-      }
+    let apiContent;
+    if (hasImages) {
+      apiContent = [
+        { type: 'text', text: text || 'Tolong jelaskan gambar ini.' },
+        ...imagesForThisMsg.map(img => ({
+          type: 'image_url',
+          image_url: { url: `data:${img.mimeType};base64,${img.base64}` }
+        }))
+      ];
+    } else {
+      apiContent = text;
     }
 
-    showTyping();
+    const userDisplayHtml = text ? `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>` : '';
+
+    history.push({ role: 'user', content: apiContent });
+    addMessage('user', userDisplayHtml, imageDataUrls);
+
+    const sess = sessions[currentSessionId];
+    sess.messages.push({ role: 'user', content: apiContent, displayHtml: userDisplayHtml, images: imageDataUrls });
+    if (sess.messages.length === 1) sess.title = deriveTitle(text);
+    sess.updatedAt = Date.now();
+    saveSessions();
+    renderSessionList(searchInput.value.trim());
+
+    const aiBubble = addTyping();
+    let fullText = '';
+    const modelToUse = hasImages ? VISION_MODEL : modelSel.value;
 
     try {
-      const formData = new FormData();
-      if(text) formData.append('message', text);
-      formData.append('sessionId', sessionId);
-      formData.append('deviceId', deviceId);
-      formData.append('model', currentModel);
-      if(fileToSend) formData.append('file', fileToSend);
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history, model: modelToUse })
+      });
 
-      const res = await fetch('/api/chat', { method:'POST', body: formData });
-      const data = await res.json();
+      if (!res.ok) {
+        const err = await res.json();
+        removeTyping();
+        addMessage('ai', `<p style="color:var(--error)">❌ ${err.error || 'Terjadi kesalahan.'}</p>`);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
       removeTyping();
-      if(!res.ok) throw new Error(data.error||'Terjadi kesalahan');
-      appendMessage('ai', data.reply, null, null, data.generatedImageUrl);
+      const finalBubble = addMessage('ai', '');
 
-      if(data.title && document.getElementById('chat-title').classList.contains('new')){
-        document.getElementById('chat-title').textContent = data.title;
-        document.getElementById('chat-title').classList.remove('new');
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue;
+          const data = line.slice(5).trim();
+          if (data === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(data);
+            fullText += parsed.content || '';
+            finalBubble.innerHTML = renderMarkdown(fullText);
+            scrollBottom();
+          } catch {}
+        }
       }
-      loadConversations();
-    } catch(err){ removeTyping(); showError(err.message); }
-    finally { isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); }
-  }
 
-  function readFileAsDataURL(file) {
-    return new Promise(res => { const r=new FileReader(); r.onload=e=>res(e.target.result); r.readAsDataURL(file); });
-  }
+      attachCopyButtons(finalBubble);
+      addSpeakButton(finalBubble, fullText);
+      history.push({ role: 'assistant', content: fullText });
 
-  function sendSuggestion(text) {
-    if(text.includes('Upload')) { document.getElementById('file-input').click(); return; }
-    document.getElementById('input').value=text; sendMessage();
-  }
+      sess.messages.push({ role: 'assistant', content: fullText, displayHtml: renderMarkdown(fullText), images: [] });
+      sess.updatedAt = Date.now();
+      saveSessions();
+      renderSessionList(searchInput.value.trim());
 
-  function newChat() {
-    sessionId='sess_'+Math.random().toString(36).substr(2,9);
-    document.getElementById('chat-title').textContent='Percakapan Baru';
-    document.getElementById('chat-title').classList.add('new');
-    document.getElementById('chat').innerHTML=`<div class="message-wrap"><div id="welcome">
-      <img class="welcome-logo" src="logo.png" alt="Mindbot Genius"/>
-      <h2>Halo! Saya <span>Mindbot Genius</span></h2>
-      <p>Asisten AI dari Binary Global Network.<br/>Kirim pesan atau upload gambar/file!</p>
-      <div class="suggestions">
-        <div class="suggestion" onclick="sendSuggestion(this.textContent)">💡 Jelaskan machine learning</div>
-        <div class="suggestion" onclick="sendSuggestion(this.textContent)">🎮 Ide game Roblox seru</div>
-        <div class="suggestion" onclick="sendSuggestion(this.textContent)">📷 Upload gambar untuk dianalisis</div>
-        <div class="suggestion" onclick="sendSuggestion(this.textContent)">🔧 Contoh kode Python</div>
-      </div></div></div>`;
-    document.querySelectorAll('.conv-item').forEach(el=>el.classList.remove('active'));
-    removeFile();
-    document.getElementById('input').focus();
-    closeSidebar();
-  }
-
-  // ── VOICE RECOGNITION ──
-  let recognition = null;
-  let isListening = false;
-
-  function initSpeechRecognition() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return null;
-    const rec = new SpeechRecognition();
-    rec.lang = 'id-ID';
-    rec.continuous = false;
-    rec.interimResults = true;
-
-    rec.onstart = () => {
-      isListening = true;
-      document.getElementById('voiceBtn').classList.add('listening');
-      document.getElementById('voiceBtn').textContent = '⏹️';
-      document.getElementById('voiceStatus').classList.add('show');
-    };
-
-    rec.onresult = (e) => {
-      const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
-      document.getElementById('input').value = transcript;
-      autoResize(document.getElementById('input'));
-      if (e.results[e.results.length-1].isFinal) {
-        stopVoice();
-        setTimeout(() => sendMessage(), 400);
+      if (ttsEnabled) {
+        const speakBtn = finalBubble.parentElement.querySelector('.speak-btn');
+        speakText(fullText, speakBtn);
       }
-    };
 
-    rec.onerror = (e) => {
-      stopVoice();
-      if (e.error === 'not-allowed') showError('Izin mikrofon ditolak. Izinkan akses mikrofon di browser.');
-      else if (e.error === 'no-speech') showError('Tidak ada suara terdeteksi. Coba lagi.');
-    };
-
-    rec.onend = () => stopVoice();
-    return rec;
+    } catch (err) {
+      removeTyping();
+      addMessage('ai', `<p style="color:var(--error)">❌ Koneksi gagal. Pastikan server berjalan.</p>`);
+    } finally {
+      isStreaming = false;
+      sendBtn.disabled = false;
+      input.focus();
+    }
   }
 
-  function toggleVoice() {
-    if (isListening) { stopVoice(); return; }
-    if (!recognition) recognition = initSpeechRecognition();
-    if (!recognition) { showError('Browser tidak mendukung voice recognition. Coba Chrome.'); return; }
-    try { recognition.start(); } catch(e) { showError('Gagal memulai mikrofon.'); }
-  }
-
-  function stopVoice() {
-    isListening = false;
-    document.getElementById('voiceBtn').classList.remove('listening');
-    document.getElementById('voiceBtn').textContent = '🎙️';
-    document.getElementById('voiceStatus').classList.remove('show');
-    try { if (recognition) recognition.stop(); } catch(e) {}
-  }
-
-  // ── TEXT TO SPEECH ──
-  let currentUtterance = null;
-  let speakingBtnId = null;
-
-  const TTS_VOICES = {
-    'id': ['id-ID', 'Indonesian'],
-    'en': ['en-US', 'English']
-  };
-
-  function getVoice(lang) {
+  // ═══════════════════ TEXT-TO-SPEECH (AI bersuara) ═══════════════════
+  function pickIndonesianVoice() {
     const voices = speechSynthesis.getVoices();
-    return voices.find(v => v.lang.startsWith(lang)) || voices.find(v => v.lang.startsWith('en')) || null;
+    indonesianVoice =
+      voices.find(v => v.lang === 'id-ID') ||
+      voices.find(v => v.lang.startsWith('id')) ||
+      null;
   }
 
-  function detectLang(text) {
-    const idWords = ['yang','dan','atau','adalah','dengan','untuk','ini','itu','dari','ke','di','pada','saya','kamu','anda','nya'];
-    const words = text.toLowerCase().split(/\s+/);
-    const idCount = words.filter(w => idWords.includes(w)).length;
-    return idCount >= 2 ? 'id' : 'en';
+  if ('speechSynthesis' in window) {
+    pickIndonesianVoice();
+    speechSynthesis.onvoiceschanged = pickIndonesianVoice;
   }
 
-  function speakText(btn, btnId) {
-    // Stop if already speaking this
-    if (speakingBtnId === btnId && speechSynthesis.speaking) {
-      speechSynthesis.cancel();
-      btn.textContent = '🔊'; btn.classList.remove('speaking');
-      speakingBtnId = null; return;
+  function updateTtsToggleUI() {
+    ttsToggle.classList.toggle('active', ttsEnabled);
+    ttsToggle.title = ttsEnabled ? 'Matikan suara AI' : 'Aktifkan suara AI';
+  }
+  updateTtsToggleUI();
+
+  ttsToggle.addEventListener('click', () => {
+    ttsEnabled = !ttsEnabled;
+    localStorage.setItem(TTS_KEY, ttsEnabled);
+    updateTtsToggleUI();
+    if (!ttsEnabled) stopSpeaking();
+  });
+
+  function stripMarkdownForSpeech(text) {
+    return text
+      .replace(/```[\s\S]*?```/g, ' kode terlampir. ')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/!\[.*?\]\(.*?\)/g, '')
+      .replace(/\[([^\]]+)\]\(.*?\)/g, '$1')
+      .replace(/[#*_>~-]/g, '')
+      .replace(/\n+/g, '. ')
+      .trim();
+  }
+
+  function speakText(text, btnEl) {
+    if (!('speechSynthesis' in window)) {
+      alert('Browser kamu tidak mendukung text-to-speech.');
+      return;
     }
-    // Stop previous
-    speechSynthesis.cancel();
-    if (speakingBtnId) {
-      const prev = document.getElementById(speakingBtnId);
-      if (prev) { prev.textContent = '🔊'; prev.classList.remove('speaking'); }
-    }
+    stopSpeaking();
 
-    // Get text from bubble
-    const bubble = btn.closest('.bubble');
-    let rawText = '';
-    bubble.childNodes.forEach(node => {
-      if (node.nodeType === Node.TEXT_NODE) rawText += node.textContent;
-      else if (node.tagName === 'STRONG') rawText += node.textContent;
-      else if (node.tagName === 'BR') rawText += ' ';
-      else if (node.classList?.contains('tts-btn')) return;
-      else rawText += node.textContent || '';
-    });
-    rawText = rawText.replace(/🔊/g,'').trim();
-    if (!rawText) return;
+    const clean = stripMarkdownForSpeech(text);
+    if (!clean) return;
 
-    const lang = detectLang(rawText);
-    const utter = new SpeechSynthesisUtterance(rawText);
-    utter.lang = lang === 'id' ? 'id-ID' : 'en-US';
-    utter.rate = 1.0; utter.pitch = 1.0; utter.volume = 1.0;
-    const voice = getVoice(utter.lang);
-    if (voice) utter.voice = voice;
+    const utter = new SpeechSynthesisUtterance(clean);
+    utter.lang = 'id-ID';
+    if (indonesianVoice) utter.voice = indonesianVoice;
+    utter.rate = 1.0;
+    utter.pitch = 1.0;
 
-    utter.onstart = () => {
-      btn.textContent = '⏸️'; btn.classList.add('speaking');
-      speakingBtnId = btnId;
-    };
-    utter.onend = utter.onerror = () => {
-      btn.textContent = '🔊'; btn.classList.remove('speaking');
-      speakingBtnId = null;
-    };
+    utter.onstart = () => { if (btnEl) btnEl.classList.add('speaking'); };
+    utter.onend = () => { if (btnEl) btnEl.classList.remove('speaking'); currentUtterance = null; };
+    utter.onerror = () => { if (btnEl) btnEl.classList.remove('speaking'); currentUtterance = null; };
 
-    speechSynthesis.speak(utter);
     currentUtterance = utter;
+    speechSynthesis.speak(utter);
   }
 
-  // Load voices (some browsers need this)
-  speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+  function stopSpeaking() {
+    if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
+    document.querySelectorAll('.speak-btn.speaking').forEach(b => b.classList.remove('speaking'));
+    currentUtterance = null;
+  }
 
-  // ── TTS AUTO-SPEAK TOGGLE ──
-  let autoSpeak = false;
+  function addSpeakButton(bubbleTextEl, fullText) {
+    const actions = document.createElement('div');
+    actions.className = 'msg-actions';
 
-  // Init
+    const btn = document.createElement('button');
+    btn.className = 'speak-btn';
+    btn.title = 'Dengarkan jawaban ini';
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>`;
+    btn.onclick = () => {
+      if (btn.classList.contains('speaking')) {
+        stopSpeaking();
+      } else {
+        speakText(fullText, btn);
+      }
+    };
 
-  loadConversations();
-  setInterval(loadConversations, 10000);
+    actions.appendChild(btn);
+    bubbleTextEl.parentElement.appendChild(actions);
+  }
+
+  // ═══════════════════ SPEECH RECOGNITION (pengguna bicara) ═══════════════════
+  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (SpeechRecognitionAPI) {
+    recognition = new SpeechRecognitionAPI();
+    recognition.lang = 'id-ID';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    let baseText = '';
+
+    recognition.onstart = () => {
+      isListening = true;
+      baseText = input.value ? input.value + ' ' : '';
+      micBtn.classList.add('listening');
+    };
+
+    recognition.onresult = (e) => {
+      let interim = '';
+      let final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const transcript = e.results[i][0].transcript;
+        if (e.results[i].isFinal) final += transcript;
+        else interim += transcript;
+      }
+      input.value = baseText + final + interim;
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+    };
+
+    recognition.onerror = (e) => {
+      isListening = false;
+      micBtn.classList.remove('listening');
+      if (e.error === 'not-allowed' || e.error === 'permission-denied') {
+        alert('Izin mikrofon ditolak. Aktifkan izin mikrofon di browser untuk pakai fitur ini.');
+      } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
+        console.warn('Speech recognition error:', e.error);
+      }
+    };
+
+    recognition.onend = () => {
+      isListening = false;
+      micBtn.classList.remove('listening');
+    };
+
+    micBtn.addEventListener('click', () => {
+      if (isListening) {
+        recognition.stop();
+        return;
+      }
+      stopSpeaking();
+      try {
+        recognition.start();
+      } catch (err) {
+        console.warn('Gagal memulai speech recognition:', err);
+      }
+    });
+  } else {
+    micBtn.style.display = 'none';
+  }
+
+  (function init() {
+    loadSessions();
+    // Bersihkan sesi kosong (belum ada pesan) dari sesi sebelumnya yang tidak dipakai
+    let changed = false;
+    Object.keys(sessions).forEach(id => {
+      if (!sessions[id].messages || sessions[id].messages.length === 0) {
+        delete sessions[id];
+        changed = true;
+      }
+    });
+    if (changed) saveSessions();
+    startNewChat();
+  })();
 </script>
 </body>
 </html>
