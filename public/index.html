@@ -388,51 +388,66 @@
   function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
 
   // ── CONVERSATIONS ──
-  async function loadConversations() {
-    try {
-      const list = await (await fetch('/api/conversations?deviceId='+deviceId)).json();
-      const el = document.getElementById('conv-list');
-      if (!list.length) { el.innerHTML='<div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div>'; return; }
-      el.innerHTML = list.map(c=>`
-        <div class="conv-item ${c.id===sessionId?'active':''}" onclick="loadConv('${c.id}')" id="ci_${c.id}">
-          <div class="conv-title">${escapeHtml(c.title)}</div>
-          <div class="conv-preview">${escapeHtml(c.preview)}</div>
-          <div class="conv-date">${formatDate(c.updatedAt)}</div>
-          <button class="conv-del" data-id="${c.id}" title="Hapus">✕</button>
-        </div>`).join('');
+  // ── LOCAL STORAGE DB ──
+  function getAllConversations() {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('conv_'));
+    return keys.map(k => {
+      try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; }
+    }).filter(Boolean).sort((a,b) => b.updatedAt - a.updatedAt);
+  }
 
-      // Attach delete events after rendering
-      el.querySelectorAll('.conv-del').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          e.preventDefault();
-          deleteConv(this.getAttribute('data-id'));
-        });
+  function saveConversation(conv) {
+    // Don't save imageData to avoid localStorage quota issues
+    const toSave = {...conv, messages: conv.messages.map(m => ({...m, imageData: null}))};
+    try { localStorage.setItem('conv_'+conv.id, JSON.stringify(toSave)); } catch(e) {
+      // If storage full, remove oldest conv
+      const all = getAllConversations();
+      if(all.length > 0) localStorage.removeItem('conv_'+all[all.length-1].id);
+      try { localStorage.setItem('conv_'+conv.id, JSON.stringify(toSave)); } catch(e2) {}
+    }
+  }
+
+  function loadConversations() {
+    const list = getAllConversations();
+    const el = document.getElementById('conv-list');
+    if (!list.length) { el.innerHTML='<div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div>'; return; }
+    el.innerHTML = list.map(c=>`
+      <div class="conv-item ${c.id===sessionId?'active':''}" onclick="loadConv('${c.id}')" id="ci_${c.id}">
+        <div class="conv-title">${escapeHtml(c.title)}</div>
+        <div class="conv-preview">${escapeHtml(c.preview||'')}</div>
+        <div class="conv-date">${formatDate(c.updatedAt)}</div>
+        <button class="conv-del" data-id="${c.id}" title="Hapus">✕</button>
+      </div>`).join('');
+
+    el.querySelectorAll('.conv-del').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        deleteConv(this.getAttribute('data-id'));
       });
-    } catch(e){}
+    });
   }
 
-  async function loadConv(id) {
+  function loadConv(id) {
     if (id===sessionId) return;
-    try {
-      const conv = await (await fetch('/api/conversations/'+id+'?deviceId='+deviceId)).json();
-      sessionId = id;
-      document.getElementById('chat-title').textContent = conv.title;
-      document.getElementById('chat-title').classList.remove('new');
-      const chat = document.getElementById('chat');
-      chat.innerHTML='<div class="message-wrap"></div>';
-      const wrap = chat.querySelector('.message-wrap');
-      conv.messages.forEach(m => appendMessageTo(wrap, m.role==='user'?'user':'ai', m.textContent||'', m.imageData, m.fileName, false));
-      chat.scrollTop = chat.scrollHeight;
-      document.querySelectorAll('.conv-item').forEach(el=>el.classList.remove('active'));
-      const item = document.getElementById('ci_'+id);
-      if(item) item.classList.add('active');
-      closeSidebar();
-    } catch(e){ showError('Gagal memuat percakapan'); }
+    const conv = JSON.parse(localStorage.getItem('conv_'+id));
+    if (!conv) return showError('Percakapan tidak ditemukan');
+    sessionId = id;
+    document.getElementById('chat-title').textContent = conv.title;
+    document.getElementById('chat-title').classList.remove('new');
+    const chat = document.getElementById('chat');
+    chat.innerHTML='<div class="message-wrap"></div>';
+    const wrap = chat.querySelector('.message-wrap');
+    conv.messages.forEach(m => appendMessageTo(wrap, m.role==='user'?'user':'ai', m.textContent||'', m.imageData, m.fileName, false));
+    chat.scrollTop = chat.scrollHeight;
+    document.querySelectorAll('.conv-item').forEach(el=>el.classList.remove('active'));
+    const item = document.getElementById('ci_'+id);
+    if(item) item.classList.add('active');
+    closeSidebar();
   }
 
-  async function deleteConv(id) {
-    await fetch('/api/conversations/'+id+'?deviceId='+deviceId, {method:'DELETE'});
+  function deleteConv(id) {
+    localStorage.removeItem('conv_'+id);
     if(id===sessionId) newChat();
     loadConversations();
   }
@@ -615,6 +630,21 @@
         document.getElementById('chat-title').textContent = data.title;
         document.getElementById('chat-title').classList.remove('new');
       }
+
+      // Save to localStorage
+      const existingConv = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
+      const msgs = existingConv ? existingConv.messages : [];
+      msgs.push({ role:'user', textContent: text });
+      msgs.push({ role:'assistant', textContent: data.reply });
+      const convData = {
+        id: sessionId,
+        title: data.title || document.getElementById('chat-title').textContent,
+        messages: msgs,
+        createdAt: existingConv?.createdAt || Date.now(),
+        updatedAt: Date.now(),
+        preview: data.reply.slice(0,80)
+      };
+      saveConversation(convData);
       loadConversations();
     } catch(err){ removeTyping(); showError(err.message); }
     finally { isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); }
@@ -780,7 +810,7 @@
   // Init
 
   loadConversations();
-  setInterval(loadConversations, 10000);
+
 </script>
 </body>
 </html>
