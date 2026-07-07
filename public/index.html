@@ -163,6 +163,8 @@
     .tts-btn.speaking { color: var(--gold); animation: pulse-dot 0.8s infinite; }
     .voice-status { text-align: center; font-size: 11px; font-family: 'DM Mono', monospace; color: #f87171; margin-top: 6px; display: none; }
     .voice-status.show { display: block; }
+    .search-indicator { display:flex; align-items:center; gap:6px; font-size:10px; font-family:'DM Mono',monospace; color:var(--text-dim); margin-bottom:6px; }
+    .search-pulse { width:6px; height:6px; border-radius:50%; background:#4ade80; animation:pulse-dot 1s infinite; }
     .error-toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #dc2626; color: white; padding: 9px 18px; border-radius: 9px; font-family: 'DM Mono', monospace; font-size: 12px; z-index: 100; animation: slide-up 0.3s ease; }
     @keyframes slide-up{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
@@ -624,7 +626,12 @@
       const data = await res.json();
       removeTyping();
       if(!res.ok) throw new Error(data.error||'Terjadi kesalahan');
-      appendMessage('ai', data.reply, null, null, data.generatedImageUrl);
+      if(data.searched) {
+        const searchNote = '🔍 *[Mencari informasi terkini dari web...]*\n\n';
+        appendMessage('ai', searchNote + data.reply, null, null, data.generatedImageUrl);
+      } else {
+        appendMessage('ai', data.reply, null, null, data.generatedImageUrl);
+      }
 
       if(data.title && document.getElementById('chat-title').classList.contains('new')){
         document.getElementById('chat-title').textContent = data.title;

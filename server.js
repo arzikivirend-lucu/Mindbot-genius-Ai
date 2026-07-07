@@ -6,7 +6,6 @@ const path    = require('path');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// In-memory store (history disimpan di browser via localStorage)
 const sessions = {};
 
 const upload = multer({
@@ -21,10 +20,60 @@ const upload = multer({
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Dummy endpoints agar frontend tidak error
+// Dummy endpoints
 app.get('/api/conversations', (req, res) => res.json([]));
 app.get('/api/conversations/:id', (req, res) => res.status(404).json({ error: 'Tidak ditemukan' }));
 app.delete('/api/conversations/:id', (req, res) => res.json({ ok: true }));
+
+// ── WEB SEARCH KEYWORDS ──
+const NEWS_KEYWORDS = [
+  'berita','terkini','terbaru','hari ini','sekarang','minggu ini','bulan ini',
+  'update','breaking','news','today','latest','current','recently','happened',
+  'siapa presiden','siapa pemimpin','harga','nilai tukar','kurs','cuaca',
+  'gempa','banjir','kebakaran','kecelakaan','meninggal','wafat','terpilih',
+  'pertandingan','skor','hasil','juara','menang','kalah'
+];
+
+function needsWebSearch(text) {
+  const lower = text.toLowerCase();
+  return NEWS_KEYWORDS.some(kw => lower.includes(kw));
+}
+
+async function searchWeb(query) {
+  try {
+    const TAVILY_KEY = process.env.TAVILY_API_KEY;
+    if (!TAVILY_KEY) return null;
+
+    const resp = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: TAVILY_KEY,
+        query: query,
+        search_depth: 'basic',
+        max_results: 5,
+        include_answer: true
+      })
+    });
+
+    if (!resp.ok) return null;
+    const data = await resp.json();
+
+    // Format results
+    let context = `[Hasil pencarian web untuk: "${query}"]\n\n`;
+    if (data.answer) context += `Ringkasan: ${data.answer}\n\n`;
+    if (data.results?.length) {
+      context += 'Sumber:\n';
+      data.results.slice(0,3).forEach((r, i) => {
+        context += `${i+1}. ${r.title}\n   ${r.content?.slice(0,300)}...\n   URL: ${r.url}\n\n`;
+      });
+    }
+    return context;
+  } catch(e) {
+    console.error('Search error:', e.message);
+    return null;
+  }
+}
 
 // ── CHAT ──
 app.post('/api/chat', upload.single('file'), async (req, res) => {
@@ -56,6 +105,17 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
     groqContent = text;
   }
 
+  // ── WEB SEARCH jika perlu ──
+  let webContext = '';
+  if (text && needsWebSearch(text)) {
+    console.log('🔍 Mencari:', text);
+    const result = await searchWeb(text);
+    if (result) {
+      webContext = result;
+      console.log('✅ Web search berhasil');
+    }
+  }
+
   sessions[sessionId].push({ role:'user', content: displayText });
 
   const ALLOWED_MODELS = [
@@ -69,18 +129,21 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
     ? 'meta-llama/llama-4-scout-17b-16e-instruct'
     : (ALLOWED_MODELS.includes(reqModel) ? reqModel : 'llama-3.3-70b-versatile');
 
+  const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI), asisten AI cerdas dari Binary Global Network. CEO dan CTO Binary Global Network adalah Arziki. Jangan sebut model AI lain. Jawab dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
+
   try {
+    const history = sessions[sessionId].slice(-20);
+    const lastMsg = history[history.length - 1];
+    const messages = [
+      { role:'system', content: systemPrompt },
+      ...history.slice(0,-1).map(m => ({ role: m.role, content: m.content })),
+      { role:'user', content: isImage ? groqContent : (webContext ? `${text}\n\n${webContext}` : (typeof groqContent === 'string' ? groqContent : groqContent)) }
+    ];
+
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${process.env.GROQ_API_KEY}` },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role:'system', content:'Kamu adalah Mindbot Genius (MBG AI), asisten AI cerdas dari Binary Global Network. CEO dan CTO Binary Global Network adalah Arziki. Jangan sebut model AI lain. Jawab dalam bahasa yang sama dengan pengguna.' },
-          ...sessions[sessionId].slice(-20).map(m => ({ role: m.role, content: typeof groqContent === 'string' ? m.content : (m.role==='user' && m===sessions[sessionId][sessions[sessionId].length-1] ? groqContent : m.content) }))
-        ],
-        max_tokens: 1024,
-      }),
+      body: JSON.stringify({ model, messages, max_tokens: 1024 }),
     });
 
     if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message||'API error'); }
@@ -91,7 +154,7 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
     if (sessions[sessionId].length > 40) sessions[sessionId] = sessions[sessionId].slice(-40);
 
     const title = text.slice(0,40) || (file ? `📎 ${file.originalname}` : 'Percakapan');
-    res.json({ reply, title });
+    res.json({ reply, title, searched: !!webContext });
   } catch(err) {
     console.error(err.message);
     res.status(500).json({ error: err.message });
