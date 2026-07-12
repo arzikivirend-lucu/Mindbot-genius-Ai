@@ -30,16 +30,20 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies & init Capacitor project
+      - name: Install Capacitor & deps
         run: |
           cd android-app
           npm install
           npm install @capacitor/cli @capacitor/core @capacitor/android
 
-      - name: Init Capacitor and add Android
+      - name: Init Capacitor
         run: |
           cd android-app
           npx cap init "Mindbot Genius" "com.binaryglobalnetwork.mindbotgenius" --web-dir www
+
+      - name: Add Android platform
+        run: |
+          cd android-app
           npx cap add android
 
       - name: Sync Capacitor
@@ -55,21 +59,17 @@ jobs:
           cd android-app/android
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK as Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Mindbot-Genius-APK
           path: android-app/android/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Create GitHub Release
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: build-${{ github.run_number }}
-          name: Mindbot Genius APK - Build ${{ github.run_number }}
-          body: |
-            🤖 Mindbot Genius Android APK
-            Download dan install di Android!
-            ⚠️ Aktifkan "Install dari sumber tidak dikenal" di Pengaturan HP
+          name: Mindbot Genius APK Build ${{ github.run_number }}
           files: android-app/android/app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
