@@ -1,0 +1,13 @@
+{
+  "appId": "com.binaryglobalnetwork.mindbotgenius",
+  "appName": "Mindbot Genius",
+  "webDir": "www",
+  "server": {
+    "url": "https://mindbot-genius-ai.vercel.app",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0a0c14"
+  }
+}
