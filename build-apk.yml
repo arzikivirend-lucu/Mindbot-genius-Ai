@@ -1,0 +1,82 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Capacitor CLI globally
+        run: npm install -g @capacitor/cli
+
+      - name: Install android-app dependencies
+        run: |
+          cd android-app
+          npm install
+
+      - name: Run build script
+        run: |
+          cd android-app
+          npm run build
+
+      - name: Add Android platform
+        run: |
+          cd android-app
+          npx cap add android || true
+
+      - name: Sync Capacitor
+        run: |
+          cd android-app
+          npx cap sync android
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Make gradlew executable
+        run: chmod +x android-app/android/gradlew
+
+      - name: Build APK
+        run: |
+          cd android-app/android
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mindbot-Genius-APK
+          path: android-app/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Mindbot Genius APK - Build ${{ github.run_number }}
+          body: |
+            🤖 Mindbot Genius Android APK
+            
+            **Install:** Download file APK lalu buka di Android
+            ⚠️ Aktifkan "Install dari sumber tidak dikenal" di pengaturan HP
+          files: android-app/android/app/build/outputs/apk/debug/app-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
