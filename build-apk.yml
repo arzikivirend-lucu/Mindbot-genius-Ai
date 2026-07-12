@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Capacitor & deps
+      - name: Install Capacitor
         run: |
           cd android-app
           npm install
@@ -41,12 +41,12 @@ jobs:
           cd android-app
           npx cap init "Mindbot Genius" "com.binaryglobalnetwork.mindbotgenius" --web-dir www
 
-      - name: Add Android platform
+      - name: Add Android
         run: |
           cd android-app
           npx cap add android
 
-      - name: Sync Capacitor
+      - name: Sync
         run: |
           cd android-app
           npx cap sync android
