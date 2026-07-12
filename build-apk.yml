@@ -27,6 +27,9 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install Capacitor CLI globally
         run: npm install -g @capacitor/cli
 
@@ -43,15 +46,12 @@ jobs:
       - name: Add Android platform
         run: |
           cd android-app
-          npx cap add android || true
+          npx cap add android
 
       - name: Sync Capacitor
         run: |
           cd android-app
           npx cap sync android
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
 
       - name: Make gradlew executable
         run: chmod +x android-app/android/gradlew
