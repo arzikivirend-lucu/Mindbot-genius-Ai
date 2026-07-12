@@ -16,12 +16,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Set up Java
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -30,22 +25,21 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Capacitor CLI globally
-        run: npm install -g @capacitor/cli
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-      - name: Install android-app dependencies
+      - name: Install dependencies & init Capacitor project
         run: |
           cd android-app
           npm install
+          npm install @capacitor/cli @capacitor/core @capacitor/android
 
-      - name: Run build script
+      - name: Init Capacitor and add Android
         run: |
           cd android-app
-          npm run build
-
-      - name: Add Android platform
-        run: |
-          cd android-app
+          npx cap init "Mindbot Genius" "com.binaryglobalnetwork.mindbotgenius" --web-dir www
           npx cap add android
 
       - name: Sync Capacitor
@@ -74,9 +68,8 @@ jobs:
           name: Mindbot Genius APK - Build ${{ github.run_number }}
           body: |
             🤖 Mindbot Genius Android APK
-            
-            **Install:** Download file APK lalu buka di Android
-            ⚠️ Aktifkan "Install dari sumber tidak dikenal" di pengaturan HP
+            Download dan install di Android!
+            ⚠️ Aktifkan "Install dari sumber tidak dikenal" di Pengaturan HP
           files: android-app/android/app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
