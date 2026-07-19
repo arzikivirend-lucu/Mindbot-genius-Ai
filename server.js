@@ -75,6 +75,43 @@ async function searchWeb(query) {
   }
 }
 
+
+// ── GROK IMAGINE (xAI Image Generation) ──
+app.post('/api/imagine', async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
+
+  const XAI_KEY = process.env.XAI_API_KEY;
+  if (!XAI_KEY) return res.status(500).json({ error: 'XAI_API_KEY belum diset' });
+
+  try {
+    const resp = await fetch('https://api.x.ai/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${XAI_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'grok-2-image',
+        prompt: prompt,
+        n: 1
+      })
+    });
+
+    if (!resp.ok) {
+      const e = await resp.json();
+      throw new Error(e.error?.message || 'xAI API error');
+    }
+
+    const data = await resp.json();
+    const imageUrl = data.data[0].url;
+    res.json({ imageUrl });
+  } catch(err) {
+    console.error('Grok Imagine error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── CHAT ──
 app.post('/api/chat', upload.single('file'), async (req, res) => {
   const { message, sessionId, model: reqModel } = req.body;

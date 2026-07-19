@@ -587,6 +587,35 @@
 
     appendMessage('user', text, imagePreview, fileName);
 
+    // ── GROK IMAGINE ──
+    if (!fileToSend && currentModel === 'grok-imagine') {
+      showTyping();
+      try {
+        const res = await fetch('/api/imagine', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ prompt: text })
+        });
+        const data = await res.json();
+        removeTyping();
+        if (!res.ok) throw new Error(data.error || 'Gagal generate gambar');
+        appendMessage('ai', `🎨 **Grok Imagine** — "${text}"`, null, null, data.imageUrl);
+        // Save to localStorage
+        const existingConv = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
+        const msgs = existingConv ? existingConv.messages : [];
+        msgs.push({ role:'user', textContent: text });
+        msgs.push({ role:'assistant', textContent: `🎨 Gambar dibuat: "${text}"` });
+        saveConversation({ id: sessionId, title: '🎨 '+text.slice(0,35), messages: msgs, createdAt: existingConv?.createdAt||Date.now(), updatedAt: Date.now() });
+        loadConversations();
+      } catch(err) {
+        removeTyping();
+        showError(err.message);
+      } finally {
+        isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus();
+      }
+      return;
+    }
+
     // ── CLIENT-SIDE IMAGE GENERATION ──
     if (!fileToSend && detectImgRequest(text)) {
       const prompt = extractImgPrompt(text);
