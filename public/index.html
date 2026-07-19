@@ -594,6 +594,12 @@
 
     // ── GROK IMAGINE ──
     if (!fileToSend && currentModel === 'grok-imagine') {
+      // Remind user this model only generates images
+      if (text.length < 5) {
+        showError('💡 Mindbot v2.5 hanya untuk generate gambar. Ketik deskripsi gambar yang ingin dibuat!');
+        isLoading=false; document.getElementById('sendBtn').disabled=false;
+        return;
+      }
       showTyping();
       try {
         const res = await fetch('/api/imagine', {
@@ -601,7 +607,8 @@
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ prompt: text })
         });
-        const data = await res.json();
+        let data;
+        try { data = await res.json(); } catch(e) { removeTyping(); showError('Server error saat generate gambar'); isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); return; }
         removeTyping();
         if (!res.ok) throw new Error(data.error || 'Gagal generate gambar');
         appendMessage('ai', `🎨 **Grok Imagine** — "${text}"`, null, null, data.imageUrl);
@@ -657,7 +664,8 @@
       if(fileToSend) formData.append('file', fileToSend);
 
       const res = await fetch('/api/chat', { method:'POST', body: formData });
-      const data = await res.json();
+      let data;
+      try { data = await res.json(); } catch(e) { removeTyping(); showError('Server error - coba lagi'); isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); return; }
       removeTyping();
       if(!res.ok) throw new Error(data.error||'Terjadi kesalahan');
       if(data.searched) {
