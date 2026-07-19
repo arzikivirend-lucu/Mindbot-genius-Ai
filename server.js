@@ -92,15 +92,17 @@ app.post('/api/imagine', async (req, res) => {
         'Authorization': `Bearer ${XAI_KEY}`
       },
       body: JSON.stringify({
-        model: 'grok-2-image',
+        model: 'grok-2-image-1212',
         prompt: prompt,
-        n: 1
+        n: 1,
+        response_format: 'url'
       })
     });
 
     if (!resp.ok) {
       const e = await resp.json();
-      throw new Error(e.error?.message || 'xAI API error');
+      console.error('xAI error detail:', JSON.stringify(e));
+      throw new Error(e.error?.message || e.message || 'xAI API error');
     }
 
     const data = await resp.json();
