@@ -1,192 +1,384 @@
 <!DOCTYPE html>
-<html lang="en-US">
+<html lang="id">
 <head>
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8502579651806538"
-     crossorigin="anonymous"></script>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>MONSTER-MCPE.COM | Download file for Minecraft Bedrock</title>
-	<meta name="robots" content="noindex, nofollow">
-    <!-- Viewport-->
-<meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="//cdn.web-fonts.ge/fonts/bpg-arial-caps/css/bpg-arial-caps.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mindbot Genius</title>
+  <link rel="icon" type="image/png" href="logo.png"/>
+  <link rel="shortcut icon" type="image/x-icon" href="logo.ico"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0c14; --surface: #0f1220; --surface2: #171b2e;
+      --border: #1e2540; --gold: #c8a84b; --text: #e8eaf0;
+      --text-dim: #5a6380; --user-bg: #101830; --sidebar-w: 280px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
 
-    <style type="text/css">
+    /* SIDEBAR */
+    #sidebar { width: var(--sidebar-w); background: #080a12; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; transition: transform 0.3s ease; z-index: 20; }
+    .sidebar-head { padding: 14px 14px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .sidebar-logo { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); flex-shrink: 0; }
+    .sidebar-brand .name { font-size: 13px; font-weight: 800; } .sidebar-brand .name span { color: var(--gold); }
+    .sidebar-brand .sub { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
+    .btn-new { width: calc(100% - 28px); margin: 12px 14px 0; padding: 10px 14px; background: linear-gradient(135deg, #1a4fc4, var(--gold)); border: none; border-radius: 10px; color: #fff; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: opacity 0.2s; }
+    .btn-new:hover { opacity: 0.85; }
+    .sidebar-section { padding: 14px 14px 6px; font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
+    #conv-list { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
+    #conv-list::-webkit-scrollbar { width: 3px; } #conv-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .conv-item { padding: 10px; border-radius: 10px; cursor: pointer; margin-bottom: 2px; transition: background 0.15s; position: relative; }
+    .conv-item:hover { background: var(--surface2); } .conv-item.active { background: var(--surface2); border: 1px solid var(--border); }
+    .conv-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 24px; }
+    .conv-preview { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .conv-date { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-top: 3px; }
+    .conv-del { position: absolute; top: 8px; right: 8px; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 2px 5px; border-radius: 5px; opacity: 0; transition: opacity 0.15s; }
+    .conv-item:hover .conv-del { opacity: 1; } .conv-del:hover { background: rgba(220,38,38,0.2); color: #f87171; }
+    .conv-empty { text-align: center; padding: 32px 16px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-dim); line-height: 1.8; }
+    .sidebar-footer { padding: 12px 14px; border-top: 1px solid var(--border); }
+    .sidebar-link { display: block; text-align: center; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); text-decoration: none; letter-spacing: 1px; padding: 6px; border-radius: 8px; transition: all 0.2s; }
+    .sidebar-link:hover { color: var(--gold); background: rgba(200,168,75,0.06); }
 
-a {
-    text-decoration: none;
-}
+    /* MAIN */
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    #main::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 40% at 20% 10%, rgba(37,99,235,0.06) 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 80% 85%, rgba(200,168,75,0.04) 0%, transparent 60%); pointer-events: none; }
 
-    *,*:after,*:before{
-    margin:0;
-    padding:0;
-    -webkit-box-sizing: border-box;
-    -moz-box-sizing: border-box;
-    box-sizing: border-box;
-}
-body{
-    background: #41295a url(https://i.imgur.com/FqEyoQn.png) no-repeat 50% 50%;  /* fallback for old browsers */
-background: -webkit-linear-gradient(to right, #2F0743, #41295a);  /* Chrome 10-25, Safari 5.1-6 */
-background: linear-gradient(to right, #2F0743, #41295a); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-    font: normal 13px/21px "BPG Arial Caps";
-    color: #444;
-}
-.wrapper{
-    width: 100%;
-    max-width: 560px;
-    margin: 40px auto 20px;
-    box-shadow: 0 2px 5px rgba(0,0,0,.1);
-}
-.header{
-    padding: 0 20px;
-    line-height: 45px;
-    background: #303131;
-    color: #eee;
-    border-radius: 3px 3px 0 0;
-    display: block;
-}
-.main{
-    border-radius: 3px 3px 0 0;
-    background: #f8f8f8;
-    max-width: 100%;
-}
+    header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-bottom: 1px solid var(--border); background: rgba(10,12,20,0.85); backdrop-filter: blur(20px); position: relative; z-index: 10; }
+    .header-title { font-size: 14px; font-weight: 700; color: var(--text-dim); font-family: 'DM Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .status-dot { display: flex; align-items: center; gap: 6px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px #4ade80; animation: pulse-dot 2s infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1}50%{opacity:.4} }
+    .btn-icon { padding: 6px 12px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); border-radius: 8px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 11px; transition: all 0.2s; }
+    .btn-icon:hover { border-color: var(--gold); color: var(--gold); }
 
-h1{
-    font-size: 21px;
-    font-weight: normal;
-    padding: 30px;
-    color: #243133;
-    text-align: center;
-}
-h1 a{
-    text-decoration: none;
-}
-a{
-    color: #f57c00;
-}
-a:hover{
-    color: #111;
-}
-ul{
-    max-width: 66%;
-    margin: 0 auto;
-    padding: 0;
-    border-top: 1px solid #eee;
-    list-style: none;
-}
-ul li{
-    border-bottom: 1px solid #eee;
-    padding: 3px 25px;
-    font-size: 12px;
-    color: #777
-}
-ul li b{
-    color: #333;
-}
+    /* CHAT */
+    #chat { flex: 1; overflow-y: auto; padding: 24px 0; position: relative; z-index: 1; scroll-behavior: smooth; }
+    #chat::-webkit-scrollbar { width: 4px; } #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .message-wrap { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+    .message { display: flex; gap: 12px; margin-bottom: 20px; animation: msg-in 0.3s cubic-bezier(0.16,1,0.3,1) both; }
+    @keyframes msg-in { from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)} }
+    .message.user { flex-direction: row-reverse; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .avatar.ai { border: 2px solid var(--gold); } .avatar.ai img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar.user-av { background: var(--surface2); border: 1px solid var(--border); font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-dim); }
+    .bubble { max-width: 75%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.7; }
+    .message.ai .bubble { background: var(--surface); border: 1px solid var(--border); border-top-left-radius: 4px; }
+    .message.user .bubble { background: var(--user-bg); border: 1px solid rgba(37,99,235,0.25); border-top-right-radius: 4px; color: #c8d8ff; }
+    .bubble code { font-family: 'DM Mono', monospace; font-size: 12px; background: rgba(37,99,235,0.12); border: 1px solid rgba(37,99,235,0.2); padding: 1px 5px; border-radius: 4px; color: #93b4ff; }
 
-.download{
-    padding: 30px;
-    text-align: center;
-}
-.timer b{
-    padding-right: 24px;
-    background: url(data:image/gif;base64,R0lGODlhFAAUAJEDAMzMzLOzs39/f////yH/C05FVFNDQVBFMi4wAwEAAAAh+QQFCgADACwAAAAAFAAUAAACPJyPqcuNItyCUJoQBo0ANIxpXOctYHaQpYkiHfM2cUrCNT0nqr4uudsz/IC5na/2Mh4Hu+HR6YBaplRDAQAh+QQFCgADACwEAAIADAAGAAACFpwdcYupC8BwSogR46xWZHl0l8ZYQwEAIfkEBQoAAwAsCAACAAoACgAAAhccMKl2uHxGCCvO+eTNmishcCCYjWEZFgAh+QQFCgADACwMAAQABgAMAAACFxwweaebhl4K4VE6r61DiOd5SfiN5VAAACH5BAUKAAMALAgACAAKAAoAAAIYnD8AeKqcHIwwhGntEWLkO3CcB4biNEIFACH5BAUKAAMALAQADAAMAAYAAAIWnDSpAHa4GHgohCHbGdbipnBdSHphAQAh+QQFCgADACwCAAgACgAKAAACF5w0qXa4fF6KUoVQ75UaA7Bs3yeNYAkWACH5BAUKAAMALAIABAAGAAwAAAIXnCU2iMfaRghqTmMp1moAoHyfIYIkWAAAOw==) no-repeat 100% 50%;
-}
-.download img{
-    vertical-align: middle;
-}
-.downlink{
-    display: none;
-}
-.downlink a{
-    display: block;
-    width: 300px;
-    line-height: 18px;
-    padding: 9px;
-    margin: 0 auto;
-    text-align: center;
-    background: #388E3C url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAoCAIAAACw1AcgAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAIUlEQVQImWNwXuDOxMDAwPT//38UmuE/A3l8BiqZA+EDADU7KVH6TsQQAAAAAElFTkSuQmCC) repeat-x 0 0;
-    color: #fff;
-    text-decoration: none;
-    border-radius: 2px;
-    border: 1px solid #2E7D32;
-}
-.downlink a:hover{
-    background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAoCAIAAACw1AcgAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAHklEQVQImWOw6LNhYmBggGNGRkYIm5EyPiMDVcwBAMLuAXZsjCntAAAAAElFTkSuQmCC);
-    background-position: 0 100%;
-}
+    /* Image in bubble */
+    .bubble-img { max-width: 100%; max-height: 280px; border-radius: 10px; margin-bottom: 8px; display: block; border: 1px solid var(--border); cursor: pointer; transition: opacity 0.2s; }
+    .bubble-img:hover { opacity: 0.9; }
+    .file-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(200,168,75,0.1); border: 1px solid rgba(200,168,75,0.3); border-radius: 8px; padding: 5px 10px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--gold); margin-bottom: 6px; }
 
-.footer{
-    text-align: center;
-    padding: 15px;
-    color: #ccc;
-    font-size: 12px;
-    background: #24292A;
-    border-radius: 0 0 3px 3px;
-}
-.footer a:hover{
-    color: #fff;
-}
-    </style>
+    /* Code blocks */
+    .code-block { margin: 10px 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+    .code-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #060810; border-bottom: 1px solid var(--border); }
+    .code-lang { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--gold); letter-spacing: 1px; text-transform: uppercase; }
+    .code-actions { display: flex; gap: 5px; }
+    .code-btn { font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 9px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim); cursor: pointer; transition: all 0.2s; }
+    .code-btn:hover { border-color: var(--gold); color: var(--gold); } .code-btn.copied { border-color: #4ade80; color: #4ade80; }
+    .code-block pre { font-family: 'DM Mono', monospace; font-size: 12px; background: #060810; padding: 12px 14px; overflow-x: auto; color: #a8d8a8; line-height: 1.7; margin: 0; }
 
+    .typing-indicator { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+    .typing-indicator span { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; animation: bounce 1.2s infinite; }
+    .typing-indicator span:nth-child(2){animation-delay:.2s} .typing-indicator span:nth-child(3){animation-delay:.4s}
+    @keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
+
+    /* Welcome */
+    #welcome { max-width: 520px; margin: 28px auto 0; padding: 0 24px; text-align: center; }
+    .welcome-logo { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; margin: 0 auto 18px; display: block; border: 3px solid var(--gold); box-shadow: 0 0 36px rgba(200,168,75,0.2); }
+    #welcome h2 { font-size: 22px; font-weight: 800; margin-bottom: 6px; } #welcome h2 span { color: var(--gold); }
+    #welcome p { color: var(--text-dim); font-size: 12px; font-family: 'DM Mono', monospace; line-height: 1.6; margin-bottom: 24px; }
+    .suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .suggestion { padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; text-align: left; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-dim); transition: all 0.2s; line-height: 1.5; }
+    .suggestion:hover { border-color: var(--gold); color: var(--text); background: rgba(200,168,75,0.05); transform: translateY(-2px); }
+
+    /* INPUT AREA */
+    footer { position: relative; z-index: 10; padding: 10px 24px 14px; background: rgba(10,12,20,0.92); backdrop-filter: blur(20px); border-top: 1px solid var(--border); }
+    .input-area { max-width: 720px; margin: 0 auto; }
+
+    /* File preview bar */
+    #file-preview-bar { display: none; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
+    #file-preview-bar.show { display: flex; }
+    #preview-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border); display: none; }
+    #preview-icon { font-size: 28px; display: none; }
+    #preview-name { flex: 1; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #preview-size { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); flex-shrink: 0; }
+    #remove-file { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 5px; transition: all 0.2s; flex-shrink: 0; }
+    #remove-file:hover { background: rgba(220,38,38,0.2); color: #f87171; }
+
+    .input-row { display: flex; gap: 8px; align-items: flex-end; }
+    .input-box { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 14px; resize: none; outline: none; min-height: 48px; max-height: 150px; transition: border-color 0.2s, box-shadow 0.2s; line-height: 1.5; }
+    .input-box::placeholder { color: var(--text-dim); }
+    .input-box:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,168,75,0.08); }
+
+    .upload-btn { width: 48px; height: 48px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; font-size: 18px; position: relative; }
+    .upload-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(200,168,75,0.06); }
+    .upload-btn.has-file { border-color: var(--gold); color: var(--gold); background: rgba(200,168,75,0.1); }
+
+    .send-btn { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #1a4fc4, var(--gold)); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform 0.15s; }
+    .send-btn:hover{transform:scale(1.05)} .send-btn:active{transform:scale(0.95)} .send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+    .send-btn svg { width: 16px; height: 16px; fill: white; }
+
+    /* Image lightbox */
+    #lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; cursor: pointer; }
+    #lightbox.show { display: flex; }
+    #lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 12px; }
+
+    .gen-img-wrap { margin-top: 10px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: var(--surface2); }
+    .gen-img { width: 100%; max-height: 360px; object-fit: cover; display: block; cursor: pointer; transition: opacity 0.2s; opacity: 0; }
+    .gen-img.loaded { opacity: 1; }
+    .gen-loading { padding: 44px 20px; text-align: center; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-dim); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .gen-spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .gen-actions { display: flex; gap: 6px; padding: 8px 10px; background: #060810; border-top: 1px solid var(--border); }
+    /* Model selector */
+    .model-selector { position: relative; }
+    .model-btn { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); border-radius: 8px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 11px; transition: all 0.2s; white-space: nowrap; }
+    .model-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .model-btn .dot-model { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
+    .model-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: #080a12; border: 1px solid var(--border); border-radius: 12px; padding: 6px; min-width: 260px; z-index: 100; box-shadow: 0 12px 40px rgba(0,0,0,0.5); display: none; }
+    .model-dropdown.open { display: block; animation: msg-in 0.15s ease; }
+    .model-group-label { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; padding: 6px 10px 4px; }
+    .model-option { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+    .model-option:hover { background: var(--surface2); }
+    .model-option.active { background: var(--surface2); border: 1px solid rgba(200,168,75,0.3); }
+    .model-icon { font-size: 16px; flex-shrink: 0; }
+    .model-info { flex: 1; min-width: 0; }
+    .model-name { font-size: 12px; font-weight: 700; }
+    .model-desc { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-top: 1px; }
+    .model-badge { font-size: 9px; font-family: 'DM Mono', monospace; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+    .badge-fast { background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.2); }
+    .badge-smart { background: rgba(200,168,75,0.1); color: var(--gold); border: 1px solid rgba(200,168,75,0.2); }
+    .badge-vision { background: rgba(37,99,235,0.15); color: #93b4ff; border: 1px solid rgba(37,99,235,0.25); }
+    /* Voice */
+    .voice-btn { width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; transition: all 0.2s; }
+    .voice-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .voice-btn.listening { border-color: #f87171; color: #f87171; background: rgba(248,113,113,0.1); animation: pulse-rec 1s infinite; }
+    @keyframes pulse-rec { 0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0.4)} 50%{box-shadow:0 0 0 8px rgba(248,113,113,0)} }
+    .tts-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 13px; padding: 3px 7px; border-radius: 6px; transition: all 0.2s; margin-left: 4px; vertical-align: middle; }
+    .tts-btn:hover { color: var(--gold); background: rgba(200,168,75,0.1); }
+    .tts-btn.speaking { color: var(--gold); animation: pulse-dot 0.8s infinite; }
+    .voice-status { text-align: center; font-size: 11px; font-family: 'DM Mono', monospace; color: #f87171; margin-top: 6px; display: none; }
+    .voice-status.show { display: block; }
+    .search-indicator { display:flex; align-items:center; gap:6px; font-size:10px; font-family:'DM Mono',monospace; color:var(--text-dim); margin-bottom:6px; }
+    .search-pulse { width:6px; height:6px; border-radius:50%; background:#4ade80; animation:pulse-dot 1s infinite; }
+    .error-toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #dc2626; color: white; padding: 9px 18px; border-radius: 9px; font-family: 'DM Mono', monospace; font-size: 12px; z-index: 100; animation: slide-up 0.3s ease; }
+    @keyframes slide-up{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+    .menu-toggle { display: none; background: none; border: none; color: var(--text); font-size: 18px; cursor: pointer; padding: 4px; }
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 15; }
+    .overlay.show { display: block; }
+    @media (max-width: 640px) {
+      .menu-toggle { display: block; }
+      #sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); }
+    }
+  </style>
 </head>
 <body>
 
-<div class="wrapper">
-    <div class="header">MONSTER-MCPE.COM | Download file for Minecraft Bedrock</div>
-    <div class="main">
-        <h1><a href="https://monster-mcpe.com/download-minecraft-pe/3840-minecraft-pe-12190-for-android-release.html">Back to website</a></h1>
-        <div class="download">
-<!-- monster-down-button-1 -->
-<ins class="adsbygoogle"
-     style="display:block"
-     data-ad-client="ca-pub-8502579651806538"
-     data-ad-slot="7622927543"
-     data-ad-format="auto"
-     data-full-width-responsive="true"></ins>
-<script>
-     (adsbygoogle = window.adsbygoogle || []).push({});
-</script> 
-            <br>
-            <div class="timer">Wait: <b>10</b></div>
-            <div class="downlink"><a href="index.php?do=download&id=8236&hash=edf190b96a26edf41355722c6d006ea5">Download: <b>minecraft-1-21-90-arm64-v8a.apk</b></a></div>
-            <br>
-			<!-- monster-down-button-2 -->
-<ins class="adsbygoogle"
-     style="display:block"
-     data-ad-client="ca-pub-8502579651806538"
-     data-ad-slot="5735130802"
-     data-ad-format="auto"
-     data-full-width-responsive="true"></ins>
-<script>
-     (adsbygoogle = window.adsbygoogle || []).push({});
-</script>
-        </div>
-    </div>
-    
-    <div class="footer">
-Copyright © <script>document.write(new Date().getFullYear())</script> <a href="/">Back to website</a> - MONSTER-MCPE.COM	
-<script async src="https://www.googletagmanager.com/gtag/js?id=UA-98638104-2"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 
-  gtag('config', 'UA-98638104-2');
-</script>    
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()"><img id="lb-img" src="" alt=""/></div>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div style="padding:14px;">
+    <div class="sidebar-head" style="padding:0 0 12px;">
+      <img class="sidebar-logo" src="logo.png" alt="Logo"/>
+      <div class="sidebar-brand">
+        <div class="name">Mindbot <span>Genius</span></div>
+        <div class="sub">Binary Global Network</div>
+      </div>
     </div>
+    <button class="btn-new" onclick="newChat()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
+      Percakapan Baru
+    </button>
+  </div>
+  <div class="sidebar-section">Riwayat Percakapan</div>
+  <div id="conv-list"><div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div></div>
+  <div class="sidebar-footer">
+    <a href="baba.html" target="_blank" class="sidebar-link" style="opacity:0.7;letter-spacing:0.5px;">🌐 MINDBOT GENIUS · BINARY GLOBAL NETWORK</a>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <header>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="header-title new" id="chat-title">Percakapan Baru</div>
+    </div>
+    <div class="header-right">
+      <div class="status-dot"><div class="dot"></div>online</div>
+      <div class="model-selector" id="modelSelector">
+        <button class="model-btn" onclick="toggleModelDropdown()" id="modelBtn">
+          <div class="dot-model"></div>
+          <span id="modelBtnLabel">Mindbot v1.0</span>
+          <span>▾</span>
+        </button>
+        <div class="model-dropdown" id="modelDropdown">
+          <div class="model-group-label">⚡ Cepat & Efisien</div>
+          <div class="model-option active" id="opt_llama33" onclick="selectModel('openai/gpt-oss-120b','Mindbot v1.0','opt_llama33')">
+            <span class="model-icon">🦙</span>
+            <div class="model-info"><div class="model-name">Mindbot v1.0</div><div class="model-desc">Model default, serba bisa</div></div>
+            <span class="model-badge badge-fast">Cepat</span>
+          </div>
+          <div class="model-option" id="opt_llama31" onclick="selectModel('openai/gpt-oss-20b','Mindbot v1.5','opt_llama31')">
+            <span class="model-icon">⚡</span>
+            <div class="model-info"><div class="model-name">Mindbot v1.5</div><div class="model-desc">Super cepat & ringan</div></div>
+            <span class="model-badge badge-fast">Tercepat</span>
+          </div>
+          <div class="model-group-label">🧠 Cerdas & Konteks Panjang</div>
+          <div class="model-option" id="opt_qwen" onclick="selectModel('qwen/qwen3.6-27b','Genius v1.5','opt_qwen')">
+            <span class="model-icon">🐉</span>
+            <div class="model-info"><div class="model-name">Genius v1.5</div><div class="model-desc">Reasoning &amp; vision</div></div>
+            <span class="model-badge badge-smart">Pintar</span>
+          </div>
+          <div class="model-option" id="opt_kimi" onclick="selectModel('openai/gpt-oss-120b','Genius v2.5','opt_kimi')">
+            <span class="model-icon">🤖</span>
+            <div class="model-info"><div class="model-name">Genius v2.5</div><div class="model-desc">Paling cerdas, konteks 131K</div></div>
+            <span class="model-badge badge-smart">131K ctx</span>
+          </div>
+          <div class="model-group-label">👁️ Vision & Gambar</div>
+          <div class="model-option" id="opt_llama4" onclick="selectModel('qwen/qwen3.6-27b','Mindbot v2.0','opt_llama4')">
+            <span class="model-icon">🦅</span>
+            <div class="model-info"><div class="model-name">Mindbot v2.0</div><div class="model-desc">Analisis gambar & teks</div></div>
+            <span class="model-badge badge-vision">Vision</span>
+          </div>
+          <div class="model-option" id="opt_grok_img" onclick="selectModel('grok-imagine','Mindbot v2.5','opt_grok_img')">
+            <span class="model-icon">🎨</span>
+            <div class="model-info"><div class="model-name">Mindbot v2.5</div><div class="model-desc">Generate gambar dari teks (xAI)</div></div>
+            <span class="model-badge badge-smart">Image Gen</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn-icon" onclick="newChat()">+ Baru</button>
+    </div>
+  </header>
+
+  <div id="chat">
+    <div class="message-wrap">
+      <div id="welcome">
+        <img class="welcome-logo" src="logo.png" alt="Mindbot Genius"/>
+        <h2>Halo! Saya <span>Mindbot Genius</span></h2>
+        <p>Asisten AI dari Binary Global Network.<br/>Kirim pesan atau upload gambar/file!</p>
+        <div class="suggestions">
+          <div class="suggestion" onclick="sendSuggestion(this.textContent)">💡 Jelaskan machine learning</div>
+          <div class="suggestion" onclick="sendSuggestion(this.textContent)">🎮 Ide game Roblox seru</div>
+          <div class="suggestion" onclick="sendSuggestion(this.textContent)">📷 Upload gambar untuk dianalisis</div>
+          <div class="suggestion" onclick="sendSuggestion(this.textContent)">🔧 Contoh kode Python</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="input-area">
+      <!-- File preview -->
+      <div id="file-preview-bar">
+        <img id="preview-thumb" src="" alt=""/>
+        <span id="preview-icon"></span>
+        <span id="preview-name"></span>
+        <span id="preview-size"></span>
+        <button id="remove-file" onclick="removeFile()" title="Hapus file">✕</button>
+      </div>
+      <!-- Input row -->
+      <div class="input-row">
+        <button class="upload-btn" id="upload-btn" onclick="document.getElementById('file-input').click()" title="Upload gambar/file">
+          📎
+        </button>
+        <input type="file" id="file-input" accept="image/*,.txt,.pdf" style="display:none" onchange="handleFileSelect(event)"/>
+        <textarea id="input" class="input-box" placeholder="Ketik pesan atau upload file/gambar..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="Bicara ke AI">🎙️</button>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+      <div class="voice-status" id="voiceStatus">🎙️ Mendengarkan... bicara sekarang</div>
+    </div>
+  </footer>
 </div>
 
 <script>
-var timeout = 10;
-var timer = setInterval(function(){
-    timeout--;
-    document.querySelector('.timer b').innerHTML = timeout;
-    if( timeout == 0 ){
-        clearInterval(timer);
-        document.querySelector('.timer').style.display = 'none';
-        document.querySelector('.downlink').style.display = 'block';
+  // Device ID - stored in localStorage, unique per device
+  let deviceId = localStorage.getItem('mbg_device_id');
+  if (!deviceId) {
+    deviceId = 'dev_' + Math.random().toString(36).substr(2, 12);
+    localStorage.setItem('mbg_device_id', deviceId);
+  }
+
+  let sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
+  let isLoading = false;
+  let selectedFile = null;
+
+  // ── UTILS ──
+  function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,150)+'px'; }
+  function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
+  function escapeHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function formatSize(b) { return b>1048576?(b/1048576).toFixed(1)+' MB':(b/1024).toFixed(0)+' KB'; }
+  function formatDate(ts) {
+    const d=new Date(ts), now=new Date(), diff=now-d;
+    if(diff<60000)return'Baru saja';
+    if(diff<3600000)return Math.floor(diff/60000)+' menit lalu';
+    if(diff<86400000)return Math.floor(diff/3600000)+' jam lalu';
+    return d.toLocaleDateString('id-ID',{day:'numeric',month:'short'});
+  }
+
+  function formatMessage(text) {
+    text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_,lang,code)=>{
+      const id='c_'+Math.random().toString(36).substr(2,6);
+      return `<div class="code-block"><div class="code-toolbar"><span class="code-lang">${lang||'code'}</span><div class="code-actions"><button class="code-btn" onclick="copyCode('${id}',this)">📋 Salin</button><button class="code-btn" onclick="dlCode('${id}','${lang||'txt'}')">💾 Unduh</button></div></div><pre id="${id}">${escapeHtml(code.trim())}</pre></div>`;
+    });
+    text = text.replace(/`([^`]+)`/g,'<code>$1</code>');
+    text = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+    text = text.replace(/\n/g,'<br/>');
+    return text;
+  }
+
+  function copyCode(id,btn) {
+    navigator.clipboard.writeText(document.getElementById(id).innerText).then(()=>{
+      btn.textContent='✅ Tersalin!'; btn.classList.add('copied');
+      setTimeout(()=>{btn.textContent='📋 Salin';btn.classList.remove('copied');},2000);
+    });
+  }
+  function dlCode(id,lang) {
+    const ext={javascript:'js',python:'py',html:'html',css:'css',java:'java',cpp:'cpp',c:'c',typescript:'ts',json:'json',bash:'sh',shell:'sh'};
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([document.getElementById(id).innerText],{type:'text/plain'}));
+    a.download='mindbot_code.'+(ext[lang.toLowerCase()]||'txt'); a.click();
+  }
+
+  // ── LIGHTBOX ──
+  function openLightbox(src) { document.getElementById('lb-img').src=src; document.getElementById('lightbox').classList.add('show'); }
+  function closeLightbox() { document.getElementById('lightbox').classList.remove('show'); }
+
+  // ── FILE UPLOAD ──
+  function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    selectedFile = file;
+    const bar = document.getElementById('file-preview-bar');
+    const thumb = document.getElementById('preview-thumb');
+    const icon = document.getElementById('preview-icon');
+    document.getElementById('preview-name').textContent = file.name;
+    document.getElementById('preview-size').textContent = formatSize(file.size);
+    bar.classList.add('show');
+    document.getElementById('upload-btn').classList.add('has-file');
+
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = ev => { thumb.src = ev.target.result; thumb.style.display='block'; icon.style.display='none'; };
+      reader.readAsDataURL(file);
+    } else {
+      icon.textContent = file.type==='application/pdf' ? '📄' : '📝';
+      icon.style.display = 'block'; thumb.style.display = 'none';
     }
-<<<<<<< HEAD
     e.target.value = '';
   }
 
@@ -668,10 +860,6 @@ var timer = setInterval(function(){
 
   loadConversations();
 
-=======
-},1000);
->>>>>>> 5d4379a813bdf34700ad1487ec55f5c6772db574
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"c3a1ac86ce7445c2a354e5ffe30409ef","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
