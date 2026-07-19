@@ -92,7 +92,7 @@ app.post('/api/imagine', async (req, res) => {
         'Authorization': `Bearer ${XAI_KEY}`
       },
       body: JSON.stringify({
-        model: 'grok-2-image-1212',
+        model: 'grok-imagine-image-quality',
         prompt: prompt,
         n: 1,
         response_format: 'url'
@@ -106,7 +106,8 @@ app.post('/api/imagine', async (req, res) => {
     }
 
     const data = await resp.json();
-    const imageUrl = data.data[0].url;
+    const imageUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
+    if (!imageUrl) throw new Error('Tidak ada gambar yang dihasilkan');
     res.json({ imageUrl });
   } catch(err) {
     console.error('Grok Imagine error:', err.message);
