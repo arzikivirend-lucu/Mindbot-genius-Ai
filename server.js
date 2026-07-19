@@ -123,10 +123,10 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
     'llama-3.1-8b-instant',
     'qwen/qwen3-32b',
     'openai/gpt-oss-120b',
-    'meta-llama/llama-4-scout-17b-16e-instruct'
+    'llama-3.2-11b-vision-preview'
   ];
   const model = isImage
-    ? 'meta-llama/llama-4-scout-17b-16e-instruct'
+    ? 'llama-3.2-11b-vision-preview'
     : (ALLOWED_MODELS.includes(reqModel) ? reqModel : 'llama-3.3-70b-versatile');
 
   const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI), asisten AI cerdas dari Binary Global Network. CEO dan CTO Binary Global Network adalah Arziki. Jangan sebut model AI lain. Jawab dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
