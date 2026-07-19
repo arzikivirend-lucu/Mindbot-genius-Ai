@@ -224,20 +224,20 @@
         </button>
         <div class="model-dropdown" id="modelDropdown">
           <div class="model-group-label">⚡ Cepat & Efisien</div>
-          <div class="model-option active" id="opt_llama33" onclick="selectModel('llama-3.3-70b-versatile','Mindbot v1.0','opt_llama33')">
+          <div class="model-option active" id="opt_llama33" onclick="selectModel('openai/gpt-oss-120b','Mindbot v1.0','opt_llama33')">
             <span class="model-icon">🦙</span>
             <div class="model-info"><div class="model-name">Mindbot v1.0</div><div class="model-desc">Model default, serba bisa</div></div>
             <span class="model-badge badge-fast">Cepat</span>
           </div>
-          <div class="model-option" id="opt_llama31" onclick="selectModel('llama-3.1-8b-instant','Mindbot v1.5','opt_llama31')">
+          <div class="model-option" id="opt_llama31" onclick="selectModel('openai/gpt-oss-20b','Mindbot v1.5','opt_llama31')">
             <span class="model-icon">⚡</span>
             <div class="model-info"><div class="model-name">Mindbot v1.5</div><div class="model-desc">Super cepat & ringan</div></div>
             <span class="model-badge badge-fast">Tercepat</span>
           </div>
           <div class="model-group-label">🧠 Cerdas & Konteks Panjang</div>
-          <div class="model-option" id="opt_qwen" onclick="selectModel('qwen/qwen3-32b','Genius v1.5','opt_qwen')">
+          <div class="model-option" id="opt_qwen" onclick="selectModel('qwen/qwen3.6-27b','Genius v1.5','opt_qwen')">
             <span class="model-icon">🐉</span>
-            <div class="model-info"><div class="model-name">Genius v1.5</div><div class="model-desc">Reasoning kuat, multilingual</div></div>
+            <div class="model-info"><div class="model-name">Genius v1.5</div><div class="model-desc">Reasoning &amp; vision</div></div>
             <span class="model-badge badge-smart">Pintar</span>
           </div>
           <div class="model-option" id="opt_kimi" onclick="selectModel('openai/gpt-oss-120b','Genius v2.5','opt_kimi')">
@@ -246,7 +246,7 @@
             <span class="model-badge badge-smart">131K ctx</span>
           </div>
           <div class="model-group-label">👁️ Vision (Gambar)</div>
-          <div class="model-option" id="opt_llama4" onclick="selectModel('llama-3.2-11b-vision-preview','Mindbot v2.0','opt_llama4')">
+          <div class="model-option" id="opt_llama4" onclick="selectModel('qwen/qwen3.6-27b','Mindbot v2.0','opt_llama4')">
             <span class="model-icon">🦅</span>
             <div class="model-info"><div class="model-name">Mindbot v2.0</div><div class="model-desc">Analisis gambar & vision</div></div>
             <span class="model-badge badge-vision">Vision</span>
@@ -523,7 +523,7 @@
   function showError(msg){ const t=document.createElement('div'); t.className='error-toast'; t.textContent='⚠ '+msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3500); }
 
   // ── MODEL SELECTION ──
-  let currentModel = 'llama-3.3-70b-versatile';
+  let currentModel = 'openai/gpt-oss-120b';
   let currentModelName = 'Mindbot v1.0';
 
   function toggleModelDropdown() {
