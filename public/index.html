@@ -253,7 +253,7 @@
           </div>
           <div class="model-option" id="opt_grok_img" onclick="selectModel('grok-imagine','Mindbot v2.5','opt_grok_img')">
             <span class="model-icon">🎨</span>
-            <div class="model-info"><div class="model-name">Mindbot v2.5</div><div class="model-desc">Generate gambar dari teks (xAI)dalam pengembangan</div></div>
+            <div class="model-info"><div class="model-name">Mindbot v2.5</div><div class="model-desc">Generate gambar dari teks (xAI)</div></div>
             <span class="model-badge badge-smart">Image Gen</span>
           </div>
         </div>
@@ -592,39 +592,31 @@
 
     appendMessage('user', text, imagePreview, fileName);
 
-    // ── GROK IMAGINE ──
+    // ── MINDBOT v2.5 IMAGE GENERATION ──
     if (!fileToSend && currentModel === 'grok-imagine') {
-      // Remind user this model only generates images
-      if (text.length < 5) {
-        showError('💡 Mindbot v2.5 hanya untuk generate gambar. Ketik deskripsi gambar yang ingin dibuat!');
+      if (text.length < 3) {
+        showError('💡 Ketik deskripsi gambar yang ingin dibuat!');
         isLoading=false; document.getElementById('sendBtn').disabled=false;
         return;
       }
+      // Build Pollinations URL directly in browser
+      const encoded = encodeURIComponent(text + ', high quality, detailed, beautiful');
+      const imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${Date.now()}`;
+
+      appendMessage('user', text);
       showTyping();
-      try {
-        const res = await fetch('/api/imagine', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ prompt: text })
-        });
-        let data;
-        try { data = await res.json(); } catch(e) { removeTyping(); showError('Server error saat generate gambar'); isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); return; }
+      setTimeout(() => {
         removeTyping();
-        if (!res.ok) throw new Error(data.error || 'Gagal generate gambar');
-        appendMessage('ai', `🎨 **Grok Imagine** — "${text}"`, null, null, data.imageUrl);
+        appendMessage('ai', `🎨 Membuat gambar: **"${text}"**`, null, null, imageUrl);
         // Save to localStorage
         const existingConv = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
         const msgs = existingConv ? existingConv.messages : [];
         msgs.push({ role:'user', textContent: text });
-        msgs.push({ role:'assistant', textContent: `🎨 Gambar dibuat: "${text}"` });
+        msgs.push({ role:'assistant', textContent: `🎨 Gambar: "${text}"` });
         saveConversation({ id: sessionId, title: '🎨 '+text.slice(0,35), messages: msgs, createdAt: existingConv?.createdAt||Date.now(), updatedAt: Date.now() });
         loadConversations();
-      } catch(err) {
-        removeTyping();
-        showError(err.message);
-      } finally {
         isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus();
-      }
+      }, 800);
       return;
     }
 
