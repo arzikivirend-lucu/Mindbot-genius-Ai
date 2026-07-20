@@ -92,20 +92,25 @@ app.post('/api/imagine', async (req, res) => {
         'Authorization': `Bearer ${XAI_KEY}`
       },
       body: JSON.stringify({
-        model: 'grok-imagine-image-quality',
+        model: 'grok-2-image',
         prompt: prompt
       })
     });
 
-    if (!resp.ok) {
-      const e = await resp.json();
-      console.error('xAI error detail:', JSON.stringify(e));
-      throw new Error(e.error?.message || e.message || 'xAI API error');
+    const rawText = await resp.text();
+    console.log('xAI raw response:', rawText.slice(0, 500));
+
+    let data;
+    try { data = JSON.parse(rawText); } catch(e) {
+      throw new Error('xAI response bukan JSON: ' + rawText.slice(0,200));
     }
 
-    const data = await resp.json();
+    if (!resp.ok) {
+      throw new Error(data.error?.message || data.message || 'xAI API error: ' + resp.status);
+    }
+
     const imageUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
-    if (!imageUrl) throw new Error('Tidak ada gambar yang dihasilkan');
+    if (!imageUrl) throw new Error('Tidak ada URL gambar: ' + JSON.stringify(data).slice(0,200));
     res.json({ imageUrl });
   } catch(err) {
     console.error('Grok Imagine error:', err.message);
