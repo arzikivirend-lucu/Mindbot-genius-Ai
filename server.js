@@ -76,28 +76,42 @@ async function searchWeb(query) {
 }
 
 
-// ── MINDBOT v2.5 IMAGE GENERATION (Pollinations via server) ──
+// ── MINDBOT v2.5 IMAGE GENERATION (Hugging Face) ──
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
 
+  const HF_KEY = process.env.HF_API_KEY;
+  if (!HF_KEY) return res.status(500).json({ error: 'HF_API_KEY belum diset' });
+
   try {
-    const encoded = encodeURIComponent(prompt + ', high quality, detailed');
-    const url = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${Date.now()}`;
+    const resp = await fetch(
+      'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${HF_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          inputs: prompt + ', high quality, detailed, beautiful, 4k',
+          parameters: { width: 768, height: 512 }
+        })
+      }
+    );
 
-    // Fetch image from Pollinations via server
-    const imgResp = await fetch(url, { headers: { 'User-Agent': 'MindBot/1.0' } });
-    if (!imgResp.ok) throw new Error('Pollinations error: ' + imgResp.status);
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error('HF error ' + resp.status + ': ' + errText.slice(0,200));
+    }
 
-    const buffer = await imgResp.arrayBuffer();
+    const buffer = await resp.arrayBuffer();
     const base64 = Buffer.from(buffer).toString('base64');
-    const contentType = imgResp.headers.get('content-type') || 'image/jpeg';
-    const dataUrl = `data:${contentType};base64,${base64}`;
-
+    const dataUrl = `data:image/jpeg;base64,${base64}`;
     res.json({ imageUrl: dataUrl });
   } catch(err) {
     console.error('Image gen error:', err.message);
-    res.status(500).json({ error: 'Gagal generate gambar: ' + err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
