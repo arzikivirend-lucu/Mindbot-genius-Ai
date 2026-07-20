@@ -76,44 +76,17 @@ async function searchWeb(query) {
 }
 
 
-// ── GROK IMAGINE (xAI Image Generation) ──
+// ── MINDBOT v2.5 IMAGE GENERATION (Pollinations.AI) ──
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
 
-  const XAI_KEY = process.env.XAI_API_KEY;
-  if (!XAI_KEY) return res.status(500).json({ error: 'XAI_API_KEY belum diset' });
-
   try {
-    const resp = await fetch('https://api.x.ai/v1/images/generations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${XAI_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'grok-2-image',
-        prompt: prompt
-      })
-    });
-
-    const rawText = await resp.text();
-    console.log('xAI raw response:', rawText.slice(0, 500));
-
-    let data;
-    try { data = JSON.parse(rawText); } catch(e) {
-      throw new Error('xAI response bukan JSON: ' + rawText.slice(0,200));
-    }
-
-    if (!resp.ok) {
-      throw new Error(data.error?.message || data.message || 'xAI API error: ' + resp.status);
-    }
-
-    const imageUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
-    if (!imageUrl) throw new Error('Tidak ada URL gambar: ' + JSON.stringify(data).slice(0,200));
+    const encoded = encodeURIComponent(prompt + ', high quality, detailed, beautiful');
+    const imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${Date.now()}`;
     res.json({ imageUrl });
   } catch(err) {
-    console.error('Grok Imagine error:', err.message);
+    console.error('Image gen error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
