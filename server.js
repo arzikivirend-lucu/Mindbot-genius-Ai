@@ -76,18 +76,28 @@ async function searchWeb(query) {
 }
 
 
-// ── MINDBOT v2.5 IMAGE GENERATION (Pollinations.AI) ──
+// ── MINDBOT v2.5 IMAGE GENERATION (Pollinations via server) ──
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
 
   try {
-    const encoded = encodeURIComponent(prompt + ', high quality, detailed, beautiful');
-    const imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${Date.now()}`;
-    res.json({ imageUrl });
+    const encoded = encodeURIComponent(prompt + ', high quality, detailed');
+    const url = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${Date.now()}`;
+
+    // Fetch image from Pollinations via server
+    const imgResp = await fetch(url, { headers: { 'User-Agent': 'MindBot/1.0' } });
+    if (!imgResp.ok) throw new Error('Pollinations error: ' + imgResp.status);
+
+    const buffer = await imgResp.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+    const contentType = imgResp.headers.get('content-type') || 'image/jpeg';
+    const dataUrl = `data:${contentType};base64,${base64}`;
+
+    res.json({ imageUrl: dataUrl });
   } catch(err) {
     console.error('Image gen error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Gagal generate gambar: ' + err.message });
   }
 });
 
