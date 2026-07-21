@@ -599,31 +599,22 @@
         isLoading=false; document.getElementById('sendBtn').disabled=false;
         return;
       }
-      appendMessage('user', text);
       showTyping();
-      try {
-        const res = await fetch('/api/imagine', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ prompt: text })
-        });
-        let data;
-        try { data = await res.json(); } catch(e) { throw new Error('Server error'); }
+      // Build Pollinations URL client-side (no server call needed)
+      const encoded = encodeURIComponent(text + ', high quality, detailed, beautiful');
+      const seed = Math.floor(Math.random()*999999);
+      const imgUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${seed}&model=flux`;
+      setTimeout(() => {
         removeTyping();
-        if (!res.ok) throw new Error(data.error || 'Gagal generate gambar');
-        appendMessage('ai', `🎨 **"${text}"**`, null, null, data.imageUrl);
+        appendMessage('ai', `🎨 **"${text}"**`, null, null, imgUrl);
         const existingConv = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
         const msgs = existingConv ? existingConv.messages : [];
         msgs.push({ role:'user', textContent: text });
         msgs.push({ role:'assistant', textContent: `🎨 Gambar: "${text}"` });
         saveConversation({ id: sessionId, title: '🎨 '+text.slice(0,35), messages: msgs, createdAt: existingConv?.createdAt||Date.now(), updatedAt: Date.now() });
         loadConversations();
-      } catch(err) {
-        removeTyping();
-        showError(err.message);
-      } finally {
         isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus();
-      }
+      }, 500);
       return;
     }
 
