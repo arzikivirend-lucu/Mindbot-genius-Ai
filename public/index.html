@@ -588,11 +588,10 @@
 
     input.value=''; input.style.height='auto';
     removeFile();
-    isLoading=true; document.getElementById('sendBtn').disabled=true;
+    isLoading=true;
+    document.getElementById('sendBtn').disabled=true;
 
-    appendMessage('user', text, imagePreview, fileName);
-
-    // ── MINDBOT v2.5 IMAGE GENERATION ──
+    // ── MINDBOT v2.5 — Image Generation ──
     if (!fileToSend && currentModel === 'grok-imagine') {
       if (text.length < 3) {
         showError('💡 Ketik deskripsi gambar yang ingin dibuat!');
@@ -600,56 +599,31 @@
         return;
       }
       showTyping();
-      // Build Pollinations URL client-side (no server call needed)
       const encoded = encodeURIComponent(text + ', high quality, detailed, beautiful');
       const seed = Math.floor(Math.random()*999999);
       const imgUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${seed}&model=flux`;
       setTimeout(() => {
         removeTyping();
         appendMessage('ai', `🎨 **"${text}"**`, null, null, imgUrl);
-        const existingConv = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
-        const msgs = existingConv ? existingConv.messages : [];
+        const ec = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
+        const msgs = ec ? ec.messages : [];
         msgs.push({ role:'user', textContent: text });
         msgs.push({ role:'assistant', textContent: `🎨 Gambar: "${text}"` });
-        saveConversation({ id: sessionId, title: '🎨 '+text.slice(0,35), messages: msgs, createdAt: existingConv?.createdAt||Date.now(), updatedAt: Date.now() });
+        saveConversation({ id:sessionId, title:'🎨 '+text.slice(0,35), messages:msgs, createdAt:ec?.createdAt||Date.now(), updatedAt:Date.now() });
         loadConversations();
         isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus();
-      }, 500);
+      }, 600);
       return;
     }
 
-    // ── CLIENT-SIDE IMAGE GENERATION ──
-    if (!fileToSend && detectImgRequest(text)) {
-      const prompt = extractImgPrompt(text);
-      if (prompt) {
-        const imgUrl = buildPollinationsUrl(prompt);
-        // Show typing briefly then render image
-        showTyping();
-        setTimeout(() => {
-          removeTyping();
-          const replyText = `Membuat gambar: **"${prompt}"** — tunggu sebentar ya! 🎨`;
-          appendMessage('ai', replyText, null, null, imgUrl);
-          // Update title
-          if (document.getElementById('chat-title').classList.contains('new')) {
-            document.getElementById('chat-title').textContent = '🎨 ' + prompt.slice(0,35);
-            document.getElementById('chat-title').classList.remove('new');
-          }
-          isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus();
-          // Save to server for history
-          const fd=new FormData(); fd.append('message',text); fd.append('sessionId',sessionId); fd.append('deviceId',deviceId);
-          fetch('/api/chat',{method:'POST',body:fd}).then(()=>loadConversations()).catch(()=>{});
-        }, 800);
-        return;
-      }
-    }
-
+    // ── Regular Chat ──
+    appendMessage('user', text, imagePreview, fileName);
     showTyping();
 
     try {
       const formData = new FormData();
       if(text) formData.append('message', text);
       formData.append('sessionId', sessionId);
-      formData.append('deviceId', deviceId);
       formData.append('model', currentModel);
       if(fileToSend) formData.append('file', fileToSend);
 
@@ -658,9 +632,9 @@
       try { data = await res.json(); } catch(e) { removeTyping(); showError('Server error - coba lagi'); isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); return; }
       removeTyping();
       if(!res.ok) throw new Error(data.error||'Terjadi kesalahan');
+
       if(data.searched) {
-        const searchNote = '🔍 *[Mencari informasi terkini dari web...]*\n\n';
-        appendMessage('ai', searchNote + data.reply, null, null, data.generatedImageUrl);
+        appendMessage('ai', '🔍 *[Mencari informasi terkini dari web...]*\n\n' + data.reply, null, null, data.generatedImageUrl);
       } else {
         appendMessage('ai', data.reply, null, null, data.generatedImageUrl);
       }
@@ -688,6 +662,7 @@
     } catch(err){ removeTyping(); showError(err.message); }
     finally { isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); }
   }
+
 
   function readFileAsDataURL(file) {
     return new Promise(res => { const r=new FileReader(); r.onload=e=>res(e.target.result); r.readAsDataURL(file); });
@@ -853,4 +828,3 @@
 </script>
 </body>
 </html>
-
