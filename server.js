@@ -76,41 +76,81 @@ async function searchWeb(query) {
 }
 
 
-// ── MINDBOT v2.5 IMAGE GENERATION (Hugging Face) ──
+// ── MINDBOT v2.5 IMAGE GENERATION ──
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
+  // Return URL directly - browser will load image
+  const encoded = encodeURIComponent(prompt + ', high quality, detailed, beautiful');
+  const seed = Math.floor(Math.random() * 999999);
+  const imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${seed}&model=flux`;
+  res.json({ imageUrl });
+});
 
-  const HF_KEY = process.env.HF_API_KEY;
-  if (!HF_KEY) return res.status(500).json({ error: 'HF_API_KEY belum diset' });
+
+// ── MINDBOT v3.0 VIDEO GENERATION (Pixverse) ──
+const { v4: uuidv4 } = require('crypto');
+
+app.post('/api/video', async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
+
+  const PV_KEY = process.env.PIXVERSE_API_KEY;
+  if (!PV_KEY) return res.status(500).json({ error: 'PIXVERSE_API_KEY belum diset' });
 
   try {
-    const resp = await fetch(
-      'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${HF_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          inputs: prompt + ', high quality, detailed, beautiful, 4k',
-          parameters: { width: 768, height: 512 }
-        })
-      }
-    );
+    const traceId = Math.random().toString(36).substr(2,16)+Date.now();
 
-    if (!resp.ok) {
-      const errText = await resp.text();
-      throw new Error('HF error ' + resp.status + ': ' + errText.slice(0,200));
+    // Submit video generation request
+    const submitResp = await fetch('https://app-api.pixverse.ai/openapi/v2/video/text/generate', {
+      method: 'POST',
+      headers: {
+        'API-KEY': PV_KEY,
+        'Ai-trace-id': traceId,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        model: 'v3.5',
+        duration: 5,
+        quality: '720p',
+        aspect_ratio: '16:9',
+        motion_mode: 'normal',
+        water_mark: false
+      })
+    });
+
+    if (!submitResp.ok) {
+      const e = await submitResp.json();
+      throw new Error(e.message || e.ErrMsg || 'Pixverse submit error');
     }
 
-    const buffer = await resp.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString('base64');
-    const dataUrl = `data:image/jpeg;base64,${base64}`;
-    res.json({ imageUrl: dataUrl });
+    const submitData = await submitResp.json();
+    const videoId = submitData.Resp?.video_id || submitData.data?.video_id;
+    if (!videoId) throw new Error('Tidak dapat video ID: ' + JSON.stringify(submitData).slice(0,200));
+
+    // Poll for completion (max 3 minutes)
+    let videoUrl = null;
+    for (let i = 0; i < 36; i++) {
+      await new Promise(r => setTimeout(r, 5000));
+
+      const statusResp = await fetch(`https://app-api.pixverse.ai/openapi/v2/video/result/${videoId}`, {
+        headers: { 'API-KEY': PV_KEY, 'Ai-trace-id': traceId }
+      });
+
+      if (!statusResp.ok) continue;
+      const statusData = await statusResp.json();
+      const status = statusData.Resp?.status || statusData.data?.status;
+      const url = statusData.Resp?.url || statusData.data?.url;
+
+      if (status === 1 && url) { videoUrl = url; break; }
+      if (status === 3) throw new Error('Video generation gagal di server Pixverse');
+    }
+
+    if (!videoUrl) throw new Error('Timeout - video belum selesai setelah 3 menit');
+    res.json({ videoUrl });
   } catch(err) {
-    console.error('Image gen error:', err.message);
+    console.error('Pixverse error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
