@@ -608,7 +608,7 @@
         const ec = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
         const msgs = ec ? ec.messages : [];
         msgs.push({ role:'user', textContent: text });
-        msgs.push({ role:'assistant', textContent: `🎨 Gambar: "${text}"` });
+        msgs.push({ role:'assistant', textContent: `🎨 Gambar: "${text}"`, generatedImageUrl: imgUrl });
         saveConversation({ id:sessionId, title:'🎨 '+text.slice(0,35), messages:msgs, createdAt:ec?.createdAt||Date.now(), updatedAt:Date.now() });
         loadConversations();
         isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus();
