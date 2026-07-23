@@ -253,7 +253,7 @@
           </div>
           <div class="model-option" id="opt_grok_img" onclick="selectModel('grok-imagine','Mindbot v2.5','opt_grok_img')">
             <span class="model-icon">🎨</span>
-            <div class="model-info"><div class="model-name">Mindbot v2.5</div><div class="model-desc">Generate gambar dari teks </div></div>
+            <div class="model-info"><div class="model-name">Mindbot v2.5</div><div class="model-desc">Generate gambar dari teks (xAI)</div></div>
             <span class="model-badge badge-smart">Image Gen</span>
           </div>
         </div>
@@ -404,7 +404,7 @@
   }
 
   function saveConversation(conv) {
-    // Don't save imageData to avoid localStorage quota issues
+    // Strip imageData (base64) but keep generatedImageUrl (just a URL string)
     const toSave = {...conv, messages: conv.messages.map(m => ({...m, imageData: null}))};
     try { localStorage.setItem('conv_'+conv.id, JSON.stringify(toSave)); } catch(e) {
       // If storage full, remove oldest conv
@@ -445,7 +445,7 @@
     const chat = document.getElementById('chat');
     chat.innerHTML='<div class="message-wrap"></div>';
     const wrap = chat.querySelector('.message-wrap');
-    conv.messages.forEach(m => appendMessageTo(wrap, m.role==='user'?'user':'ai', m.textContent||'', m.imageData, m.fileName, false));
+    conv.messages.forEach(m => appendMessageTo(wrap, m.role==='user'?'user':'ai', m.textContent||'', m.imageData, m.fileName, false, m.generatedImageUrl||null));
     chat.scrollTop = chat.scrollHeight;
     document.querySelectorAll('.conv-item').forEach(el=>el.classList.remove('active'));
     const item = document.getElementById('ci_'+id);
@@ -648,7 +648,7 @@
       const existingConv = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
       const msgs = existingConv ? existingConv.messages : [];
       msgs.push({ role:'user', textContent: text });
-      msgs.push({ role:'assistant', textContent: data.reply });
+      msgs.push({ role:'assistant', textContent: data.reply, generatedImageUrl: data.generatedImageUrl||null });
       const convData = {
         id: sessionId,
         title: data.title || document.getElementById('chat-title').textContent,
