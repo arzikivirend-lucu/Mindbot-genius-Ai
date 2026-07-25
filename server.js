@@ -88,58 +88,60 @@ app.post('/api/imagine', async (req, res) => {
 });
 
 
-// ── MINDBOT v3.0 VIDEO GENERATION (Kling AI) ──
+// ── MINDBOT v3.0 VIDEO GENERATION (Runway ML) ──
 app.post('/api/video', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
 
-  const KLING_KEY = process.env.KLING_API_KEY;
-  if (!KLING_KEY) return res.status(500).json({ error: 'KLING_API_KEY belum diset' });
+  const RUNWAY_KEY = process.env.RUNWAY_API_KEY;
+  if (!RUNWAY_KEY) return res.status(500).json({ error: 'RUNWAY_API_KEY belum diset' });
 
   try {
-    // Submit video generation
-    const submitResp = await fetch('https://api-singapore.klingai.com/v1/videos/text2video', {
+    // Submit text-to-video
+    const submitResp = await fetch('https://api.dev.runwayml.com/v1/text_to_video', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${KLING_KEY}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${RUNWAY_KEY}`,
+        'Content-Type': 'application/json',
+        'X-Runway-Version': '2024-11-06'
       },
       body: JSON.stringify({
-        model_name: 'kling-v1',
-        prompt: prompt,
-        aspect_ratio: '16:9',
-        duration: '5',
-        mode: 'std'
+        promptText: prompt,
+        model: 'gen4_turbo',
+        duration: 5,
+        ratio: '1280:720'
       })
     });
 
     const submitData = await submitResp.json();
-    console.log('Kling submit:', JSON.stringify(submitData).slice(0,300));
+    console.log('Runway submit:', JSON.stringify(submitData).slice(0,300));
 
-    if (!submitResp.ok) throw new Error(submitData.message || submitData.error || 'Kling API error: ' + submitResp.status);
+    if (!submitResp.ok) throw new Error(submitData.error || submitData.message || 'Runway API error: ' + submitResp.status);
 
-    const taskId = submitData.data?.task_id;
+    const taskId = submitData.id;
     if (!taskId) throw new Error('Tidak dapat task ID: ' + JSON.stringify(submitData).slice(0,200));
 
     // Poll for completion (max 3 minutes)
     let videoUrl = null;
     for (let i = 0; i < 36; i++) {
       await new Promise(r => setTimeout(r, 5000));
-      const statusResp = await fetch(`https://api-singapore.klingai.com/v1/videos/text2video/${taskId}`, {
-        headers: { 'Authorization': `Bearer ${KLING_KEY}` }
+      const statusResp = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
+        headers: {
+          'Authorization': `Bearer ${RUNWAY_KEY}`,
+          'X-Runway-Version': '2024-11-06'
+        }
       });
       const statusData = await statusResp.json();
-      const status = statusData.data?.task_status;
-      const url = statusData.data?.task_result?.videos?.[0]?.url;
-      console.log('Kling status:', status);
-      if (status === 'succeed' && url) { videoUrl = url; break; }
-      if (status === 'failed') throw new Error('Kling: video generation gagal');
+      const status = statusData.status;
+      console.log('Runway status:', status);
+      if (status === 'SUCCEEDED') { videoUrl = statusData.output?.[0]; break; }
+      if (status === 'FAILED') throw new Error('Runway: ' + (statusData.failure || 'video generation gagal'));
     }
 
     if (!videoUrl) throw new Error('Timeout - video belum selesai (3 menit)');
     res.json({ videoUrl });
   } catch(err) {
-    console.error('Kling error:', err.message);
+    console.error('Runway error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
