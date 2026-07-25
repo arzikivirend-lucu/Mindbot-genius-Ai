@@ -96,49 +96,69 @@ app.post('/api/video', async (req, res) => {
   const RUNWAY_KEY = process.env.RUNWAY_API_KEY;
   if (!RUNWAY_KEY) return res.status(500).json({ error: 'RUNWAY_API_KEY belum diset' });
 
+  const headers = {
+    'Authorization': `Bearer ${RUNWAY_KEY}`,
+    'Content-Type': 'application/json',
+    'X-Runway-Version': '2024-11-06'
+  };
+
   try {
-    // Submit text-to-video
-    const submitResp = await fetch('https://api.dev.runwayml.com/v1/text_to_video', {
+    // Step 1: Generate image from text
+    const imgResp = await fetch('https://api.dev.runwayml.com/v1/text_to_image', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RUNWAY_KEY}`,
-        'Content-Type': 'application/json',
-        'X-Runway-Version': '2024-11-06'
-      },
+      headers,
       body: JSON.stringify({
         promptText: prompt,
+        model: 'gen4_image',
+        ratio: '1280:720'
+      })
+    });
+
+    const imgData = await imgResp.json();
+    console.log('Runway image:', JSON.stringify(imgData).slice(0,300));
+    if (!imgResp.ok) throw new Error(imgData.error || imgData.message || 'Image gen error: ' + imgResp.status);
+
+    // Poll for image task
+    const imgTaskId = imgData.id;
+    let imageUrl = null;
+    for (let i = 0; i < 20; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      const s = await (await fetch(`https://api.dev.runwayml.com/v1/tasks/${imgTaskId}`, { headers })).json();
+      if (s.status === 'SUCCEEDED') { imageUrl = s.output?.[0]; break; }
+      if (s.status === 'FAILED') throw new Error('Image gen gagal: ' + s.failure);
+    }
+    if (!imageUrl) throw new Error('Timeout generate gambar');
+
+    // Step 2: Generate video from image
+    const vidResp = await fetch('https://api.dev.runwayml.com/v1/image_to_video', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
         model: 'gen4_turbo',
+        promptImage: imageUrl,
+        promptText: prompt,
         duration: 5,
         ratio: '1280:720'
       })
     });
 
-    const submitData = await submitResp.json();
-    console.log('Runway submit:', JSON.stringify(submitData).slice(0,300));
+    const vidData = await vidResp.json();
+    console.log('Runway video:', JSON.stringify(vidData).slice(0,300));
+    if (!vidResp.ok) throw new Error(vidData.error || vidData.message || 'Video gen error: ' + vidResp.status);
 
-    if (!submitResp.ok) throw new Error(submitData.error || submitData.message || 'Runway API error: ' + submitResp.status);
+    const taskId = vidData.id;
+    if (!taskId) throw new Error('Tidak dapat video task ID');
 
-    const taskId = submitData.id;
-    if (!taskId) throw new Error('Tidak dapat task ID: ' + JSON.stringify(submitData).slice(0,200));
-
-    // Poll for completion (max 3 minutes)
+    // Poll for video
     let videoUrl = null;
     for (let i = 0; i < 36; i++) {
       await new Promise(r => setTimeout(r, 5000));
-      const statusResp = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
-        headers: {
-          'Authorization': `Bearer ${RUNWAY_KEY}`,
-          'X-Runway-Version': '2024-11-06'
-        }
-      });
-      const statusData = await statusResp.json();
-      const status = statusData.status;
-      console.log('Runway status:', status);
-      if (status === 'SUCCEEDED') { videoUrl = statusData.output?.[0]; break; }
-      if (status === 'FAILED') throw new Error('Runway: ' + (statusData.failure || 'video generation gagal'));
+      const s = await (await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, { headers })).json();
+      if (s.status === 'SUCCEEDED') { videoUrl = s.output?.[0]; break; }
+      if (s.status === 'FAILED') throw new Error('Runway: ' + (s.failure || 'video generation gagal'));
     }
 
-    if (!videoUrl) throw new Error('Timeout - video belum selesai (3 menit)');
+    if (!videoUrl) throw new Error('Timeout - video belum selesai');
     res.json({ videoUrl });
   } catch(err) {
     console.error('Runway error:', err.message);
