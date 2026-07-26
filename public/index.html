@@ -165,8 +165,6 @@
     .voice-status.show { display: block; }
     .search-indicator { display:flex; align-items:center; gap:6px; font-size:10px; font-family:'DM Mono',monospace; color:var(--text-dim); margin-bottom:6px; }
     .search-pulse { width:6px; height:6px; border-radius:50%; background:#4ade80; animation:pulse-dot 1s infinite; }
-    .gen-video-wrap { margin-top: 10px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: var(--surface2); }
-    .gen-video { width: 100%; border-radius: 12px; display: block; }
     .error-toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #dc2626; color: white; padding: 9px 18px; border-radius: 9px; font-family: 'DM Mono', monospace; font-size: 12px; z-index: 100; animation: slide-up 0.3s ease; }
     @keyframes slide-up{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
@@ -258,11 +256,7 @@
             <div class="model-info"><div class="model-name">Mindbot v2.5</div><div class="model-desc">Generate gambar dari teks (xAI)</div></div>
             <span class="model-badge badge-smart">Image Gen</span>
           </div>
-          <div class="model-option" id="opt_pixverse" onclick="selectModel('pixverse-video','Mindbot v3.0','opt_pixverse')">
-            <span class="model-icon">🎬</span>
-            <div class="model-info"><div class="model-name">Mindbot v3.0</div><div class="model-desc">Generate video AI dari teks (Pixverse)</div></div>
-            <span class="model-badge badge-vision">Video AI</span>
-          </div>
+
         </div>
       </div>
       <button class="btn-icon" onclick="newChat()">+ Baru</button>
@@ -463,7 +457,8 @@
   function deleteConv(id) {
     localStorage.removeItem('conv_'+id);
     if(id===sessionId) newChat();
-    loadConversations();
+    requestNotificationPermission();
+  loadConversations();
   }
 
   // ── CHAT ──
@@ -598,54 +593,7 @@
     isLoading=true;
     document.getElementById('sendBtn').disabled=true;
 
-    // ── MINDBOT v3.0 — Video Generation (Pixverse) ──
-    if (!fileToSend && currentModel === 'pixverse-video') {
-      if (text.length < 3) {
-        showError('💡 Ketik deskripsi video yang ingin dibuat!');
-        isLoading=false; document.getElementById('sendBtn').disabled=false;
-        return;
-      }
-      showTyping();
-      try {
-        const res = await fetch('/api/video', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ prompt: text })
-        });
-        let data;
-        try { data = await res.json(); } catch(e) { throw new Error('Server error'); }
-        removeTyping();
-        if (!res.ok) throw new Error(data.error || 'Gagal generate video');
-
-        // Show video player
-        const vid = `<div class="gen-video-wrap">
-          <video class="gen-video" controls autoplay loop>
-            <source src="${data.videoUrl}" type="video/mp4">
-          </video>
-          <div class="gen-actions" style="display:flex">
-            <button class="code-btn" onclick="window.open('${data.videoUrl}','_blank')">💾 Unduh Video</button>
-          </div>
-        </div>`;
-        appendMessage('ai', `🎬 **"${text}"**
-
-` + vid);
-
-        const ec = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
-        const msgs = ec ? ec.messages : [];
-        msgs.push({ role:'user', textContent: text });
-        msgs.push({ role:'assistant', textContent: `🎬 Video: "${text}"`, videoUrl: data.videoUrl });
-        saveConversation({ id:sessionId, title:'🎬 '+text.slice(0,35), messages:msgs, createdAt:ec?.createdAt||Date.now(), updatedAt:Date.now() });
-        loadConversations();
-      } catch(err) {
-        removeTyping();
-        showError(err.message);
-      } finally {
-        isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus();
-      }
-      return;
-    }
-
-    // ── MINDBOT v2.5 — Image Generation ──
+        // ── MINDBOT v2.5 — Image Generation ──
     if (!fileToSend && currentModel === 'grok-imagine') {
       if (text.length < 3) {
         showError('💡 Ketik deskripsi gambar yang ingin dibuat!');
@@ -659,6 +607,7 @@
       setTimeout(() => {
         removeTyping();
         appendMessage('ai', `🎨 **"${text}"**`, null, null, imgUrl);
+        sendNotification('🎨 Mindbot v2.5', 'Gambar sudah selesai dibuat!');
         const ec = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
         const msgs = ec ? ec.messages : [];
         msgs.push({ role:'user', textContent: text });
@@ -691,6 +640,7 @@
         appendMessage('ai', '🔍 *[Mencari informasi terkini dari web...]*\n\n' + data.reply, null, null, data.generatedImageUrl);
       } else {
         appendMessage('ai', data.reply, null, null, data.generatedImageUrl);
+      sendNotification('🤖 Mindbot Genius', data.reply);
       }
 
       if(data.title && document.getElementById('chat-title').classList.contains('new')){
