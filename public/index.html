@@ -43,9 +43,9 @@
     #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
     #main::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 40% at 20% 10%, rgba(37,99,235,0.06) 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 80% 85%, rgba(200,168,75,0.04) 0%, transparent 60%); pointer-events: none; }
 
-    header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-bottom: 1px solid var(--border); background: rgba(10,12,20,0.85); backdrop-filter: blur(20px); position: relative; z-index: 10; }
-    .header-title { font-size: 14px; font-weight: 700; color: var(--text-dim); font-family: 'DM Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
-    .header-right { display: flex; align-items: center; gap: 10px; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-bottom: 1px solid var(--border); background: rgba(10,12,20,0.85); backdrop-filter: blur(20px); position: relative; z-index: 10; gap: 8px; min-width: 0; }
+    .header-title { font-size: 14px; font-weight: 700; color: var(--text-dim); font-family: 'DM Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; min-width: 0; flex: 1; }
+    .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
     .status-dot { display: flex; align-items: center; gap: 6px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); }
     .dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px #4ade80; animation: pulse-dot 2s infinite; }
     @keyframes pulse-dot { 0%,100%{opacity:1}50%{opacity:.4} }
@@ -109,16 +109,16 @@
     #remove-file { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 5px; transition: all 0.2s; flex-shrink: 0; }
     #remove-file:hover { background: rgba(220,38,38,0.2); color: #f87171; }
 
-    .input-row { display: flex; gap: 8px; align-items: flex-end; }
+    .input-row { display: flex; gap: 6px; align-items: flex-end; }
     .input-box { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 14px; resize: none; outline: none; min-height: 48px; max-height: 150px; transition: border-color 0.2s, box-shadow 0.2s; line-height: 1.5; }
     .input-box::placeholder { color: var(--text-dim); }
     .input-box:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,168,75,0.08); }
 
-    .upload-btn { width: 48px; height: 48px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; font-size: 18px; position: relative; }
+    .upload-btn { width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; font-size: 18px; position: relative; }
     .upload-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(200,168,75,0.06); }
     .upload-btn.has-file { border-color: var(--gold); color: var(--gold); background: rgba(200,168,75,0.1); }
 
-    .send-btn { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #1a4fc4, var(--gold)); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform 0.15s; }
+    .send-btn { width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; background: linear-gradient(135deg, #1a4fc4, var(--gold)); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform 0.15s; }
     .send-btn:hover{transform:scale(1.05)} .send-btn:active{transform:scale(0.95)} .send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
     .send-btn svg { width: 16px; height: 16px; fill: white; }
 
@@ -154,7 +154,7 @@
     .badge-smart { background: rgba(200,168,75,0.1); color: var(--gold); border: 1px solid rgba(200,168,75,0.2); }
     .badge-vision { background: rgba(37,99,235,0.15); color: #93b4ff; border: 1px solid rgba(37,99,235,0.25); }
     /* Voice */
-    .voice-btn { width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; transition: all 0.2s; }
+    .voice-btn { width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; transition: all 0.2s; }
     .voice-btn:hover { border-color: var(--gold); color: var(--gold); }
     .voice-btn.listening { border-color: #f87171; color: #f87171; background: rgba(248,113,113,0.1); animation: pulse-rec 1s infinite; }
     @keyframes pulse-rec { 0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0.4)} 50%{box-shadow:0 0 0 8px rgba(248,113,113,0)} }
@@ -171,10 +171,40 @@
     .menu-toggle { display: none; background: none; border: none; color: var(--text); font-size: 18px; cursor: pointer; padding: 4px; }
     .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 15; }
     .overlay.show { display: block; }
-    @media (max-width: 640px) {
+    @media (max-width: 768px) {
+      :root { --sidebar-w: 260px; }
       .menu-toggle { display: block; }
       #sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
       #sidebar.open { transform: translateX(0); }
+
+      /* Header compact */
+      header { padding: 10px 12px; }
+      .header-title { font-size: 12px; max-width: 120px; }
+      .status-dot { display: none; }
+      .header-right { gap: 6px; }
+      .btn-icon { padding: 5px 8px; font-size: 10px; }
+      .model-btn { padding: 5px 8px; font-size: 10px; gap: 4px; }
+      #modelBtnLabel { max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .model-dropdown { min-width: 220px; right: 0; }
+
+      /* Input area */
+      footer { padding: 8px 12px 12px; }
+      .input-box { font-size: 14px; padding: 10px 12px; }
+      .upload-btn, .voice-btn, .send-btn { width: 42px; height: 42px; }
+
+      /* Chat bubbles */
+      .bubble { max-width: 88%; font-size: 13px; padding: 10px 13px; }
+      .message-wrap { padding: 0 12px; }
+
+      /* Model dropdown position fix */
+      .model-selector { position: static; }
+      .model-dropdown { position: fixed; top: 60px; right: 8px; left: 8px; min-width: unset; }
+    }
+
+    @media (max-width: 380px) {
+      .btn-icon { display: none; }
+      #notifBtn { display: none; }
+      .header-title { max-width: 100px; }
     }
   </style>
 </head>
