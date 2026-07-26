@@ -216,6 +216,7 @@
     </div>
     <div class="header-right">
       <div class="status-dot"><div class="dot"></div>online</div>
+      <button class="btn-icon" id="notifBtn" onclick="toggleNotification()" title="Notifikasi">🔔</button>
       <div class="model-selector" id="modelSelector">
         <button class="model-btn" onclick="toggleModelDropdown()" id="modelBtn">
           <div class="dot-model"></div>
@@ -319,25 +320,67 @@
   let selectedFile = null;
 
   // ── PUSH NOTIFICATION ──
-  function requestNotificationPermission() {
-    if (!('Notification' in window)) return;
+  let notifEnabled = localStorage.getItem('notif_enabled') !== 'false';
+
+  async function toggleNotification() {
+    const btn = document.getElementById('notifBtn');
+    if (!('Notification' in window)) {
+      showError('Browser tidak support notifikasi');
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      showError('Notifikasi diblokir. Aktifkan di pengaturan browser.');
+      return;
+    }
     if (Notification.permission === 'default') {
-      Notification.requestPermission();
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        showError('Izin notifikasi ditolak');
+        return;
+      }
+    }
+    notifEnabled = !notifEnabled;
+    localStorage.setItem('notif_enabled', notifEnabled);
+    btn.textContent = notifEnabled ? '🔔' : '🔕';
+    btn.style.color = notifEnabled ? 'var(--gold)' : '';
+    // Test notification
+    if (notifEnabled) {
+      new Notification('🔔 Mindbot Genius', {
+        body: 'Notifikasi aktif! Kamu akan diberitahu saat AI menjawab.',
+        icon: '/logo.png',
+        tag: 'mindbot-test'
+      });
     }
   }
 
   function sendNotification(title, body) {
+    if (!notifEnabled) return;
     if (!('Notification' in window)) return;
     if (Notification.permission !== 'granted') return;
-    if (document.hasFocus()) return;
-    const notif = new Notification(title, {
-      body: (body||'').replace(/[*_`#]/g,'').replace(/<[^>]+>/g,'').slice(0,100),
-      icon: '/logo.png',
-      tag: 'mindbot-reply',
-      renotify: true
-    });
-    notif.onclick = () => { window.focus(); notif.close(); };
-    setTimeout(() => notif.close(), 5000);
+    try {
+      const cleanBody = (body||'').replace(/[*_`#\[\]]/g,'').replace(/<[^>]+>/g,'').trim().slice(0,120);
+      const notif = new Notification(title, {
+        body: cleanBody,
+        icon: '/logo.png',
+        tag: 'mindbot-reply',
+        renotify: true,
+        requireInteraction: false
+      });
+      notif.onclick = () => { window.focus(); notif.close(); };
+      setTimeout(() => notif.close(), 6000);
+    } catch(e) { console.log('Notif error:', e); }
+  }
+
+  async function requestNotificationPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      await Notification.requestPermission();
+    }
+    const btn = document.getElementById('notifBtn');
+    if (btn) {
+      btn.textContent = notifEnabled ? '🔔' : '🔕';
+      if (notifEnabled && Notification.permission === 'granted') btn.style.color = 'var(--gold)';
+    }
   }
 
   // ── UTILS ──
