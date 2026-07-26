@@ -318,6 +318,28 @@
   let isLoading = false;
   let selectedFile = null;
 
+  // ── PUSH NOTIFICATION ──
+  function requestNotificationPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }
+
+  function sendNotification(title, body) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+    if (document.hasFocus()) return;
+    const notif = new Notification(title, {
+      body: (body||'').replace(/[*_`#]/g,'').replace(/<[^>]+>/g,'').slice(0,100),
+      icon: '/logo.png',
+      tag: 'mindbot-reply',
+      renotify: true
+    });
+    notif.onclick = () => { window.focus(); notif.close(); };
+    setTimeout(() => notif.close(), 5000);
+  }
+
   // ── UTILS ──
   function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,150)+'px'; }
   function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
