@@ -79,7 +79,7 @@
     .code-actions { display: flex; gap: 5px; }
     .code-btn { font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 9px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim); cursor: pointer; transition: all 0.2s; }
     .code-btn:hover { border-color: var(--gold); color: var(--gold); } .code-btn.copied { border-color: #4ade80; color: #4ade80; }
-    .code-block pre { font-family: 'DM Mono', monospace; font-size: 12px; background: #060810; padding: 12px 14px; overflow-x: auto; color: #a8d8a8; line-height: 1.7; margin: 0; }
+    .code-block pre { font-family: 'DM Mono', monospace; font-size: 12px; background: #060810; padding: 12px 14px; overflow-x: auto; color: #a8d8a8; line-height: 1.7; margin: 0; max-width: 100%; white-space: pre; }
 
     .typing-indicator { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
     .typing-indicator span { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; animation: bounce 1.2s infinite; }
@@ -162,7 +162,8 @@
     .copy-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 3px 7px; border-radius: 6px; transition: all 0.2s; margin-left: 2px; font-family: 'DM Mono', monospace; }
     .copy-btn:hover { color: var(--gold); background: rgba(200,168,75,0.1); }
     .copy-btn.copied { color: #4ade80; }
-    .msg-actions { display: inline-flex; align-items: center; margin-top: 6px; gap: 2px; }
+    .bubble-content { display: block; }
+    .msg-actions { display: flex; align-items: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.05); gap: 4px; }
     .tts-btn:hover { color: var(--gold); background: rgba(200,168,75,0.1); }
     .tts-btn.speaking { color: var(--gold); animation: pulse-dot 0.8s infinite; }
     .voice-status { text-align: center; font-size: 11px; font-family: 'DM Mono', monospace; color: #f87171; margin-top: 6px; display: none; }
@@ -197,8 +198,11 @@
       .upload-btn, .voice-btn, .send-btn { width: 42px; height: 42px; }
 
       /* Chat bubbles */
-      .bubble { max-width: 88%; font-size: 13px; padding: 10px 13px; }
-      .message-wrap { padding: 0 12px; }
+      .bubble { max-width: 90%; font-size: 13px; padding: 10px 13px; }
+      .message.user .bubble { max-width: 85%; }
+      .message-wrap { padding: 0 10px; }
+      .code-block { max-width: 100%; overflow: hidden; }
+      .code-block pre { font-size: 11px; }
 
       /* Model dropdown position fix */
       .model-selector { position: static; }
@@ -598,7 +602,7 @@
       const ttsBtn = text ? `<button class="tts-btn" id="${ttsId}" onclick="speakText(this,'${ttsId}')" title="Dengarkan">🔊</button>` : '';
       const cpyBtn = text ? `<button class="copy-btn" id="${cpyId}" onclick="copyMessage(this,'${cpyId}')" title="Salin teks">📋</button>` : '';
       div.setAttribute('data-text', plainText);
-      div.innerHTML=`<div class="avatar ai"><img src="logo.png"/></div><div class="bubble">${modelLabel}${content}<div class="msg-actions">${cpyBtn}${ttsBtn}</div></div>`;
+      div.innerHTML=`<div class="avatar ai"><img src="logo.png"/></div><div class="bubble"><div class="bubble-content">${modelLabel}${content}</div><div class="msg-actions">${cpyBtn}${ttsBtn}</div></div>`;
     } else {
       div.innerHTML=`<div class="avatar user-av">U</div><div class="bubble">${content}</div>`;
     }
