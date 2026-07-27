@@ -14,7 +14,7 @@
       --text-dim: #5a6380; --user-bg: #101830; --sidebar-w: 260px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+    body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); height: 100vh; height: 100dvh; display: flex; overflow: hidden; }
 
     /* SIDEBAR */
     #sidebar { width: var(--sidebar-w); background: #080a12; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; transition: transform 0.3s ease; z-index: 20; }
@@ -193,7 +193,7 @@
       .model-dropdown { min-width: 220px; right: 0; }
 
       /* Input area */
-      footer { padding: 8px 12px 12px; }
+      footer { padding: 8px 12px env(safe-area-inset-bottom, 12px); padding-bottom: max(12px, env(safe-area-inset-bottom)); }
       .input-box { font-size: 14px; padding: 10px 12px; }
       .upload-btn, .voice-btn, .send-btn { width: 42px; height: 42px; }
 
@@ -564,6 +564,29 @@
     if(id===sessionId) newChat();
     requestNotificationPermission();
   loadConversations();
+
+  // ── MOBILE KEYBOARD HANDLING ──
+  if (window.visualViewport) {
+    function handleViewportResize() {
+      const footer = document.querySelector('footer');
+      const main = document.getElementById('main');
+      const viewportHeight = window.visualViewport.height;
+      const windowHeight = window.innerHeight;
+      const keyboardHeight = windowHeight - viewportHeight;
+      if (keyboardHeight > 100) {
+        // Keyboard is open
+        footer.style.transform = `translateY(-${keyboardHeight}px)`;
+        footer.style.transition = 'transform 0.15s ease';
+        document.getElementById('chat').style.paddingBottom = keyboardHeight + 'px';
+      } else {
+        // Keyboard closed
+        footer.style.transform = 'translateY(0)';
+        document.getElementById('chat').style.paddingBottom = '0';
+      }
+    }
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    window.visualViewport.addEventListener('scroll', handleViewportResize);
+  }
   }
 
   // ── CHAT ──
