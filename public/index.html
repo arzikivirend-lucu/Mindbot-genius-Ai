@@ -210,8 +210,8 @@
     }
 
     @media (max-width: 380px) {
-      .btn-icon { display: none; }
-      #notifBtn { display: none; }
+      .btn-label { display: none; }
+      .btn-icon { padding: 5px 7px; }
       .header-title { max-width: 100px; }
     }
   </style>
@@ -255,7 +255,7 @@
     <div class="header-right">
       <div class="status-dot"><div class="dot"></div>online</div>
       <button class="btn-icon" id="notifBtn" onclick="toggleNotification()" title="Notifikasi">🔔</button>
-      <button class="btn-icon" id="downloadBtn" onclick="window.open('download.html', '_blank')" title="Download">⬇️ Download</button>
+      <button class="btn-icon" id="downloadBtn" onclick="window.open('download.html', '_blank')" title="Download">⬇️<span class="btn-label"> Download</span></button>
       <div class="model-selector" id="modelSelector">
         <button class="model-btn" onclick="toggleModelDropdown()" id="modelBtn">
           <div class="dot-model"></div>
