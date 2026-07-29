@@ -259,58 +259,66 @@
 <div class="toast" id="toast">Tersalin ke clipboard</div>
 
 <script>
-  // Penyimpanan pakai localStorage browser, jadi key tetap ada walau halaman
-  // di-refresh atau ditutup (selama dibuka di browser & domain yang sama).
-  // Catatan: ini BUKAN pengganti backend sungguhan — validasi key saat API
-  // benar-benar dipanggil tetap harus dilakukan di server kamu.
-  const STORAGE_KEY = 'mbg_api_keys';
+  // Halaman ini sekarang terhubung ke backend nyata (server.js) lewat fetch(),
+  // bukan localStorage lagi. Key asli disimpan & divalidasi di server.
+  // Ganti alamat ini kalau backend kamu tidak jalan di localhost:3000
+  // (misalnya saat sudah dideploy ke domain sungguhan).
+  const API_BASE = 'http://localhost:3000';
 
-  function loadKeys() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return parsed.map(k => ({ ...k, created: new Date(k.created) }));
-    } catch (e) {
-      console.error('Gagal memuat key dari localStorage:', e);
-      return [];
-    }
-  }
-
-  function saveKeys() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
-    } catch (e) {
-      console.error('Gagal menyimpan key ke localStorage:', e);
-      showToast('Gagal menyimpan ke localStorage');
-    }
-  }
-
-  let keys = loadKeys();
-  let keyCounter = keys.length;
+  let keys = [];
   let pendingRevealKey = '';
 
-  function genKeySuffix(len = 28) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let out = '';
-    const rnd = new Uint32Array(len);
-    crypto.getRandomValues(rnd);
-    for (let i = 0; i < len; i++) out += chars[rnd[i] % chars.length];
-    return out;
+  async function apiFetch(path, options = {}) {
+    try {
+      const res = await fetch(`${API_BASE}${path}`, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.error || `Gagal (status ${res.status})`);
+        return null;
+      }
+      return data;
+    } catch (e) {
+      console.error('Gagal menghubungi backend:', e);
+      showConnectionError();
+      return null;
+    }
   }
 
-  function maskKey(fullKey) {
-    return fullKey.slice(0, 8) + '••••••••••••••••' + fullKey.slice(-4);
+  function showConnectionError() {
+    document.getElementById('key-list').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">⚠️</div>
+        <h3>Tidak bisa terhubung ke backend</h3>
+        <p>Pastikan server backend jalan di <code style="color:var(--gold)">${API_BASE}</code><br/>
+           (jalankan <code style="color:var(--gold)">npm start</code> di folder mbg-backend).</p>
+        <button class="btn btn-ghost" onclick="refreshKeys()">🔄 Coba Lagi</button>
+      </div>`;
   }
 
-  function formatDate(d) {
-    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  function maskFallback(k) {
+    return k.maskedKey;
+  }
+
+  function formatDate(iso) {
+    return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  async function refreshKeys() {
+    const data = await apiFetch('/api/keys');
+    if (data === null) return;
+    keys = data;
+    renderKeys();
   }
 
   function renderKeys() {
     const list = document.getElementById('key-list');
     const activeCount = keys.filter(k => k.status === 'active').length;
+    const totalRequests = keys.reduce((sum, k) => sum + (k.requestCount || 0), 0);
     document.getElementById('stat-active').textContent = activeCount;
+    document.getElementById('stat-requests').textContent = totalRequests;
 
     if (keys.length === 0) {
       list.innerHTML = `
@@ -328,13 +336,10 @@
         <div class="key-icon">🔑</div>
         <div class="key-main">
           <div class="key-name">${escapeHtml(k.name)} <span class="badge ${k.status}">${k.status === 'active' ? 'AKTIF' : 'DICABUT'}</span></div>
-          <div class="key-value">
-            <span id="key-display-${k.id}">${k.revealed ? maskKey(k.fullKey) : maskKey(k.fullKey)}</span>
-          </div>
-          <div class="key-meta">Dibuat ${formatDate(k.created)} · ${k.requestCount} permintaan</div>
+          <div class="key-value"><span>${maskFallback(k)}</span></div>
+          <div class="key-meta">Dibuat ${formatDate(k.createdAt)} · ${k.requestCount} permintaan</div>
         </div>
         <div class="key-actions">
-          <button class="icon-btn" title="Salin key" onclick="copyStoredKey('${k.id}')">📋</button>
           ${k.status === 'active'
             ? `<button class="icon-btn danger" title="Cabut key" onclick="revokeKey('${k.id}')">⛔</button>`
             : `<button class="icon-btn danger" title="Hapus" onclick="deleteKey('${k.id}')">🗑️</button>`}
@@ -358,7 +363,7 @@
     document.getElementById('create-overlay').classList.remove('show');
   }
 
-  function confirmCreateKey() {
+  async function confirmCreateKey() {
     if (keys.filter(k => k.status === 'active').length >= 5) {
       showToast('Maksimum 5 key aktif tercapai. Cabut key lama dulu.');
       closeCreateModal();
@@ -366,23 +371,18 @@
     }
     const nameInput = document.getElementById('key-name-input');
     const name = nameInput.value.trim() || `Key ${keys.length + 1}`;
-    keyCounter++;
-    const fullKey = 'mbg_' + genKeySuffix(28);
-    const newKey = {
-      id: 'k' + keyCounter,
-      name,
-      fullKey,
-      status: 'active',
-      created: new Date(),
-      requestCount: 0,
-    };
-    keys.unshift(newKey);
-    saveKeys();
-    closeCreateModal();
-    renderKeys();
 
-    pendingRevealKey = fullKey;
-    document.getElementById('reveal-key-value').textContent = fullKey;
+    const created = await apiFetch('/api/keys', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    closeCreateModal();
+    if (!created) return;
+
+    await refreshKeys();
+
+    pendingRevealKey = created.fullKey;
+    document.getElementById('reveal-key-value').textContent = created.fullKey;
     document.getElementById('reveal-overlay').classList.add('show');
   }
 
@@ -400,29 +400,23 @@
     });
   }
 
-  function copyStoredKey(id) {
-    const k = keys.find(k => k.id === id);
-    if (!k) return;
-    navigator.clipboard.writeText(k.fullKey).then(() => showToast('Key tersalin ke clipboard'));
-  }
-
-  function revokeKey(id) {
+  async function revokeKey(id) {
     const k = keys.find(k => k.id === id);
     if (!k) return;
     if (!confirm(`Cabut key "${k.name}"? Aplikasi yang memakai key ini akan langsung berhenti berfungsi.`)) return;
-    k.status = 'revoked';
-    saveKeys();
-    renderKeys();
+    const result = await apiFetch(`/api/keys/${id}/revoke`, { method: 'POST' });
+    if (!result) return;
+    await refreshKeys();
     showToast('Key dicabut');
   }
 
-  function deleteKey(id) {
+  async function deleteKey(id) {
     const k = keys.find(k => k.id === id);
     if (!k) return;
     if (!confirm(`Hapus permanen key "${k.name}" dari daftar?`)) return;
-    keys = keys.filter(k => k.id !== id);
-    saveKeys();
-    renderKeys();
+    const result = await apiFetch(`/api/keys/${id}`, { method: 'DELETE' });
+    if (!result) return;
+    await refreshKeys();
     showToast('Key dihapus');
   }
 
@@ -451,7 +445,7 @@
     }
   });
 
-  renderKeys();
+  refreshKeys();
 </script>
 </body>
 </html>
