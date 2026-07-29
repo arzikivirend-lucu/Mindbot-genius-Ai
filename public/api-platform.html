@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>API Platform — Mindbot Genius</title>
+<link rel="icon" type="image/png" href="logo.png"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0c14; --surface: #0f1220; --surface2: #171b2e;
+    --border: #1e2540; --gold: #c8a84b; --text: #e8eaf0;
+    --text-dim: #5a6380; --user-bg: #101830; --blue: #1a4fc4;
+    --green: #4ade80; --red: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text);
+    min-height: 100vh; position: relative;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 15% 5%, rgba(37,99,235,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 45% 35% at 85% 90%, rgba(200,168,75,0.05) 0%, transparent 60%);
+  }
+  a { color: inherit; }
+  ::selection { background: rgba(200,168,75,0.25); }
+
+  /* HEADER */
+  header {
+    position: sticky; top: 0; z-index: 30; display: flex; align-items: center;
+    justify-content: space-between; padding: 14px 28px; border-bottom: 1px solid var(--border);
+    background: rgba(10,12,20,0.85); backdrop-filter: blur(20px);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand-mark { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--gold);
+    display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--gold); }
+  .brand-name { font-size: 13px; font-weight: 800; letter-spacing: 0.2px; }
+  .brand-name span { color: var(--gold); }
+  .brand-sub { font-size: 8px; font-family: 'DM Mono', monospace; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
+  nav { display: flex; align-items: center; gap: 6px; }
+  .nav-link { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-dim); text-decoration: none;
+    padding: 7px 12px; border-radius: 8px; transition: all 0.2s; letter-spacing: 0.3px; }
+  .nav-link:hover { color: var(--text); background: var(--surface2); }
+  .nav-link.active { color: var(--gold); background: rgba(200,168,75,0.08); border: 1px solid rgba(200,168,75,0.25); }
+
+  main { position: relative; z-index: 1; max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* HERO */
+  .hero { margin-bottom: 34px; }
+  .eyebrow { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--gold); letter-spacing: 2px;
+    text-transform: uppercase; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.3px; margin-bottom: 8px; }
+  h1 span { color: var(--gold); }
+  .hero p { color: var(--text-dim); font-size: 13px; font-family: 'DM Mono', monospace; line-height: 1.7; max-width: 560px; }
+
+  /* STAT CARDS */
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 26px 0 36px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
+  .stat-label { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 8px; }
+  .stat-value { font-size: 22px; font-weight: 800; }
+  .stat-value.gold { color: var(--gold); }
+  .stat-value.green { color: var(--green); }
+  .stat-foot { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); margin-top: 4px; }
+
+  /* SECTION */
+  section.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 24px; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-size: 15px; font-weight: 700; }
+  .panel-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  .btn { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 12.5px; border: none; border-radius: 10px;
+    padding: 9px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: all 0.2s; white-space: nowrap; }
+  .btn-primary { background: linear-gradient(135deg, var(--blue), var(--gold)); color: #fff; }
+  .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+  .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-danger { background: transparent; border: 1px solid rgba(248,113,113,0.3); color: var(--red); }
+  .btn-danger:hover { background: rgba(248,113,113,0.1); }
+  .btn-sm { padding: 6px 11px; font-size: 11px; border-radius: 8px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* KEY LIST */
+  #key-list { padding: 8px; }
+  .key-row { display: flex; align-items: center; gap: 14px; padding: 14px 12px; border-radius: 12px; transition: background 0.15s; }
+  .key-row:hover { background: var(--surface2); }
+  .key-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .key-row.revoked .key-icon { opacity: 0.4; }
+  .key-main { flex: 1; min-width: 0; }
+  .key-name { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .key-name .badge { font-family: 'DM Mono', monospace; font-size: 9px; padding: 2px 7px; border-radius: 999px; letter-spacing: 0.5px; }
+  .badge.active { background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.3); }
+  .badge.revoked { background: rgba(248,113,113,0.1); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+  .key-value { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-dim); margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+  .key-meta { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); margin-top: 3px; }
+  .key-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .icon-btn { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.2s; }
+  .icon-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .icon-btn.danger:hover { border-color: var(--red); color: var(--red); background: rgba(248,113,113,0.08); }
+
+  .empty-state { text-align: center; padding: 48px 20px; }
+  .empty-state .icon { font-size: 34px; margin-bottom: 10px; opacity: 0.6; }
+  .empty-state h3 { font-size: 14px; margin-bottom: 6px; }
+  .empty-state p { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-dim); margin-bottom: 18px; }
+
+  /* CODE SAMPLE */
+  .code-block { border-radius: 12px; overflow: hidden; border: 1px solid var(--border); margin: 0 20px 20px; }
+  .code-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: #060810; border-bottom: 1px solid var(--border); }
+  .code-lang { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--gold); letter-spacing: 1.2px; text-transform: uppercase; }
+  .code-block pre { font-family: 'DM Mono', monospace; font-size: 12px; background: #060810; padding: 14px; overflow-x: auto;
+    color: #a8d8a8; line-height: 1.7; margin: 0; }
+  .code-block pre .k { color: #93b4ff; } .code-block pre .s { color: #e6c07b; }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(4,5,10,0.72); backdrop-filter: blur(3px); z-index: 100;
+    display: none; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 22px; animation: modal-in 0.2s cubic-bezier(0.16,1,0.3,1) both; }
+  @keyframes modal-in { from { opacity:0; transform: translateY(8px) scale(0.98);} to {opacity:1; transform:none;} }
+  .modal h3 { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+  .modal p.desc { font-family: 'DM Mono', monospace; font-size: 11.5px; color: var(--text-dim); line-height: 1.6; margin-bottom: 16px; }
+  .field-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+  .field-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+    color: var(--text); font-family: 'Syne', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; }
+  .field-input:focus { border-color: var(--gold); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+  .reveal-box { background: #060810; border: 1px solid rgba(200,168,75,0.35); border-radius: 10px; padding: 12px 14px;
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .reveal-box code { font-family: 'DM Mono', monospace; font-size: 12.5px; color: var(--gold); flex: 1; word-break: break-all; }
+  .warn-note { font-family: 'DM Mono', monospace; font-size: 10.5px; color: var(--text-dim); line-height: 1.6; margin-top: 10px;
+    padding: 10px 12px; background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.2); border-radius: 10px; }
+  .warn-note b { color: var(--red); }
+
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0;
+    background: var(--surface2); border: 1px solid var(--gold); color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 12px; padding: 10px 18px; border-radius: 10px; z-index: 200; transition: all 0.25s; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  footer.page-foot { text-align: center; padding: 20px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); }
+
+  @media (max-width: 640px) {
+    .stat-grid { grid-template-columns: 1fr; }
+    header { padding: 12px 16px; }
+    .nav-link span.full { display: none; }
+    main { padding: 28px 16px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="brand" href="index.html">
+    <div class="brand-mark">M</div>
+    <div>
+      <div class="brand-name">Mindbot <span>Genius</span></div>
+      <div class="brand-sub">API Platform</div>
+    </div>
+  </a>
+  <nav>
+    <a class="nav-link" href="index.html">Chat</a>
+    <a class="nav-link active" href="api-platform.html">API Keys</a>
+    <a class="nav-link" href="#docs-section">Dokumentasi</a>
+  </nav>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="eyebrow"><span class="dot"></span>Platform Status: Operational</div>
+    <h1>Kelola <span>API Key</span> kamu</h1>
+    <p>Buat dan kelola API key untuk mengintegrasikan Mindbot Genius ke dalam aplikasi, bot, atau workflow otomatismu sendiri. Setiap key berawalan <code style="font-family:'DM Mono',monospace;background:rgba(37,99,235,0.12);border:1px solid rgba(37,99,235,0.2);padding:1px 6px;border-radius:4px;color:#93b4ff;">mbg_</code>.</p>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Key Aktif</div>
+      <div class="stat-value gold" id="stat-active">0</div>
+      <div class="stat-foot">dari maksimum 5 key</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Permintaan Bulan Ini</div>
+      <div class="stat-value" id="stat-requests">0</div>
+      <div class="stat-foot">reset setiap tanggal 1</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Paket</div>
+      <div class="stat-value green">Free Tier</div>
+      <div class="stat-foot">1.000 permintaan / bulan</div>
+    </div>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">API Keys Kamu</div>
+        <div class="panel-sub">Simpan key baik-baik — key hanya ditampilkan penuh satu kali saat dibuat.</div>
+      </div>
+      <button class="btn btn-primary" id="btn-create-key" onclick="openCreateModal()">＋ Buat API Key</button>
+    </div>
+    <div id="key-list"></div>
+  </section>
+
+  <section class="panel" id="docs-section">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">Mulai Cepat</div>
+        <div class="panel-sub">Contoh pemanggilan API menggunakan key kamu</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="copyCode()">📋 Salin</button>
+    </div>
+    <div class="code-block">
+      <div class="code-toolbar"><span class="code-lang">bash</span></div>
+      <pre id="code-sample">curl -X POST https://api.mindbotgenius.com/v1/chat \
+  -H "Authorization: Bearer mbg_xxxxxxxxxxxxxxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Halo, apa kabar?"}'</pre>
+    </div>
+  </section>
+</main>
+
+<footer class="page-foot">Mindbot Genius API Platform · Jangan bagikan API key kamu ke publik</footer>
+
+<!-- CREATE KEY MODAL -->
+<div class="modal-overlay" id="create-overlay">
+  <div class="modal">
+    <h3>Buat API Key Baru</h3>
+    <p class="desc">Beri nama supaya kamu ingat key ini dipakai untuk apa, misalnya "Bot Discord" atau "Server Produksi".</p>
+    <label class="field-label">Nama Key</label>
+    <input type="text" class="field-input" id="key-name-input" placeholder="cth: Aplikasi Mobile" maxlength="40" />
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeCreateModal()">Batal</button>
+      <button class="btn btn-primary" onclick="confirmCreateKey()">Buat Key</button>
+    </div>
+  </div>
+</div>
+
+<!-- REVEAL KEY MODAL -->
+<div class="modal-overlay" id="reveal-overlay">
+  <div class="modal">
+    <h3>Key kamu sudah siap ✅</h3>
+    <p class="desc">Salin dan simpan sekarang. Untuk alasan keamanan, key lengkap tidak akan ditampilkan lagi setelah ini ditutup.</p>
+    <div class="reveal-box">
+      <code id="reveal-key-value">mbg_xxxxxxxxxxxxxxxxxxxxxxxx</code>
+      <button class="icon-btn" onclick="copyRevealKey()" id="reveal-copy-btn">📋</button>
+    </div>
+    <div class="warn-note"><b>Penting:</b> siapa pun yang punya key ini bisa memakai kuota API-mu. Simpan di tempat yang aman (env variable, secret manager), jangan ditaruh di kode publik.</div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeRevealModal()">Sudah Saya Simpan</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Tersalin ke clipboard</div>
+
+<script>
+  // Penyimpanan pakai localStorage browser, jadi key tetap ada walau halaman
+  // di-refresh atau ditutup (selama dibuka di browser & domain yang sama).
+  // Catatan: ini BUKAN pengganti backend sungguhan — validasi key saat API
+  // benar-benar dipanggil tetap harus dilakukan di server kamu.
+  const STORAGE_KEY = 'mbg_api_keys';
+
+  function loadKeys() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return parsed.map(k => ({ ...k, created: new Date(k.created) }));
+    } catch (e) {
+      console.error('Gagal memuat key dari localStorage:', e);
+      return [];
+    }
+  }
+
+  function saveKeys() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
+    } catch (e) {
+      console.error('Gagal menyimpan key ke localStorage:', e);
+      showToast('Gagal menyimpan ke localStorage');
+    }
+  }
+
+  let keys = loadKeys();
+  let keyCounter = keys.length;
+  let pendingRevealKey = '';
+
+  function genKeySuffix(len = 28) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let out = '';
+    const rnd = new Uint32Array(len);
+    crypto.getRandomValues(rnd);
+    for (let i = 0; i < len; i++) out += chars[rnd[i] % chars.length];
+    return out;
+  }
+
+  function maskKey(fullKey) {
+    return fullKey.slice(0, 8) + '••••••••••••••••' + fullKey.slice(-4);
+  }
+
+  function formatDate(d) {
+    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function renderKeys() {
+    const list = document.getElementById('key-list');
+    const activeCount = keys.filter(k => k.status === 'active').length;
+    document.getElementById('stat-active').textContent = activeCount;
+
+    if (keys.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">🔑</div>
+          <h3>Belum ada API key</h3>
+          <p>Buat key pertamamu untuk mulai memanggil Mindbot Genius API.</p>
+          <button class="btn btn-primary" onclick="openCreateModal()">＋ Buat API Key</button>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = keys.map(k => `
+      <div class="key-row ${k.status === 'revoked' ? 'revoked' : ''}">
+        <div class="key-icon">🔑</div>
+        <div class="key-main">
+          <div class="key-name">${escapeHtml(k.name)} <span class="badge ${k.status}">${k.status === 'active' ? 'AKTIF' : 'DICABUT'}</span></div>
+          <div class="key-value">
+            <span id="key-display-${k.id}">${k.revealed ? maskKey(k.fullKey) : maskKey(k.fullKey)}</span>
+          </div>
+          <div class="key-meta">Dibuat ${formatDate(k.created)} · ${k.requestCount} permintaan</div>
+        </div>
+        <div class="key-actions">
+          <button class="icon-btn" title="Salin key" onclick="copyStoredKey('${k.id}')">📋</button>
+          ${k.status === 'active'
+            ? `<button class="icon-btn danger" title="Cabut key" onclick="revokeKey('${k.id}')">⛔</button>`
+            : `<button class="icon-btn danger" title="Hapus" onclick="deleteKey('${k.id}')">🗑️</button>`}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function openCreateModal() {
+    document.getElementById('key-name-input').value = '';
+    document.getElementById('create-overlay').classList.add('show');
+    setTimeout(() => document.getElementById('key-name-input').focus(), 50);
+  }
+  function closeCreateModal() {
+    document.getElementById('create-overlay').classList.remove('show');
+  }
+
+  function confirmCreateKey() {
+    if (keys.filter(k => k.status === 'active').length >= 5) {
+      showToast('Maksimum 5 key aktif tercapai. Cabut key lama dulu.');
+      closeCreateModal();
+      return;
+    }
+    const nameInput = document.getElementById('key-name-input');
+    const name = nameInput.value.trim() || `Key ${keys.length + 1}`;
+    keyCounter++;
+    const fullKey = 'mbg_' + genKeySuffix(28);
+    const newKey = {
+      id: 'k' + keyCounter,
+      name,
+      fullKey,
+      status: 'active',
+      created: new Date(),
+      requestCount: 0,
+    };
+    keys.unshift(newKey);
+    saveKeys();
+    closeCreateModal();
+    renderKeys();
+
+    pendingRevealKey = fullKey;
+    document.getElementById('reveal-key-value').textContent = fullKey;
+    document.getElementById('reveal-overlay').classList.add('show');
+  }
+
+  function closeRevealModal() {
+    document.getElementById('reveal-overlay').classList.remove('show');
+    pendingRevealKey = '';
+  }
+
+  function copyRevealKey() {
+    navigator.clipboard.writeText(pendingRevealKey).then(() => {
+      const btn = document.getElementById('reveal-copy-btn');
+      btn.textContent = '✅';
+      setTimeout(() => btn.textContent = '📋', 1500);
+      showToast('Key tersalin ke clipboard');
+    });
+  }
+
+  function copyStoredKey(id) {
+    const k = keys.find(k => k.id === id);
+    if (!k) return;
+    navigator.clipboard.writeText(k.fullKey).then(() => showToast('Key tersalin ke clipboard'));
+  }
+
+  function revokeKey(id) {
+    const k = keys.find(k => k.id === id);
+    if (!k) return;
+    if (!confirm(`Cabut key "${k.name}"? Aplikasi yang memakai key ini akan langsung berhenti berfungsi.`)) return;
+    k.status = 'revoked';
+    saveKeys();
+    renderKeys();
+    showToast('Key dicabut');
+  }
+
+  function deleteKey(id) {
+    const k = keys.find(k => k.id === id);
+    if (!k) return;
+    if (!confirm(`Hapus permanen key "${k.name}" dari daftar?`)) return;
+    keys = keys.filter(k => k.id !== id);
+    saveKeys();
+    renderKeys();
+    showToast('Key dihapus');
+  }
+
+  function copyCode() {
+    const code = document.getElementById('code-sample').textContent;
+    navigator.clipboard.writeText(code).then(() => showToast('Contoh kode tersalin'));
+  }
+
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  document.querySelectorAll('.modal-overlay').forEach(ov => {
+    ov.addEventListener('click', (e) => {
+      if (e.target === ov) ov.classList.remove('show');
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay.show').forEach(ov => ov.classList.remove('show'));
+    }
+  });
+
+  renderKeys();
+</script>
+</body>
+</html>
