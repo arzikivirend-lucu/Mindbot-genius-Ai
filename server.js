@@ -90,9 +90,9 @@ app.post('/api/imagine', async (req, res) => {
   const seed = Math.floor(Math.random() * 999999);
   const pollinationsUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${seed}&model=flux`;
 
-  // Jika tidak ada API key, fallback ke perilaku lama (URL publik langsung)
+  // Wajib ada API key. Tanpa key, endpoint ini tidak bisa dipakai sama sekali.
   if (!POLLINATIONS_API_KEY) {
-    return res.json({ imageUrl: pollinationsUrl });
+    return res.status(503).json({ error: 'Image generation tidak aktif: POLLINATIONS_API_KEY belum diset di server.' });
   }
 
   try {
@@ -124,11 +124,10 @@ app.post('/api/imagine', async (req, res) => {
   } catch (err) {
     if (err.name === 'AbortError') {
       console.error(`Imagine timeout setelah ${IMAGINE_TIMEOUT_MS}ms`);
-    } else {
-      console.error('Imagine error:', err.message);
+      return res.status(504).json({ error: 'Generate gambar timeout, coba lagi.' });
     }
-    // Fallback ke URL publik tanpa key kalau proxy gagal/timeout
-    res.json({ imageUrl: pollinationsUrl });
+    console.error('Imagine error:', err.message);
+    res.status(502).json({ error: 'Gagal generate gambar dari Pollinations.' });
   }
 });
 
