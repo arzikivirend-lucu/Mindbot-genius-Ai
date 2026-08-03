@@ -82,6 +82,9 @@ app.post('/api/imagine', async (req, res) => {
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
 
   const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY;
+  // Generate gambar bisa lambat (model flux kadang 30-90 detik), jadi kasih
+  // timeout yang panjang. Bisa di-override lewat env var IMAGINE_TIMEOUT_MS.
+  const IMAGINE_TIMEOUT_MS = parseInt(process.env.IMAGINE_TIMEOUT_MS, 10) || 120000; // 120 detik
 
   const encoded = encodeURIComponent(prompt + ', high quality, detailed, beautiful');
   const seed = Math.floor(Math.random() * 999999);
@@ -96,9 +99,18 @@ app.post('/api/imagine', async (req, res) => {
     // Fetch di server dengan Authorization header agar key tidak bocor ke client.
     // (Menaruh key sebagai query param di URL yang dimuat langsung oleh <img>
     // browser akan membuatnya terlihat oleh siapa saja yang inspect elemen.)
-    const imgResp = await fetch(pollinationsUrl, {
-      headers: { 'Authorization': `Bearer ${POLLINATIONS_API_KEY}` }
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), IMAGINE_TIMEOUT_MS);
+
+    let imgResp;
+    try {
+      imgResp = await fetch(pollinationsUrl, {
+        headers: { 'Authorization': `Bearer ${POLLINATIONS_API_KEY}` },
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!imgResp.ok) {
       throw new Error(`Pollinations API error: ${imgResp.status}`);
@@ -110,8 +122,12 @@ app.post('/api/imagine', async (req, res) => {
 
     res.json({ imageUrl: dataUrl });
   } catch (err) {
-    console.error('Imagine error:', err.message);
-    // Fallback ke URL publik tanpa key kalau proxy gagal
+    if (err.name === 'AbortError') {
+      console.error(`Imagine timeout setelah ${IMAGINE_TIMEOUT_MS}ms`);
+    } else {
+      console.error('Imagine error:', err.message);
+    }
+    // Fallback ke URL publik tanpa key kalau proxy gagal/timeout
     res.json({ imageUrl: pollinationsUrl });
   }
 });
