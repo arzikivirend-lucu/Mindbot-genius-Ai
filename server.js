@@ -80,11 +80,55 @@ async function searchWeb(query) {
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
-  // Return URL directly - browser will load image
+
+  const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY;
+  // Generate gambar bisa lambat (model flux kadang 30-90 detik), jadi kasih
+  // timeout yang panjang. Bisa di-override lewat env var IMAGINE_TIMEOUT_MS.
+  const IMAGINE_TIMEOUT_MS = parseInt(process.env.IMAGINE_TIMEOUT_MS, 10) || 120000; // 120 detik
+
   const encoded = encodeURIComponent(prompt + ', high quality, detailed, beautiful');
   const seed = Math.floor(Math.random() * 999999);
-  const imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${seed}&model=flux`;
-  res.json({ imageUrl });
+  const pollinationsUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${seed}&model=flux`;
+
+  // Wajib ada API key. Tanpa key, endpoint ini tidak bisa dipakai sama sekali.
+  if (!POLLINATIONS_API_KEY) {
+    return res.status(503).json({ error: 'Image generation tidak aktif: POLLINATIONS_API_KEY belum diset di server.' });
+  }
+
+  try {
+    // Fetch di server dengan Authorization header agar key tidak bocor ke client.
+    // (Menaruh key sebagai query param di URL yang dimuat langsung oleh <img>
+    // browser akan membuatnya terlihat oleh siapa saja yang inspect elemen.)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), IMAGINE_TIMEOUT_MS);
+
+    let imgResp;
+    try {
+      imgResp = await fetch(pollinationsUrl, {
+        headers: { 'Authorization': `Bearer ${POLLINATIONS_API_KEY}` },
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!imgResp.ok) {
+      throw new Error(`Pollinations API error: ${imgResp.status}`);
+    }
+
+    const contentType = imgResp.headers.get('content-type') || 'image/jpeg';
+    const buffer = Buffer.from(await imgResp.arrayBuffer());
+    const dataUrl = `data:${contentType};base64,${buffer.toString('base64')}`;
+
+    res.json({ imageUrl: dataUrl });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.error(`Imagine timeout setelah ${IMAGINE_TIMEOUT_MS}ms`);
+      return res.status(504).json({ error: 'Generate gambar timeout, coba lagi.' });
+    }
+    console.error('Imagine error:', err.message);
+    res.status(502).json({ error: 'Gagal generate gambar dari Pollinations.' });
+  }
 });
 
 
@@ -174,4 +218,11 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`\n🚀 http://localhost:${PORT}\n`));
+// Jalankan app.listen() hanya di lokal / non-serverless.
+// Di Vercel, VERCEL env var otomatis ada, jadi kita skip listen()
+// dan cukup export app-nya supaya Vercel bisa jalankan sebagai function.
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => console.log(`\n🚀 http://localhost:${PORT}\n`));
+}
+
+module.exports = app;
