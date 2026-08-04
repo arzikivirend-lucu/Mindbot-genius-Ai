@@ -82,9 +82,11 @@ app.post('/api/imagine', async (req, res) => {
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
 
   const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY;
-  // Generate gambar bisa lambat (model flux kadang 30-90 detik), jadi kasih
-  // timeout yang panjang. Bisa di-override lewat env var IMAGINE_TIMEOUT_MS.
-  const IMAGINE_TIMEOUT_MS = parseInt(process.env.IMAGINE_TIMEOUT_MS, 10) || 120000; // 120 detik
+  // Generate gambar bisa lambat (model flux kadang 30-90 detik). Timeout ini
+  // HARUS lebih pendek dari "maxDuration" di vercel.json (saat ini 60 detik),
+  // supaya server sempat kirim response error sebelum Vercel paksa mematikan
+  // function-nya. Kalau maxDuration dinaikkan, sesuaikan juga angka ini.
+  const IMAGINE_TIMEOUT_MS = parseInt(process.env.IMAGINE_TIMEOUT_MS, 10) || 50000; // 50 detik
 
   const encoded = encodeURIComponent(prompt + ', high quality, detailed, beautiful');
   const seed = Math.floor(Math.random() * 999999);
