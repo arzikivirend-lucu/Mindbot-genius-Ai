@@ -3,7 +3,7 @@
   "appName": "Mindbot Genius",
   "webDir": "www",
   "server": {
-    "url": "https://mindbot-genius-ai.vercel.app",
+    "url": "https://chatgpt.com",
     "cleartext": false,
     "androidScheme": "https"
   },
