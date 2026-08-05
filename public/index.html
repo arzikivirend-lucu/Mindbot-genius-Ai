@@ -15,8 +15,6 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); height: 100vh; height: 100dvh; display: flex; overflow: hidden; }
-
-    /* SIDEBAR */
     #sidebar { width: var(--sidebar-w); background: #080a12; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; transition: transform 0.3s ease; z-index: 20; }
     .sidebar-head { padding: 11px 12px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
     .sidebar-logo { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); flex-shrink: 0; }
@@ -38,11 +36,8 @@
     .sidebar-footer { padding: 12px 14px; border-top: 1px solid var(--border); }
     .sidebar-link { display: block; text-align: center; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); text-decoration: none; letter-spacing: 1px; padding: 6px; border-radius: 8px; transition: all 0.2s; }
     .sidebar-link:hover { color: var(--gold); background: rgba(200,168,75,0.06); }
-
-    /* MAIN */
     #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
     #main::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 40% at 20% 10%, rgba(37,99,235,0.06) 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 80% 85%, rgba(200,168,75,0.04) 0%, transparent 60%); pointer-events: none; }
-
     header { display: flex; align-items: center; justify-content: space-between; padding: 9px 20px; border-bottom: 1px solid var(--border); background: rgba(10,12,20,0.85); backdrop-filter: blur(20px); position: relative; z-index: 10; gap: 8px; min-width: 0; }
     .header-title { font-size: 12px; font-weight: 700; color: var(--text-dim); font-family: 'DM Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; min-width: 0; flex: 1; }
     .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
@@ -51,8 +46,6 @@
     @keyframes pulse-dot { 0%,100%{opacity:1}50%{opacity:.4} }
     .btn-icon { padding: 5px 10px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); border-radius: 8px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 10px; transition: all 0.2s; }
     .btn-icon:hover { border-color: var(--gold); color: var(--gold); }
-
-    /* CHAT */
     #chat { flex: 1; overflow-y: auto; padding: 18px 0; position: relative; z-index: 1; scroll-behavior: smooth; }
     #chat::-webkit-scrollbar { width: 4px; } #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
     .message-wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
@@ -66,13 +59,9 @@
     .message.ai .bubble { background: var(--surface); border: 1px solid var(--border); border-top-left-radius: 4px; }
     .message.user .bubble { background: var(--user-bg); border: 1px solid rgba(37,99,235,0.25); border-top-right-radius: 4px; color: #c8d8ff; }
     .bubble code { font-family: 'DM Mono', monospace; font-size: 12px; background: rgba(37,99,235,0.12); border: 1px solid rgba(37,99,235,0.2); padding: 1px 5px; border-radius: 4px; color: #93b4ff; }
-
-    /* Image in bubble */
     .bubble-img { max-width: 100%; max-height: 280px; border-radius: 10px; margin-bottom: 8px; display: block; border: 1px solid var(--border); cursor: pointer; transition: opacity 0.2s; }
     .bubble-img:hover { opacity: 0.9; }
     .file-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(200,168,75,0.1); border: 1px solid rgba(200,168,75,0.3); border-radius: 8px; padding: 5px 10px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--gold); margin-bottom: 6px; }
-
-    /* Code blocks */
     .code-block { margin: 10px 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
     .code-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #060810; border-bottom: 1px solid var(--border); }
     .code-lang { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--gold); letter-spacing: 1px; text-transform: uppercase; }
@@ -80,13 +69,10 @@
     .code-btn { font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 9px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim); cursor: pointer; transition: all 0.2s; }
     .code-btn:hover { border-color: var(--gold); color: var(--gold); } .code-btn.copied { border-color: #4ade80; color: #4ade80; }
     .code-block pre { font-family: 'DM Mono', monospace; font-size: 12px; background: #060810; padding: 12px 14px; overflow-x: auto; color: #a8d8a8; line-height: 1.7; margin: 0; max-width: 100%; white-space: pre; }
-
     .typing-indicator { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
     .typing-indicator span { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; animation: bounce 1.2s infinite; }
     .typing-indicator span:nth-child(2){animation-delay:.2s} .typing-indicator span:nth-child(3){animation-delay:.4s}
     @keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
-
-    /* Welcome */
     #welcome { max-width: 520px; margin: 28px auto 0; padding: 0 24px; text-align: center; }
     .welcome-logo { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; margin: 0 auto 18px; display: block; border: 3px solid var(--gold); box-shadow: 0 0 36px rgba(200,168,75,0.2); }
     #welcome h2 { font-size: 19px; font-weight: 800; margin-bottom: 6px; } #welcome h2 span { color: var(--gold); }
@@ -94,12 +80,8 @@
     .suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .suggestion { padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; text-align: left; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-dim); transition: all 0.2s; line-height: 1.5; }
     .suggestion:hover { border-color: var(--gold); color: var(--text); background: rgba(200,168,75,0.05); transform: translateY(-2px); }
-
-    /* INPUT AREA */
     footer { position: relative; z-index: 10; padding: 10px 24px 14px; background: rgba(10,12,20,0.92); backdrop-filter: blur(20px); border-top: 1px solid var(--border); }
     .input-area { max-width: 720px; margin: 0 auto; }
-
-    /* File preview bar */
     #file-preview-bar { display: none; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
     #file-preview-bar.show { display: flex; }
     #preview-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border); display: none; }
@@ -108,25 +90,19 @@
     #preview-size { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); flex-shrink: 0; }
     #remove-file { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 5px; transition: all 0.2s; flex-shrink: 0; }
     #remove-file:hover { background: rgba(220,38,38,0.2); color: #f87171; }
-
     .input-row { display: flex; gap: 6px; align-items: flex-end; }
     .input-box { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 13px; resize: none; outline: none; min-height: 44px; max-height: 150px; transition: border-color 0.2s, box-shadow 0.2s; line-height: 1.5; }
     .input-box::placeholder { color: var(--text-dim); }
     .input-box:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,168,75,0.08); }
-
     .upload-btn { width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; font-size: 18px; position: relative; }
     .upload-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(200,168,75,0.06); }
     .upload-btn.has-file { border-color: var(--gold); color: var(--gold); background: rgba(200,168,75,0.1); }
-
     .send-btn { width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; background: linear-gradient(135deg, #1a4fc4, var(--gold)); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform 0.15s; }
     .send-btn:hover{transform:scale(1.05)} .send-btn:active{transform:scale(0.95)} .send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
     .send-btn svg { width: 16px; height: 16px; fill: white; }
-
-    /* Image lightbox */
     #lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; cursor: pointer; }
     #lightbox.show { display: flex; }
     #lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 12px; }
-
     .gen-img-wrap { margin-top: 10px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: var(--surface2); }
     .gen-img { width: 100%; max-height: 360px; object-fit: cover; display: block; cursor: pointer; transition: opacity 0.2s; opacity: 0; }
     .gen-img.loaded { opacity: 1; }
@@ -134,7 +110,6 @@
     .gen-spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .gen-actions { display: flex; gap: 6px; padding: 8px 10px; background: #060810; border-top: 1px solid var(--border); }
-    /* Model selector */
     .model-selector { position: relative; }
     .model-btn { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); border-radius: 8px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 10px; transition: all 0.2s; white-space: nowrap; }
     .model-btn:hover { border-color: var(--gold); color: var(--gold); }
@@ -153,7 +128,6 @@
     .badge-fast { background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.2); }
     .badge-smart { background: rgba(200,168,75,0.1); color: var(--gold); border: 1px solid rgba(200,168,75,0.2); }
     .badge-vision { background: rgba(37,99,235,0.15); color: #93b4ff; border: 1px solid rgba(37,99,235,0.25); }
-    /* Voice */
     .voice-btn { width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; transition: all 0.2s; }
     .voice-btn:hover { border-color: var(--gold); color: var(--gold); }
     .voice-btn.listening { border-color: #f87171; color: #f87171; background: rgba(248,113,113,0.1); animation: pulse-rec 1s infinite; }
@@ -172,7 +146,6 @@
     .search-pulse { width:6px; height:6px; border-radius:50%; background:#4ade80; animation:pulse-dot 1s infinite; }
     .error-toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #dc2626; color: white; padding: 9px 18px; border-radius: 9px; font-family: 'DM Mono', monospace; font-size: 12px; z-index: 100; animation: slide-up 0.3s ease; }
     @keyframes slide-up{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
-
     .menu-toggle { display: none; background: none; border: none; color: var(--text); font-size: 18px; cursor: pointer; padding: 4px; }
     .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 15; }
     .overlay.show { display: block; }
@@ -181,8 +154,6 @@
       .menu-toggle { display: block; }
       #sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
       #sidebar.open { transform: translateX(0); }
-
-      /* Header compact */
       header { padding: 10px 12px; }
       .header-title { font-size: 12px; max-width: 120px; }
       .status-dot { display: none; }
@@ -192,24 +163,17 @@
       .model-btn { padding: 5px 8px; font-size: 10px; gap: 4px; }
       #modelBtnLabel { max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .model-dropdown { min-width: 220px; right: 0; }
-
-      /* Input area */
       footer { padding: 8px 12px env(safe-area-inset-bottom, 12px); padding-bottom: max(12px, env(safe-area-inset-bottom)); }
       .input-box { font-size: 14px; padding: 10px 12px; }
       .upload-btn, .voice-btn, .send-btn { width: 42px; height: 42px; }
-
-      /* Chat bubbles */
       .bubble { max-width: 90%; font-size: 13px; padding: 10px 13px; }
       .message.user .bubble { max-width: 85%; }
       .message-wrap { padding: 0 10px; }
       .code-block { max-width: 100%; overflow: hidden; }
       .code-block pre { font-size: 11px; }
-
-      /* Model dropdown position fix */
       .model-selector { position: static; }
       .model-dropdown { position: fixed; top: 60px; right: 8px; left: 8px; min-width: unset; }
     }
-
     @media (max-width: 380px) {
       .btn-label { display: none; }
       .btn-icon { padding: 5px 7px; }
@@ -218,13 +182,8 @@
   </style>
 </head>
 <body>
-
 <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
-
-<!-- Lightbox -->
 <div id="lightbox" onclick="closeLightbox()"><img id="lb-img" src="" alt=""/></div>
-
-<!-- SIDEBAR -->
 <div id="sidebar">
   <div style="padding:14px;">
     <div class="sidebar-head" style="padding:0 0 12px;">
@@ -245,8 +204,6 @@
     <a href="baba.html" target="_blank" class="sidebar-link" style="opacity:0.7;letter-spacing:0.5px;">🌐 MINDBOT GENIUS · BINARY GLOBAL NETWORK</a>
   </div>
 </div>
-
-<!-- MAIN -->
 <div id="main">
   <header>
     <div style="display:flex;align-items:center;gap:10px;">
@@ -297,13 +254,11 @@
             <div class="model-info"><div class="model-name">Mindbot v2.5</div><div class="model-desc">Generate gambar dari teks (xAI)</div></div>
             <span class="model-badge badge-smart">Image Gen</span>
           </div>
-
         </div>
       </div>
       <button class="btn-icon" id="newChatHeaderBtn" onclick="newChat()">+ Baru</button>
     </div>
   </header>
-
   <div id="chat">
     <div class="message-wrap">
       <div id="welcome">
@@ -319,10 +274,8 @@
       </div>
     </div>
   </div>
-
   <footer>
     <div class="input-area">
-      <!-- File preview -->
       <div id="file-preview-bar">
         <img id="preview-thumb" src="" alt=""/>
         <span id="preview-icon"></span>
@@ -330,7 +283,6 @@
         <span id="preview-size"></span>
         <button id="remove-file" onclick="removeFile()" title="Hapus file">✕</button>
       </div>
-      <!-- Input row -->
       <div class="input-row">
         <button class="upload-btn" id="upload-btn" onclick="document.getElementById('file-input').click()" title="Upload gambar/file">
           📎
@@ -346,50 +298,31 @@
     </div>
   </footer>
 </div>
-
 <script>
-  // Device ID - stored in localStorage, unique per device
   let deviceId = localStorage.getItem('mbg_device_id');
   if (!deviceId) {
     deviceId = 'dev_' + Math.random().toString(36).substr(2, 12);
     localStorage.setItem('mbg_device_id', deviceId);
   }
-
   let sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
   let isLoading = false;
   let selectedFile = null;
-
-  // ── PUSH NOTIFICATION ──
   let notifEnabled = localStorage.getItem('notif_enabled') !== 'false';
 
   async function toggleNotification() {
     const btn = document.getElementById('notifBtn');
-    if (!('Notification' in window)) {
-      showError('Browser tidak support notifikasi');
-      return;
-    }
-    if (Notification.permission === 'denied') {
-      showError('Notifikasi diblokir. Aktifkan di pengaturan browser.');
-      return;
-    }
+    if (!('Notification' in window)) { showError('Browser tidak support notifikasi'); return; }
+    if (Notification.permission === 'denied') { showError('Notifikasi diblokir. Aktifkan di pengaturan browser.'); return; }
     if (Notification.permission === 'default') {
       const perm = await Notification.requestPermission();
-      if (perm !== 'granted') {
-        showError('Izin notifikasi ditolak');
-        return;
-      }
+      if (perm !== 'granted') { showError('Izin notifikasi ditolak'); return; }
     }
     notifEnabled = !notifEnabled;
     localStorage.setItem('notif_enabled', notifEnabled);
     btn.textContent = notifEnabled ? '🔔' : '🔕';
     btn.style.color = notifEnabled ? 'var(--gold)' : '';
-    // Test notification
     if (notifEnabled) {
-      new Notification('🔔 Mindbot Genius', {
-        body: 'Notifikasi aktif! Kamu akan diberitahu saat AI menjawab.',
-        icon: '/logo.png',
-        tag: 'mindbot-test'
-      });
+      new Notification('🔔 Mindbot Genius', { body: 'Notifikasi aktif! Kamu akan diberitahu saat AI menjawab.', icon: '/logo.png', tag: 'mindbot-test' });
     }
   }
 
@@ -399,13 +332,7 @@
     if (Notification.permission !== 'granted') return;
     try {
       const cleanBody = (body||'').replace(/[*_`#\[\]]/g,'').replace(/<[^>]+>/g,'').trim().slice(0,120);
-      const notif = new Notification(title, {
-        body: cleanBody,
-        icon: '/logo.png',
-        tag: 'mindbot-reply',
-        renotify: true,
-        requireInteraction: false
-      });
+      const notif = new Notification(title, { body: cleanBody, icon: '/logo.png', tag: 'mindbot-reply', renotify: true, requireInteraction: false });
       notif.onclick = () => { window.focus(); notif.close(); };
       setTimeout(() => notif.close(), 6000);
     } catch(e) { console.log('Notif error:', e); }
@@ -413,9 +340,7 @@
 
   async function requestNotificationPermission() {
     if (!('Notification' in window)) return;
-    if (Notification.permission === 'default') {
-      await Notification.requestPermission();
-    }
+    if (Notification.permission === 'default') { await Notification.requestPermission(); }
     const btn = document.getElementById('notifBtn');
     if (btn) {
       btn.textContent = notifEnabled ? '🔔' : '🔕';
@@ -423,7 +348,6 @@
     }
   }
 
-  // ── UTILS ──
   function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,150)+'px'; }
   function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
   function escapeHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -437,7 +361,6 @@
   }
 
   function formatMessage(text) {
-    // Remove thinking process tags
     text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
     text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_,lang,code)=>{
       const id='c_'+Math.random().toString(36).substr(2,6);
@@ -462,11 +385,9 @@
     a.download='mindbot_code.'+(ext[lang.toLowerCase()]||'txt'); a.click();
   }
 
-  // ── LIGHTBOX ──
   function openLightbox(src) { document.getElementById('lb-img').src=src; document.getElementById('lightbox').classList.add('show'); }
   function closeLightbox() { document.getElementById('lightbox').classList.remove('show'); }
 
-  // ── FILE UPLOAD ──
   function handleFileSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -478,7 +399,6 @@
     document.getElementById('preview-size').textContent = formatSize(file.size);
     bar.classList.add('show');
     document.getElementById('upload-btn').classList.add('has-file');
-
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = ev => { thumb.src = ev.target.result; thumb.style.display='block'; icon.style.display='none'; };
@@ -498,24 +418,17 @@
     document.getElementById('preview-icon').style.display = 'none';
   }
 
-  // ── SIDEBAR ──
   function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); }
   function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
 
-  // ── CONVERSATIONS ──
-  // ── LOCAL STORAGE DB ──
   function getAllConversations() {
     const keys = Object.keys(localStorage).filter(k => k.startsWith('conv_'));
-    return keys.map(k => {
-      try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; }
-    }).filter(Boolean).sort((a,b) => b.updatedAt - a.updatedAt);
+    return keys.map(k => { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }).filter(Boolean).sort((a,b) => b.updatedAt - a.updatedAt);
   }
 
   function saveConversation(conv) {
-    // Strip imageData (base64) but keep generatedImageUrl (just a URL string)
     const toSave = {...conv, messages: conv.messages.map(m => ({...m, imageData: null}))};
     try { localStorage.setItem('conv_'+conv.id, JSON.stringify(toSave)); } catch(e) {
-      // If storage full, remove oldest conv
       const all = getAllConversations();
       if(all.length > 0) localStorage.removeItem('conv_'+all[all.length-1].id);
       try { localStorage.setItem('conv_'+conv.id, JSON.stringify(toSave)); } catch(e2) {}
@@ -533,13 +446,8 @@
         <div class="conv-date">${formatDate(c.updatedAt)}</div>
         <button class="conv-del" data-id="${c.id}" title="Hapus">✕</button>
       </div>`).join('');
-
     el.querySelectorAll('.conv-del').forEach(btn => {
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-        deleteConv(this.getAttribute('data-id'));
-      });
+      btn.addEventListener('click', function(e) { e.stopPropagation(); e.preventDefault(); deleteConv(this.getAttribute('data-id')); });
     });
   }
 
@@ -564,24 +472,23 @@
   function deleteConv(id) {
     localStorage.removeItem('conv_'+id);
     if(id===sessionId) newChat();
-    requestNotificationPermission();
+    loadConversations();
+  }
+
+  requestNotificationPermission();
   loadConversations();
 
-  // ── MOBILE KEYBOARD HANDLING ──
   if (window.visualViewport) {
     function handleViewportResize() {
       const footer = document.querySelector('footer');
-      const main = document.getElementById('main');
       const viewportHeight = window.visualViewport.height;
       const windowHeight = window.innerHeight;
       const keyboardHeight = windowHeight - viewportHeight;
       if (keyboardHeight > 100) {
-        // Keyboard is open
         footer.style.transform = `translateY(-${keyboardHeight}px)`;
         footer.style.transition = 'transform 0.15s ease';
         document.getElementById('chat').style.paddingBottom = keyboardHeight + 'px';
       } else {
-        // Keyboard closed
         footer.style.transform = 'translateY(0)';
         document.getElementById('chat').style.paddingBottom = '0';
       }
@@ -589,9 +496,7 @@
     window.visualViewport.addEventListener('resize', handleViewportResize);
     window.visualViewport.addEventListener('scroll', handleViewportResize);
   }
-  }
 
-  // ── CHAT ──
   function appendMessageTo(wrap, role, text, imageData, fileName, animate=true, generatedImageUrl=null) {
     const div = document.createElement('div');
     div.className = 'message ' + role;
@@ -618,7 +523,6 @@
         </div>
       </div>`;
     }
-
     if (role==='ai') {
       const modelLabel = (animate && currentModel) ? `<div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text-dim);margin-bottom:6px;display:flex;align-items:center;gap:4px;"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80;display:inline-block;"></span>${currentModelName}</div>` : '';
       const ttsId = 'tts_'+Math.random().toString(36).substr(2,6);
@@ -661,13 +565,10 @@
 
   function showError(msg){ const t=document.createElement('div'); t.className='error-toast'; t.textContent='⚠ '+msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3500); }
 
-  // ── MODEL SELECTION ──
   let currentModel = 'openai/gpt-oss-120b';
   let currentModelName = 'Mindbot v1.0';
 
-  function toggleModelDropdown() {
-    document.getElementById('modelDropdown').classList.toggle('open');
-  }
+  function toggleModelDropdown() { document.getElementById('modelDropdown').classList.toggle('open'); }
 
   function selectModel(modelId, modelName, optId) {
     currentModel = modelId;
@@ -678,14 +579,12 @@
     document.getElementById('modelDropdown').classList.remove('open');
   }
 
-  // Close dropdown when clicking outside
   document.addEventListener('click', e => {
     if (!document.getElementById('modelSelector').contains(e.target)) {
       document.getElementById('modelDropdown').classList.remove('open');
     }
   });
 
-  // Image generation keywords
   const IMG_KEYWORDS = ['buat gambar','buatkan gambar','generate gambar','bikin gambar',
     'tolong buat gambar','gambarkan','ilustrasikan','create image','generate image',
     'make image','draw me','draw a','draw an','/imagine'];
@@ -704,12 +603,6 @@
     return text;
   }
 
-  function buildPollinationsUrl(prompt) {
-    // Use simplest possible URL - no extra params that might cause issues
-    const encoded = encodeURIComponent(prompt);
-    return `https://image.pollinations.ai/prompt/${encoded}`;
-  }
-
   async function sendMessage() {
     if(isLoading) return;
     const input = document.getElementById('input');
@@ -725,19 +618,27 @@
     isLoading=true;
     document.getElementById('sendBtn').disabled=true;
 
-        // ── MINDBOT v2.5 — Image Generation ──
     if (!fileToSend && currentModel === 'grok-imagine') {
       if (text.length < 3) {
         showError('💡 Ketik deskripsi gambar yang ingin dibuat!');
         isLoading=false; document.getElementById('sendBtn').disabled=false;
         return;
       }
+      appendMessage('user', text);
       showTyping();
-      const encoded = encodeURIComponent(text + ', high quality, detailed, beautiful');
-      const seed = Math.floor(Math.random()*999999);
-      const imgUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${seed}&model=flux`;
-      setTimeout(() => {
+      try {
+        const res = await fetch('/api/imagine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: text })
+        });
+        let data;
+        try { data = await res.json(); } catch(e) { data = null; }
         removeTyping();
+        if (!res.ok || !data || !data.imageUrl) {
+          throw new Error((data && data.error) || 'Gagal generate gambar');
+        }
+        const imgUrl = data.imageUrl;
         appendMessage('ai', `🎨 **"${text}"**`, null, null, imgUrl);
         sendNotification('🎨 Mindbot v2.5', 'Gambar sudah selesai dibuat!');
         const ec = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
@@ -746,12 +647,15 @@
         msgs.push({ role:'assistant', textContent: `🎨 Gambar: "${text}"`, generatedImageUrl: imgUrl });
         saveConversation({ id:sessionId, title:'🎨 '+text.slice(0,35), messages:msgs, createdAt:ec?.createdAt||Date.now(), updatedAt:Date.now() });
         loadConversations();
+      } catch(err) {
+        removeTyping();
+        showError(err.message || 'Gagal generate gambar');
+      } finally {
         isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus();
-      }, 600);
+      }
       return;
     }
 
-    // ── Regular Chat ──
     appendMessage('user', text, imagePreview, fileName);
     showTyping();
 
@@ -772,8 +676,8 @@
         appendMessage('ai', '🔍 *[Mencari informasi terkini dari web...]*\n\n' + data.reply, null, null, data.generatedImageUrl);
       } else {
         const cleanReply = data.reply.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-      appendMessage('ai', cleanReply, null, null, data.generatedImageUrl);
-      sendNotification('🤖 Mindbot Genius', data.reply);
+        appendMessage('ai', cleanReply, null, null, data.generatedImageUrl);
+        sendNotification('🤖 Mindbot Genius', data.reply);
       }
 
       if(data.title && document.getElementById('chat-title').classList.contains('new')){
@@ -781,7 +685,6 @@
         document.getElementById('chat-title').classList.remove('new');
       }
 
-      // Save to localStorage
       const existingConv = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
       const msgs = existingConv ? existingConv.messages : [];
       msgs.push({ role:'user', textContent: text });
@@ -799,7 +702,6 @@
     } catch(err){ removeTyping(); showError(err.message); }
     finally { isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); }
   }
-
 
   function readFileAsDataURL(file) {
     return new Promise(res => { const r=new FileReader(); r.onload=e=>res(e.target.result); r.readAsDataURL(file); });
@@ -830,7 +732,6 @@
     closeSidebar();
   }
 
-  // ── VOICE RECOGNITION ──
   let recognition = null;
   let isListening = false;
 
@@ -884,14 +785,8 @@
     try { if (recognition) recognition.stop(); } catch(e) {}
   }
 
-  // ── TEXT TO SPEECH ──
   let currentUtterance = null;
   let speakingBtnId = null;
-
-  const TTS_VOICES = {
-    'id': ['id-ID', 'Indonesian'],
-    'en': ['en-US', 'English']
-  };
 
   function getVoice(lang) {
     const voices = speechSynthesis.getVoices();
@@ -907,7 +802,6 @@
 
   function copyMessage(btn, btnId) {
     const bubble = btn.closest('.bubble');
-    // Get all text content excluding buttons
     let rawText = '';
     bubble.childNodes.forEach(node => {
       if (node.classList?.contains('msg-actions')) return;
@@ -926,20 +820,16 @@
   }
 
   function speakText(btn, btnId) {
-    // Stop if already speaking this
     if (speakingBtnId === btnId && speechSynthesis.speaking) {
       speechSynthesis.cancel();
       btn.textContent = '🔊'; btn.classList.remove('speaking');
       speakingBtnId = null; return;
     }
-    // Stop previous
     speechSynthesis.cancel();
     if (speakingBtnId) {
       const prev = document.getElementById(speakingBtnId);
       if (prev) { prev.textContent = '🔊'; prev.classList.remove('speaking'); }
     }
-
-    // Get text from bubble
     const bubble = btn.closest('.bubble');
     let rawText = '';
     bubble.childNodes.forEach(node => {
@@ -951,37 +841,20 @@
     });
     rawText = rawText.replace(/🔊/g,'').trim();
     if (!rawText) return;
-
     const lang = detectLang(rawText);
     const utter = new SpeechSynthesisUtterance(rawText);
     utter.lang = lang === 'id' ? 'id-ID' : 'en-US';
     utter.rate = 1.0; utter.pitch = 1.0; utter.volume = 1.0;
     const voice = getVoice(utter.lang);
     if (voice) utter.voice = voice;
-
-    utter.onstart = () => {
-      btn.textContent = '⏸️'; btn.classList.add('speaking');
-      speakingBtnId = btnId;
-    };
-    utter.onend = utter.onerror = () => {
-      btn.textContent = '🔊'; btn.classList.remove('speaking');
-      speakingBtnId = null;
-    };
-
+    utter.onstart = () => { btn.textContent = '⏸️'; btn.classList.add('speaking'); speakingBtnId = btnId; };
+    utter.onend = utter.onerror = () => { btn.textContent = '🔊'; btn.classList.remove('speaking'); speakingBtnId = null; };
     speechSynthesis.speak(utter);
     currentUtterance = utter;
   }
 
-  // Load voices (some browsers need this)
   speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
-
-  // ── TTS AUTO-SPEAK TOGGLE ──
   let autoSpeak = false;
-
-  // Init
-
-  loadConversations();
-
 </script>
 </body>
 </html>
