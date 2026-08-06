@@ -73,36 +73,80 @@ async function searchWeb(query) {
   }
 }
 
-// ── MINDBOT v2.5 IMAGE GENERATION (DeepAI) ──
+// ── MINDBOT v2.5 IMAGE GENERATION (deAPI.ai) ──
+const DEAPI_BASE  = 'https://api.deapi.ai/api/v1/client';
+const DEAPI_MODEL = 'ZImageTurbo_INT8'; // model cepat, cocok untuk realtime chat
+
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
 
-  const DEEPAI_KEY = process.env.DEEPAI_API_KEY;
-  if (!DEEPAI_KEY) return res.status(500).json({ error: 'DEEPAI_API_KEY belum diset' });
+  const DEAPI_KEY = process.env.DEAPI_API_KEY;
+  if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset' });
+
+  const headers = {
+    'Authorization': `Bearer ${DEAPI_KEY}`,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  };
 
   try {
-    const form = new URLSearchParams();
-    form.append('text', prompt + ', high quality, detailed, beautiful');
-
-    const resp = await fetch('https://api.deepai.org/api/text2img', {
+    // 1. Submit job
+    const submitResp = await fetch(`${DEAPI_BASE}/txt2img`, {
       method: 'POST',
-      headers: {
-        'api-key': DEEPAI_KEY,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: form
+      headers,
+      body: JSON.stringify({
+        prompt: prompt + ', high quality, detailed, beautiful',
+        model: DEAPI_MODEL,
+        width: 768,
+        height: 512,
+        steps: 4,
+        seed: -1
+      })
     });
 
-    if (!resp.ok) {
-      const errText = await resp.text();
-      throw new Error(`DeepAI error (${resp.status}): ${errText}`);
+    if (!submitResp.ok) {
+      const errText = await submitResp.text();
+      throw new Error(`deAPI submit error (${submitResp.status}): ${errText}`);
     }
 
-    const data = await resp.json();
-    if (!data.output_url) throw new Error('DeepAI tidak mengembalikan output_url');
+    const submitData = await submitResp.json();
+    const requestId = submitData?.data?.request_id;
+    if (!requestId) throw new Error('deAPI tidak mengembalikan request_id');
 
-    res.json({ imageUrl: data.output_url });
+    // 2. Poll status (dibatasi ~8 detik biar aman di Vercel Hobby timeout 10s)
+    const deadline = Date.now() + 8000;
+    let imageUrl = null;
+
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 700));
+
+      const statusResp = await fetch(`${DEAPI_BASE}/request-status/${requestId}`, { headers });
+      if (!statusResp.ok) continue;
+
+      const statusData = await statusResp.json();
+      const status = statusData?.data?.status;
+
+      if (status === 'completed') {
+        imageUrl = statusData?.data?.result?.url
+                || statusData?.data?.result?.[0]?.url
+                || statusData?.data?.output_url;
+        break;
+      }
+      if (status === 'failed') {
+        throw new Error('deAPI job gagal: ' + (statusData?.data?.error || 'unknown error'));
+      }
+      // status masih 'pending'/'processing' → lanjut poll
+    }
+
+    if (!imageUrl) {
+      return res.status(202).json({
+        error: 'Gambar masih diproses, coba lagi sebentar lagi',
+        requestId
+      });
+    }
+
+    res.json({ imageUrl });
   } catch (err) {
     console.error('Imagine error:', err.message);
     res.status(500).json({ error: err.message });
