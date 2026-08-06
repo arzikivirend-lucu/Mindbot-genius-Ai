@@ -73,10 +73,19 @@ async function searchWeb(query) {
   }
 }
 
-// ── MINDBOT v2.5 IMAGE GENERATION (deAPI.ai) ──
+// ── MINDBOT v2.5 IMAGE GENERATION (deAPI.ai) — async job + polling ──
 const DEAPI_BASE  = 'https://api.deapi.ai/api/v1/client';
 const DEAPI_MODEL = 'ZImageTurbo_INT8'; // model cepat, cocok untuk realtime chat
 
+function deapiHeaders() {
+  return {
+    'Authorization': `Bearer ${process.env.DEAPI_API_KEY}`,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  };
+}
+
+// 1. Submit job — balas cepat dengan requestId, TIDAK menunggu gambar jadi
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
@@ -84,17 +93,10 @@ app.post('/api/imagine', async (req, res) => {
   const DEAPI_KEY = process.env.DEAPI_API_KEY;
   if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset' });
 
-  const headers = {
-    'Authorization': `Bearer ${DEAPI_KEY}`,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  };
-
   try {
-    // 1. Submit job
     const submitResp = await fetch(`${DEAPI_BASE}/txt2img`, {
       method: 'POST',
-      headers,
+      headers: deapiHeaders(),
       body: JSON.stringify({
         prompt: prompt + ', high quality, detailed, beautiful',
         model: DEAPI_MODEL,
@@ -114,41 +116,42 @@ app.post('/api/imagine', async (req, res) => {
     const requestId = submitData?.data?.request_id;
     if (!requestId) throw new Error('deAPI tidak mengembalikan request_id');
 
-    // 2. Poll status (dibatasi ~8 detik biar aman di Vercel Hobby timeout 10s)
-    const deadline = Date.now() + 8000;
-    let imageUrl = null;
-
-    while (Date.now() < deadline) {
-      await new Promise(r => setTimeout(r, 700));
-
-      const statusResp = await fetch(`${DEAPI_BASE}/request-status/${requestId}`, { headers });
-      if (!statusResp.ok) continue;
-
-      const statusData = await statusResp.json();
-      const status = statusData?.data?.status;
-
-      if (status === 'completed') {
-        imageUrl = statusData?.data?.result?.url
-                || statusData?.data?.result?.[0]?.url
-                || statusData?.data?.output_url;
-        break;
-      }
-      if (status === 'failed') {
-        throw new Error('deAPI job gagal: ' + (statusData?.data?.error || 'unknown error'));
-      }
-      // status masih 'pending'/'processing' → lanjut poll
-    }
-
-    if (!imageUrl) {
-      return res.status(202).json({
-        error: 'Gambar masih diproses, coba lagi sebentar lagi',
-        requestId
-      });
-    }
-
-    res.json({ imageUrl });
+    res.json({ requestId, status: 'pending' });
   } catch (err) {
-    console.error('Imagine error:', err.message);
+    console.error('Imagine submit error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Cek status job — dipanggil berulang (polling) oleh frontend tiap 1-2 detik
+app.get('/api/imagine/status/:requestId', async (req, res) => {
+  const DEAPI_KEY = process.env.DEAPI_API_KEY;
+  if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset' });
+
+  try {
+    const statusResp = await fetch(`${DEAPI_BASE}/request-status/${req.params.requestId}`, {
+      headers: deapiHeaders()
+    });
+    if (!statusResp.ok) {
+      const errText = await statusResp.text();
+      throw new Error(`deAPI status error (${statusResp.status}): ${errText}`);
+    }
+
+    const statusData = await statusResp.json();
+    const status = statusData?.data?.status;
+
+    if (status === 'completed') {
+      const imageUrl = statusData?.data?.result?.url
+                     || statusData?.data?.result?.[0]?.url
+                     || statusData?.data?.output_url;
+      return res.json({ status: 'completed', imageUrl });
+    }
+    if (status === 'failed') {
+      return res.json({ status: 'failed', error: statusData?.data?.error || 'Gagal membuat gambar' });
+    }
+    res.json({ status: status || 'pending' });
+  } catch (err) {
+    console.error('Imagine status error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
