@@ -251,7 +251,7 @@
           </div>
           <div class="model-option" id="opt_grok_img" onclick="selectModel('grok-imagine','Mindbot v2.5','opt_grok_img')">
             <span class="model-icon">🎨</span>
-            <div class="model-info"><div class="model-name">Mindbot v2.5</div><div class="model-desc">Generate gambar dari teks (xAI)</div></div>
+            <div class="model-info"><div class="model-name">Mindbot v2.5</div><div class="model-desc">Generate gambar dari teks (deAPI)</div></div>
             <span class="model-badge badge-smart">Image Gen</span>
           </div>
         </div>
@@ -603,6 +603,28 @@
     return text;
   }
 
+  // ── Polling helper untuk generate gambar via deAPI (backend async job) ──
+  async function pollImageStatus(requestId, { intervalMs = 1500, maxAttempts = 30 } = {}) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise(r => setTimeout(r, intervalMs));
+      let statusData;
+      try {
+        const statusRes = await fetch(`/api/imagine/status/${requestId}`);
+        statusData = await statusRes.json();
+      } catch (e) {
+        continue; // network hiccup sesaat, coba lagi di iterasi berikutnya
+      }
+      if (statusData.status === 'completed' && statusData.imageUrl) {
+        return statusData.imageUrl;
+      }
+      if (statusData.status === 'failed') {
+        throw new Error(statusData.error || 'Gagal generate gambar');
+      }
+      // status masih 'pending'/'processing' → lanjut polling
+    }
+    throw new Error('Waktu tunggu habis, gambar belum selesai dibuat');
+  }
+
   async function sendMessage() {
     if(isLoading) return;
     const input = document.getElementById('input');
@@ -627,6 +649,7 @@
       appendMessage('user', text);
       showTyping();
       try {
+        // 1. Submit job ke /api/imagine — balas cepat dengan requestId
         const res = await fetch('/api/imagine', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -634,11 +657,14 @@
         });
         let data;
         try { data = await res.json(); } catch(e) { data = null; }
-        removeTyping();
-        if (!res.ok || !data || !data.imageUrl) {
+        if (!res.ok || !data || !data.requestId) {
           throw new Error((data && data.error) || 'Gagal generate gambar');
         }
-        const imgUrl = data.imageUrl;
+
+        // 2. Polling status sampai gambar selesai
+        const imgUrl = await pollImageStatus(data.requestId);
+
+        removeTyping();
         appendMessage('ai', `🎨 **"${text}"**`, null, null, imgUrl);
         sendNotification('🎨 Mindbot v2.5', 'Gambar sudah selesai dibuat!');
         const ec = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
