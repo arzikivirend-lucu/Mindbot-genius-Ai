@@ -138,18 +138,38 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
     }
 
     const statusData = await statusResp.json();
-    const status = statusData?.data?.status;
+    const d = statusData?.data || statusData; // fallback kalau nggak dibungkus "data"
+    const rawStatus = (d?.status || '').toLowerCase();
 
-    if (status === 'completed') {
-      const imageUrl = statusData?.data?.result?.url
-                     || statusData?.data?.result?.[0]?.url
-                     || statusData?.data?.output_url;
+    const DONE_STATUSES   = ['done', 'completed', 'success', 'succeeded', 'finished'];
+    const FAILED_STATUSES = ['failed', 'error', 'cancelled'];
+
+    if (DONE_STATUSES.includes(rawStatus)) {
+      // Coba semua kemungkinan lokasi field URL gambar
+      const imageUrl =
+        d?.result?.url ||
+        d?.result?.[0]?.url ||
+        d?.result?.image_url ||
+        d?.output_url ||
+        d?.output?.[0]?.url ||
+        d?.output?.url ||
+        d?.url ||
+        d?.download_url ||
+        d?.assets?.[0]?.url ||
+        null;
+
+      if (!imageUrl) {
+        // Belum ketemu field yang cocok — kirim raw data supaya bisa dicek di Network tab
+        return res.json({ status: 'done', imageUrl: null, debugRaw: statusData });
+      }
       return res.json({ status: 'completed', imageUrl });
     }
-    if (status === 'failed') {
-      return res.json({ status: 'failed', error: statusData?.data?.error || 'Gagal membuat gambar' });
+
+    if (FAILED_STATUSES.includes(rawStatus)) {
+      return res.json({ status: 'failed', error: d?.error || d?.error_message || 'Gagal membuat gambar' });
     }
-    res.json({ status: status || 'pending' });
+
+    res.json({ status: rawStatus || 'pending' });
   } catch (err) {
     console.error('Imagine status error:', err.message);
     res.status(500).json({ error: err.message });
