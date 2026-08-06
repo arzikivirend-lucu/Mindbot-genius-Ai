@@ -147,6 +147,7 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
     if (DONE_STATUSES.includes(rawStatus)) {
       // Coba semua kemungkinan lokasi field URL gambar
       const imageUrl =
+        d?.result_url ||
         d?.result?.url ||
         d?.result?.[0]?.url ||
         d?.result?.image_url ||
@@ -156,6 +157,8 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
         d?.url ||
         d?.download_url ||
         d?.assets?.[0]?.url ||
+        d?.results_alt_formats?.jpg ||
+        d?.results_alt_formats?.webp ||
         null;
 
       if (!imageUrl) {
