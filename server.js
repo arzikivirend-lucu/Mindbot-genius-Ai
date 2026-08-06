@@ -3,8 +3,7 @@ const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
 
-const app  = express();
-const PORT = process.env.PORT || 3000;
+const app = express();
 
 const sessions = {};
 
@@ -18,7 +17,7 @@ const upload = multer({
 });
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Dummy endpoints
 app.get('/api/conversations', (req, res) => res.json([]));
@@ -59,7 +58,6 @@ async function searchWeb(query) {
     if (!resp.ok) return null;
     const data = await resp.json();
 
-    // Format results
     let context = `[Hasil pencarian web untuk: "${query}"]\n\n`;
     if (data.answer) context += `Ringkasan: ${data.answer}\n\n`;
     if (data.results?.length) {
@@ -75,64 +73,41 @@ async function searchWeb(query) {
   }
 }
 
-
-// ── MINDBOT v2.5 IMAGE GENERATION ──
+// ── MINDBOT v2.5 IMAGE GENERATION (DeepAI) ──
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
 
-  const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY;
-  // Generate gambar bisa lambat (model flux kadang 30-90 detik). Timeout ini
-  // HARUS lebih pendek dari "maxDuration" di vercel.json (saat ini 60 detik),
-  // supaya server sempat kirim response error sebelum Vercel paksa mematikan
-  // function-nya. Kalau maxDuration dinaikkan, sesuaikan juga angka ini.
-  const IMAGINE_TIMEOUT_MS = parseInt(process.env.IMAGINE_TIMEOUT_MS, 10) || 50000; // 50 detik
-
-  const encoded = encodeURIComponent(prompt + ', high quality, detailed, beautiful');
-  const seed = Math.floor(Math.random() * 999999);
-  const pollinationsUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${seed}&model=flux`;
-
-  // Wajib ada API key. Tanpa key, endpoint ini tidak bisa dipakai sama sekali.
-  if (!POLLINATIONS_API_KEY) {
-    return res.status(503).json({ error: 'Image generation tidak aktif: POLLINATIONS_API_KEY belum diset di server.' });
-  }
+  const DEEPAI_KEY = process.env.DEEPAI_API_KEY;
+  if (!DEEPAI_KEY) return res.status(500).json({ error: 'DEEPAI_API_KEY belum diset' });
 
   try {
-    // Fetch di server dengan Authorization header agar key tidak bocor ke client.
-    // (Menaruh key sebagai query param di URL yang dimuat langsung oleh <img>
-    // browser akan membuatnya terlihat oleh siapa saja yang inspect elemen.)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), IMAGINE_TIMEOUT_MS);
+    const form = new URLSearchParams();
+    form.append('text', prompt + ', high quality, detailed, beautiful');
 
-    let imgResp;
-    try {
-      imgResp = await fetch(pollinationsUrl, {
-        headers: { 'Authorization': `Bearer ${POLLINATIONS_API_KEY}` },
-        signal: controller.signal
-      });
-    } finally {
-      clearTimeout(timeoutId);
+    const resp = await fetch('https://api.deepai.org/api/text2img', {
+      method: 'POST',
+      headers: {
+        'api-key': DEEPAI_KEY,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: form
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`DeepAI error (${resp.status}): ${errText}`);
     }
 
-    if (!imgResp.ok) {
-      throw new Error(`Pollinations API error: ${imgResp.status}`);
-    }
+    const data = await resp.json();
+    if (!data.output_url) throw new Error('DeepAI tidak mengembalikan output_url');
 
-    const contentType = imgResp.headers.get('content-type') || 'image/jpeg';
-    const buffer = Buffer.from(await imgResp.arrayBuffer());
-    const dataUrl = `data:${contentType};base64,${buffer.toString('base64')}`;
-
-    res.json({ imageUrl: dataUrl });
+    res.json({ imageUrl: data.output_url });
   } catch (err) {
-    if (err.name === 'AbortError') {
-      console.error(`Imagine timeout setelah ${IMAGINE_TIMEOUT_MS}ms`);
-      return res.status(504).json({ error: 'Generate gambar timeout, coba lagi.' });
-    }
     console.error('Imagine error:', err.message);
-    res.status(502).json({ error: 'Gagal generate gambar dari Pollinations.' });
+    res.status(500).json({ error: err.message });
   }
 });
-
 
 // ── CHAT ──
 app.post('/api/chat', upload.single('file'), async (req, res) => {
@@ -220,11 +195,5 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
   }
 });
 
-// Jalankan app.listen() hanya di lokal / non-serverless.
-// Di Vercel, VERCEL env var otomatis ada, jadi kita skip listen()
-// dan cukup export app-nya supaya Vercel bisa jalankan sebagai function.
-if (!process.env.VERCEL) {
-  app.listen(PORT, () => console.log(`\n🚀 http://localhost:${PORT}\n`));
-}
-
+// JANGAN pakai app.listen() di Vercel — export app-nya saja
 module.exports = app;
