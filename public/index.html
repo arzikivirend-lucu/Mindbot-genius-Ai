@@ -605,7 +605,8 @@
       </div>`;
     }
     if (role==='ai') {
-      const modelLabel = (animate && currentModel) ? `<div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text-dim);margin-bottom:6px;display:flex;align-items:center;gap:4px;"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80;display:inline-block;"></span>${currentModelName}</div>` : '';
+      // NOTE: class="model-tag" ditambahkan supaya elemen ini bisa dibuang saat proses copy teks
+      const modelLabel = (animate && currentModel) ? `<div class="model-tag" style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text-dim);margin-bottom:6px;display:flex;align-items:center;gap:4px;"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80;display:inline-block;"></span>${currentModelName}</div>` : '';
       const ttsId = 'tts_'+Math.random().toString(36).substr(2,6);
       const cpyId = 'cpy_'+Math.random().toString(36).substr(2,6);
       const plainText = text ? text.replace(/[*_`#]/g,'').replace(/<[^>]+>/g,'') : '';
@@ -934,19 +935,27 @@
     return idCount >= 2 ? 'id' : 'en';
   }
 
+  // ── FUNGSI DIPERBARUI: label model (Mindbot v1.0, dll) & toolbar kode
+  // sekarang dibuang dari clone sebelum teks disalin, jadi tidak ikut ter-copy.
   function copyMessage(btn, btnId) {
     const bubble = btn.closest('.bubble');
-    let rawText = '';
-    bubble.childNodes.forEach(node => {
-      if (node.classList?.contains('msg-actions')) return;
-      if (node.classList?.contains('code-block')) {
-        const pre = node.querySelector('pre');
-        if (pre) rawText += pre.innerText + '\n\n';
-        return;
-      }
-      rawText += node.textContent || '';
+    const contentEl = bubble.querySelector('.bubble-content');
+    if (!contentEl) return;
+
+    const clone = contentEl.cloneNode(true);
+
+    // buang label model & toolbar tombol kode (Salin/Unduh) sebelum disalin
+    clone.querySelectorAll('.model-tag, .code-toolbar').forEach(el => el.remove());
+    // ubah <br> jadi baris baru asli supaya format tetap rapi
+    clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+    // beri jarak baris di sekitar blok kode
+    clone.querySelectorAll('.code-block').forEach(cb => {
+      cb.insertAdjacentText('beforebegin', '\n');
+      cb.insertAdjacentText('afterend', '\n');
     });
-    rawText = rawText.trim();
+
+    const rawText = clone.textContent.replace(/\n{3,}/g, '\n\n').trim();
+
     navigator.clipboard.writeText(rawText).then(() => {
       btn.textContent = '✅'; btn.classList.add('copied');
       setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 2000);
@@ -965,15 +974,14 @@
       if (prev) { prev.textContent = '🔊'; prev.classList.remove('speaking'); }
     }
     const bubble = btn.closest('.bubble');
+    const contentEl = bubble.querySelector('.bubble-content');
     let rawText = '';
-    bubble.childNodes.forEach(node => {
-      if (node.nodeType === Node.TEXT_NODE) rawText += node.textContent;
-      else if (node.tagName === 'STRONG') rawText += node.textContent;
-      else if (node.tagName === 'BR') rawText += ' ';
-      else if (node.classList?.contains('tts-btn')) return;
-      else rawText += node.textContent || '';
-    });
-    rawText = rawText.replace(/🔊/g,'').trim();
+    if (contentEl) {
+      const clone = contentEl.cloneNode(true);
+      clone.querySelectorAll('.model-tag, .code-toolbar').forEach(el => el.remove());
+      clone.querySelectorAll('br').forEach(br => br.replaceWith(' '));
+      rawText = clone.textContent.trim();
+    }
     if (!rawText) return;
     const lang = detectLang(rawText);
     const utter = new SpeechSynthesisUtterance(rawText);
