@@ -224,6 +224,7 @@
   <div class="sidebar-section">Riwayat Percakapan</div>
   <div id="conv-list"><div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div></div>
   <div class="sidebar-footer">
+    <a href="#" onclick="viewMemory(event)" class="sidebar-link" style="opacity:0.85;">🔍 Lihat Memori Saya</a>
     <a href="#" onclick="forgetMe(event)" class="sidebar-link" style="opacity:0.85;">🧠 Lupakan Memori Saya</a>
     <a href="baba.html" target="_blank" class="sidebar-link" style="opacity:0.7;letter-spacing:0.5px;">🌐 MINDBOT GENIUS · BINARY GLOBAL NETWORK</a>
   </div>
@@ -469,7 +470,12 @@
   }
 
   function saveConversation(conv) {
-    const toSave = {...conv, messages: conv.messages.map(m => ({...m, imageData: null}))};
+    // Base64 (data:...) terlalu besar untuk localStorage → dihapus.
+    // URL http(s) (hasil upload permanen) kecil dan tetap disimpan.
+    const toSave = {...conv, messages: conv.messages.map(m => ({
+      ...m,
+      imageData: (m.imageData && m.imageData.startsWith('data:')) ? null : (m.imageData || null)
+    }))};
     try { localStorage.setItem('conv_'+conv.id, JSON.stringify(toSave)); } catch(e) {
       const all = getAllConversations();
       if(all.length > 0) localStorage.removeItem('conv_'+all[all.length-1].id);
@@ -515,6 +521,25 @@
     localStorage.removeItem('conv_'+id);
     if(id===sessionId) newChat();
     loadConversations();
+  }
+
+  async function viewMemory(e) {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/memory/' + deviceId);
+      const data = await res.json();
+      if (!data.redisConfigured) {
+        alert('⚠️ Memori jangka panjang belum aktif.\n\nServer belum terhubung ke Upstash Redis (env var UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN belum diset di Vercel).');
+        return;
+      }
+      if (!data.facts || !data.facts.length) {
+        alert('Belum ada fakta tersimpan tentang kamu.\n\nMemori diekstrak otomatis tiap 2 giliran chat. Coba kirim beberapa pesan berisi info tentang dirimu (nama, hobi, dll), lalu cek lagi di sini.');
+        return;
+      }
+      alert('🧠 Fakta yang tersimpan tentang kamu:\n\n' + data.facts.map(f => '• ' + f).join('\n'));
+    } catch (err) {
+      showError('Gagal memuat memori: ' + err.message);
+    }
   }
 
   async function forgetMe(e) {
@@ -766,9 +791,32 @@
         document.getElementById('chat-title').classList.remove('new');
       }
 
+      // Gambar user: pakai URL permanen dari server (kalau berhasil diupload).
+      // Kalau server gagal upload (mis. Blob belum dikonfigurasi), fallback
+      // ke preview base64 supaya minimal masih tampil di sesi saat ini
+      // (meski tidak akan tersimpan permanen setelah reload).
+      const persistedImage = data.uploadedImageUrl || imagePreview || null;
+      if (fileToSend && fileToSend.type.startsWith('image/') && data.uploadedImageUrl) {
+        // Update src bubble yang baru saja tampil supaya pakai URL permanen
+        const chat = document.getElementById('chat');
+        const userMsgs = chat.querySelectorAll('.message.user .bubble-img');
+        const lastImg = userMsgs[userMsgs.length - 1];
+        if (lastImg) { lastImg.src = data.uploadedImageUrl; lastImg.setAttribute('onclick', `openLightbox('${data.uploadedImageUrl}')`); }
+      }
+
+      // Peringatan sekali per sesi kalau memori jangka panjang tidak aktif
+      if (deviceId && data.memoryActive === false && !window.__memWarned) {
+        window.__memWarned = true;
+        showError('⚠️ Memori jangka panjang nonaktif (Upstash Redis belum dikonfigurasi di server)');
+      }
+      if (fileToSend && data.uploadedImageUrl === null && !window.__blobWarned) {
+        window.__blobWarned = true;
+        showError('⚠️ Gambar tidak tersimpan permanen (Vercel Blob belum dikonfigurasi di server)');
+      }
+
       const existingConv = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
       const msgs = existingConv ? existingConv.messages : [];
-      msgs.push({ role:'user', textContent: text });
+      msgs.push({ role:'user', textContent: text, imageData: persistedImage, fileName: fileName || null });
       msgs.push({ role:'assistant', textContent: data.reply, generatedImageUrl: data.generatedImageUrl||null });
       const convData = {
         id: sessionId,
