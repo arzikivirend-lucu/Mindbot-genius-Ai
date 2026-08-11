@@ -156,6 +156,11 @@
     .drop-card .drop-icon { font-size: 34px; margin-bottom: 10px; }
     .drop-card .drop-title { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
     .drop-card .drop-sub { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); }
+    .streak-badge { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); border-radius: 8px; font-family: 'DM Mono', monospace; font-size: 10px; white-space: nowrap; cursor: default; transition: all 0.2s; }
+    .streak-badge.active { border-color: var(--gold); color: var(--gold); background: rgba(200,168,75,0.06); }
+    .streak-flame { font-size: 12px; }
+    .streak-toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #1a4fc4, var(--gold)); color: #fff; padding: 10px 20px; border-radius: 10px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; z-index: 200; box-shadow: 0 8px 30px rgba(0,0,0,0.4); animation: streak-in 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+    @keyframes streak-in { from{opacity:0;transform:translate(-50%,-10px) scale(0.9)} to{opacity:1;transform:translate(-50%,0) scale(1)} }
     @media (max-width: 768px) {
       :root { --sidebar-w: 260px; }
       .menu-toggle { display: block; }
@@ -167,6 +172,7 @@
       .header-right { gap: 6px; }
       #newChatHeaderBtn { display: none; }
       .btn-icon { padding: 5px 8px; font-size: 10px; }
+      .streak-badge { padding: 5px 7px; font-size: 10px; }
       .model-btn { padding: 5px 8px; font-size: 10px; gap: 4px; }
       #modelBtnLabel { max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .model-dropdown { min-width: 220px; right: 0; }
@@ -223,6 +229,9 @@
     </div>
     <div class="header-right">
       <div class="status-dot"><div class="dot"></div>online</div>
+      <div class="streak-badge" id="streakBadge" title="Streak harian">
+        <span class="streak-flame">🔥</span><span id="streakCount">0</span>
+      </div>
       <button class="btn-icon" id="notifBtn" onclick="toggleNotification()" title="Notifikasi">🔔</button>
       <button class="btn-icon" id="downloadBtn" onclick="window.open('download.html', '_blank')" title="Download">⬇️<span class="btn-label"> Download</span></button>
       <div class="model-selector" id="modelSelector">
@@ -319,6 +328,68 @@
   let isLoading = false;
   let selectedFile = null;
   let notifEnabled = localStorage.getItem('notif_enabled') !== 'false';
+
+  // ── Daily Streak ──
+  // Format tanggal lokal YYYY-MM-DD (bukan UTC), supaya "hari" mengikuti hari
+  // di zona waktu pengguna, bukan berbalik tengah malam UTC.
+  function todayKey(d = new Date()) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function daysBetween(dateStrA, dateStrB) {
+    const a = new Date(dateStrA + 'T00:00:00');
+    const b = new Date(dateStrB + 'T00:00:00');
+    return Math.round((b - a) / 86400000);
+  }
+  function updateDailyStreak() {
+    const today = todayKey();
+    const lastVisit = localStorage.getItem('streak_last_visit');
+    let streak = parseInt(localStorage.getItem('streak_count') || '0', 10);
+    let isNewDay = false;
+
+    if (!lastVisit) {
+      // Kunjungan pertama sepanjang masa
+      streak = 1;
+      isNewDay = true;
+    } else if (lastVisit === today) {
+      // Sudah buka hari ini sebelumnya, streak tidak berubah
+      isNewDay = false;
+    } else {
+      const gap = daysBetween(lastVisit, today);
+      if (gap === 1) {
+        // Buka lagi tepat hari berikutnya → streak lanjut
+        streak += 1;
+      } else {
+        // Ada hari yang terlewat → streak reset
+        streak = 1;
+      }
+      isNewDay = true;
+    }
+
+    localStorage.setItem('streak_last_visit', today);
+    localStorage.setItem('streak_count', String(streak));
+    renderStreak(streak);
+    if (isNewDay && streak > 0) showStreakToast(streak);
+  }
+  function renderStreak(streak) {
+    const countEl = document.getElementById('streakCount');
+    const badgeEl = document.getElementById('streakBadge');
+    if (!countEl || !badgeEl) return;
+    countEl.textContent = streak;
+    badgeEl.classList.toggle('active', streak > 1);
+    badgeEl.title = streak === 1 ? 'Hari pertama streak-mu!' : `Streak harian: ${streak} hari berturut-turut`;
+  }
+  function showStreakToast(streak) {
+    const t = document.createElement('div');
+    t.className = 'streak-toast';
+    t.textContent = streak === 1
+      ? '🔥 Streak dimulai! Hari 1'
+      : `🔥 Streak ${streak} hari berturut-turut!`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  }
 
   async function toggleNotification() {
     const btn = document.getElementById('notifBtn');
@@ -553,6 +624,7 @@
     loadConversations();
   }
 
+  updateDailyStreak();
   requestNotificationPermission();
   loadConversations();
 
