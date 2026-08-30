@@ -161,6 +161,14 @@
     .streak-flame { font-size: 12px; }
     .streak-toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #1a4fc4, var(--gold)); color: #fff; padding: 10px 20px; border-radius: 10px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; z-index: 200; box-shadow: 0 8px 30px rgba(0,0,0,0.4); animation: streak-in 0.35s cubic-bezier(0.16,1,0.3,1) both; }
     @keyframes streak-in { from{opacity:0;transform:translate(-50%,-10px) scale(0.9)} to{opacity:1;transform:translate(-50%,0) scale(1)} }
+    .memory-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:600; align-items:center; justify-content:center; padding:20px; }
+    .memory-modal-overlay.show { display:flex; }
+    .memory-modal { width:100%; max-width:480px; max-height:80vh; background:#0f1220; border:1px solid var(--border); border-radius:14px; display:flex; flex-direction:column; overflow:hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .memory-modal-head { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border); font-weight:700; font-size:13px; }
+    .memory-close { background:none; border:none; color:var(--text-dim); font-size:16px; cursor:pointer; padding:2px 6px; border-radius:6px; }
+    .memory-close:hover { color: var(--gold); background: rgba(200,168,75,0.1); }
+    .memory-modal-body { padding:16px; overflow-y:auto; font-family:'DM Mono',monospace; font-size:12px; line-height:1.8; color:var(--text-dim); white-space:pre-wrap; }
+    .memory-modal-foot { padding:10px 16px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; }
     @media (max-width: 768px) {
       :root { --sidebar-w: 260px; }
       .menu-toggle { display: block; }
@@ -204,6 +212,18 @@
   </div>
 </div>
 <div id="lightbox" onclick="closeLightbox()"><img id="lb-img" src="" alt=""/></div>
+<div id="memoryModal" class="memory-modal-overlay" onclick="if(event.target===this)closeMemoryModal()">
+  <div class="memory-modal">
+    <div class="memory-modal-head">
+      <span>🧠 Ingatan AI tentang kamu</span>
+      <button class="memory-close" onclick="closeMemoryModal()" title="Tutup">✕</button>
+    </div>
+    <div class="memory-modal-body" id="memoryBody">Memuat...</div>
+    <div class="memory-modal-foot">
+      <button class="btn-icon" onclick="clearMemory()">🗑️ Lupakan Semua</button>
+    </div>
+  </div>
+</div>
 <div id="sidebar">
   <div style="padding:14px;">
     <div class="sidebar-head" style="padding:0 0 12px;">
@@ -232,6 +252,7 @@
       <div class="streak-badge" id="streakBadge" title="Streak harian">
         <span class="streak-flame">🔥</span><span id="streakCount">0</span>
       </div>
+      <button class="btn-icon" id="memoryBtn" onclick="openMemoryModal()" title="Ingatan AI tentang kamu">🧠<span class="btn-label"> Ingatan</span></button>
       <button class="btn-icon" id="notifBtn" onclick="toggleNotification()" title="Notifikasi">🔔</button>
       <button class="btn-icon" id="downloadBtn" onclick="window.open('download.html', '_blank')" title="Download">⬇️<span class="btn-label"> Download</span></button>
       <div class="model-selector" id="modelSelector">
@@ -328,6 +349,35 @@
   let isLoading = false;
   let selectedFile = null;
   let notifEnabled = localStorage.getItem('notif_enabled') !== 'false';
+
+  // ── Ingatan AI lintas-percakapan ──
+  // deviceId (di atas) dipakai sebagai kunci ingatan di server, supaya AI
+  // tetap "ingat" fakta-fakta tentang pengguna walau membuka "Percakapan Baru"
+  // atau kembali di lain waktu — bukan hanya dalam satu sessionId yang sama.
+  async function openMemoryModal() {
+    document.getElementById('memoryModal').classList.add('show');
+    const body = document.getElementById('memoryBody');
+    body.textContent = 'Memuat...';
+    try {
+      const res = await fetch('/api/memory?deviceId=' + encodeURIComponent(deviceId));
+      const data = await res.json();
+      body.textContent = (data.memory && data.memory.trim())
+        ? data.memory
+        : 'Belum ada ingatan tersimpan. Ngobrol lebih banyak supaya AI mulai mengingat hal-hal tentang kamu!';
+    } catch (e) {
+      body.textContent = 'Gagal memuat ingatan. Coba lagi nanti.';
+    }
+  }
+  function closeMemoryModal() { document.getElementById('memoryModal').classList.remove('show'); }
+  async function clearMemory() {
+    if (!confirm('Yakin ingin menghapus semua ingatan AI tentang kamu? Tindakan ini tidak bisa dibatalkan.')) return;
+    try {
+      await fetch('/api/memory?deviceId=' + encodeURIComponent(deviceId), { method: 'DELETE' });
+      document.getElementById('memoryBody').textContent = 'Ingatan sudah dihapus.';
+    } catch (e) {
+      showError('Gagal menghapus ingatan');
+    }
+  }
 
   // ── Daily Streak ──
   // Format tanggal lokal YYYY-MM-DD (bukan UTC), supaya "hari" mengikuti hari
@@ -940,6 +990,7 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       if(text) formData.append('message', text);
       formData.append('sessionId', sessionId);
       formData.append('model', currentModel);
+      formData.append('deviceId', deviceId);
       if(fileToSend) formData.append('file', fileToSend);
 
       const res = await fetch('/api/chat', { method:'POST', body: formData });
