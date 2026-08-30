@@ -179,9 +179,67 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
   }
 });
 
+// ── INGATAN AI (memory) ──
+// AI tidak punya database sendiri untuk mengingat pengguna antar-percakapan,
+// jadi fakta penting diekstrak per-pertukaran pesan lalu disimpan di sisi klien
+// (localStorage, per deviceId) dan dikirim balik ke sini setiap chat baru supaya
+// bisa disisipkan ke system prompt.
+app.post('/api/memory/extract', async (req, res) => {
+  const { userText, aiText, existingMemory } = req.body;
+  if (!userText && !aiText) return res.json({ facts: [] });
+
+  const GROQ_KEY = process.env.GROQ_API_KEY;
+  if (!GROQ_KEY) return res.json({ facts: [] });
+
+  const existing = Array.isArray(existingMemory) ? existingMemory.slice(0, 60) : [];
+
+  const extractPrompt = `Kamu bertugas mengekstrak fakta PENTING dan TAHAN LAMA tentang pengguna dari potongan percakapan berikut, untuk disimpan sebagai memori jangka panjang asisten AI.
+
+Hanya ambil fakta seperti: nama pengguna, pekerjaan/proyek yang sedang dikerjakan, preferensi personal, informasi identitas yang relevan, tujuan jangka panjang, atau konteks penting lain yang kemungkinan berguna di percakapan mendatang.
+JANGAN ambil hal yang sifatnya sesaat (pertanyaan sekali pakai, small talk, permintaan teknis satu kali, atau hal yang sudah tercakup dalam memori yang sudah ada).
+
+Memori yang SUDAH ada (jangan ulangi jika sudah tercakup):
+${existing.length ? existing.map(f => '- ' + f).join('\n') : '(belum ada)'}
+
+Percakapan baru:
+User: "${(userText || '').slice(0, 500)}"
+AI: "${(aiText || '').slice(0, 500)}"
+
+Balas HANYA dengan array JSON berisi string fakta baru yang layak diingat (maksimal 3 item, singkat dan jelas, dalam Bahasa Indonesia). Jika tidak ada fakta baru yang layak diingat, balas dengan array kosong [].
+Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikasi toko online"]`;
+
+  try {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-20b',
+        messages: [{ role: 'user', content: extractPrompt }],
+        max_tokens: 300,
+        temperature: 0.2
+      }),
+    });
+    if (!resp.ok) return res.json({ facts: [] });
+    const data = await resp.json();
+    let raw = data.choices?.[0]?.message?.content || '[]';
+    raw = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    const match = raw.match(/\[[\s\S]*\]/);
+    let facts = [];
+    if (match) {
+      try { facts = JSON.parse(match[0]); } catch (e) { facts = []; }
+    }
+    if (!Array.isArray(facts)) facts = [];
+    facts = facts.filter(f => typeof f === 'string' && f.trim().length > 0).slice(0, 3);
+    res.json({ facts });
+  } catch (err) {
+    console.error('Memory extract error:', err.message);
+    res.json({ facts: [] });
+  }
+});
+
 // ── CHAT ──
 app.post('/api/chat', upload.single('file'), async (req, res) => {
-  const { message, sessionId, model: reqModel } = req.body;
+  const { message, sessionId, model: reqModel, memory } = req.body;
   if (!sessionId) return res.status(400).json({ error: 'sessionId diperlukan' });
 
   const text = message || '';
@@ -220,6 +278,19 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
     }
   }
 
+  // ── INGATAN AI dari percakapan sebelumnya (dikirim dari klien) ──
+  let memoryContext = '';
+  if (memory) {
+    try {
+      const memArr = JSON.parse(memory);
+      if (Array.isArray(memArr) && memArr.length) {
+        memoryContext = '\n\nBerikut hal-hal yang kamu ingat tentang pengguna ini dari percakapan-percakapan sebelumnya:\n'
+          + memArr.slice(0, 60).map(f => '- ' + f).join('\n')
+          + '\nGunakan informasi ini secara alami jika relevan dengan pertanyaan pengguna saat ini. Jika pengguna bertanya apa yang kamu ingat tentangnya, sebutkan poin-poin di atas secara ringkas.';
+      }
+    } catch (e) { /* abaikan jika format tidak valid */ }
+  }
+
   sessions[sessionId].push({ role:'user', content: displayText });
 
   const ALLOWED_MODELS = [
@@ -233,7 +304,7 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
     ? 'qwen/qwen3.6-27b'
     : (ALLOWED_MODELS.includes(reqModel) ? reqModel : 'openai/gpt-oss-120b');
 
-  const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dengan singkat dan dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
+  const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dengan singkat dan dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
 
   try {
     const history = sessions[sessionId].slice(-20);
