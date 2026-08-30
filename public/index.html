@@ -161,11 +161,18 @@
     .streak-flame { font-size: 12px; }
     .streak-toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #1a4fc4, var(--gold)); color: #fff; padding: 10px 20px; border-radius: 10px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; z-index: 200; box-shadow: 0 8px 30px rgba(0,0,0,0.4); animation: streak-in 0.35s cubic-bezier(0.16,1,0.3,1) both; }
     @keyframes streak-in { from{opacity:0;transform:translate(-50%,-10px) scale(0.9)} to{opacity:1;transform:translate(-50%,0) scale(1)} }
-    #memory-panel { display: none; position: fixed; top: 60px; right: 12px; left: 12px; max-width: 380px; margin-left: auto; background: #080a12; border: 1px solid var(--border); border-radius: 14px; padding: 14px; z-index: 300; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
-    .memory-item { display: flex; align-items: flex-start; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.5; }
+    .memory-section-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 4px; cursor: pointer; user-select: none; }
+    .memory-section-head .label { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
+    .memory-toggle-icon { font-size: 9px; color: var(--text-dim); transition: transform 0.2s; }
+    .memory-toggle-icon.collapsed { transform: rotate(-90deg); }
+    #memory-section { padding: 0 12px 10px; border-bottom: 1px solid var(--border); }
+    #memory-list-sidebar { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+    #memory-list-sidebar::-webkit-scrollbar { width: 3px; } #memory-list-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .memory-item { display: flex; align-items: flex-start; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; font-size: 11px; line-height: 1.5; }
     .memory-item span { flex: 1; }
-    .memory-del { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 2px 5px; border-radius: 5px; flex-shrink: 0; }
+    .memory-del { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 11px; padding: 2px 5px; border-radius: 5px; flex-shrink: 0; }
     .memory-del:hover { background: rgba(220,38,38,0.2); color: #f87171; }
+    .memory-empty { text-align: center; padding: 14px 8px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); line-height: 1.6; }
     @media (max-width: 768px) {
       :root { --sidebar-w: 260px; }
       .menu-toggle { display: block; }
@@ -191,7 +198,6 @@
       .code-block pre { font-size: 11px; }
       .model-selector { position: static; }
       .model-dropdown { position: fixed; top: 60px; right: 8px; left: 8px; min-width: unset; }
-      #memory-panel { position: fixed; top: 60px; right: 8px; left: 8px; max-width: unset; }
     }
     @media (max-width: 380px) {
       .btn-label { display: none; }
@@ -202,7 +208,6 @@
 </head>
 <body>
 <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
-<div class="overlay" id="memory-overlay" onclick="closeMemoryPanel()"></div>
 <div id="drop-overlay">
   <div class="drop-card">
     <div class="drop-icon">📎</div>
@@ -211,17 +216,6 @@
   </div>
 </div>
 <div id="lightbox" onclick="closeLightbox()"><img id="lb-img" src="" alt=""/></div>
-<div id="memory-panel">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-    <div style="font-size:13px;font-weight:800;">🧠 Ingatan AI</div>
-    <button class="btn-icon" onclick="closeMemoryPanel()">✕</button>
-  </div>
-  <div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">
-    Hal-hal yang diingat Mindbot Genius tentangmu dari percakapan-percakapan sebelumnya, di perangkat ini.
-  </div>
-  <div id="memory-list" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
-  <button class="code-btn" style="margin-top:10px;width:100%;padding:7px;" onclick="confirmClearMemory()">🗑️ Hapus semua ingatan</button>
-</div>
 <div id="sidebar">
   <div style="padding:14px;">
     <div class="sidebar-head" style="padding:0 0 12px;">
@@ -235,6 +229,14 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
       Percakapan Baru
     </button>
+  </div>
+  <div class="memory-section-head" onclick="toggleMemorySection()">
+    <span class="label">🧠 Ingatan AI</span>
+    <span class="memory-toggle-icon" id="memoryToggleIcon">▾</span>
+  </div>
+  <div id="memory-section">
+    <div id="memory-list-sidebar"></div>
+    <button class="code-btn" style="width:100%;padding:6px;" onclick="confirmClearMemory()">🗑️ Hapus semua</button>
   </div>
   <div class="sidebar-section">Riwayat Percakapan</div>
   <div id="conv-list"><div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div></div>
@@ -250,7 +252,6 @@
       <div class="streak-badge" id="streakBadge" title="Streak harian">
         <span class="streak-flame">🔥</span><span id="streakCount">0</span>
       </div>
-      <button class="btn-icon" id="memoryBtn" onclick="toggleMemoryPanel()" title="Ingatan AI">🧠</button>
       <button class="btn-icon" id="notifBtn" onclick="toggleNotification()" title="Notifikasi">🔔</button>
       <button class="btn-icon" id="downloadBtn" onclick="window.open('download.html', '_blank')" title="Download">⬇️<span class="btn-label"> Download</span></button>
       <div class="model-selector" id="modelSelector">
@@ -389,11 +390,11 @@
   }
 
   function renderMemoryList() {
-    const el = document.getElementById('memory-list');
+    const el = document.getElementById('memory-list-sidebar');
     if (!el) return;
     const mem = getMemory();
     if (!mem.length) {
-      el.innerHTML = '<div class="conv-empty" style="padding:16px 4px;">Belum ada ingatan.<br/>AI akan mulai mengingat hal penting seiring percakapan berjalan.</div>';
+      el.innerHTML = '<div class="memory-empty">Belum ada ingatan.<br/>AI akan mulai mengingat hal penting seiring percakapan berjalan.</div>';
       return;
     }
     el.innerHTML = mem.map((f, i) => `
@@ -403,19 +404,13 @@
       </div>`).join('');
   }
 
-  function toggleMemoryPanel() {
-    const panel = document.getElementById('memory-panel');
-    const overlay = document.getElementById('memory-overlay');
-    const isOpen = panel.style.display === 'block';
-    if (isOpen) { closeMemoryPanel(); return; }
-    renderMemoryList();
-    panel.style.display = 'block';
-    overlay.classList.add('show');
-  }
-
-  function closeMemoryPanel() {
-    document.getElementById('memory-panel').style.display = 'none';
-    document.getElementById('memory-overlay').classList.remove('show');
+  function toggleMemorySection() {
+    const section = document.getElementById('memory-section');
+    const icon = document.getElementById('memoryToggleIcon');
+    const collapsed = section.style.display === 'none';
+    section.style.display = collapsed ? 'block' : 'none';
+    icon.classList.toggle('collapsed', !collapsed);
+    localStorage.setItem('memory_section_collapsed', collapsed ? 'false' : 'true');
   }
 
   function confirmClearMemory() {
@@ -737,6 +732,11 @@
   updateDailyStreak();
   requestNotificationPermission();
   loadConversations();
+  renderMemoryList();
+  if (localStorage.getItem('memory_section_collapsed') === 'true') {
+    document.getElementById('memory-section').style.display = 'none';
+    document.getElementById('memoryToggleIcon').classList.add('collapsed');
+  }
 
   if (window.visualViewport) {
     function handleViewportResize() {
