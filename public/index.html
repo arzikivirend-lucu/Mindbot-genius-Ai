@@ -733,7 +733,7 @@
   requestNotificationPermission();
   loadConversations();
   renderMemoryList();
-  if (localStorage.getItem('memory_section_collapsed') === 'true') {
+  if (localStorage.getItem('memory_section_collapsed') !== 'false') {
     document.getElementById('memory-section').style.display = 'none';
     document.getElementById('memoryToggleIcon').classList.add('collapsed');
   }
