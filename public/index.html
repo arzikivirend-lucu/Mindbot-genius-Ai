@@ -776,6 +776,31 @@
     throw new Error('Waktu tunggu habis, gambar belum selesai dibuat');
   }
 
+  // ── Simpan gambar hasil generate secara PERMANEN ──
+  // Link dari layanan image-gen (deAPI/grok-imagine) biasanya sementara dan
+  // dihapus dari server penyedia setelah beberapa hari. Supaya gambar tidak
+  // hilang, kita unduh datanya lalu ubah jadi data URL (base64) yang benar-benar
+  // tersimpan di percakapan — sama seperti cara kita menyimpan gambar upload user.
+  async function fetchImageAsDataUrl(url, maxDim = 1000, quality = 0.8) {
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error('fetch gagal: ' + res.status);
+      const blob = await res.blob();
+      const rawDataUrl = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+      return await compressImageDataUrl(rawDataUrl, maxDim, quality);
+    } catch (e) {
+      // Kemungkinan diblokir CORS oleh server penyedia gambar.
+      // Fallback: tetap pakai URL asli (berisiko kedaluwarsa setelah beberapa hari).
+      console.warn('Gagal menyimpan gambar secara permanen, akan pakai link asli (bisa kedaluwarsa):', e);
+      return null;
+    }
+  }
+
   async function sendMessage() {
     if(isLoading) return;
     const input = document.getElementById('input');
@@ -819,13 +844,18 @@
         // 2. Polling status sampai gambar selesai
         const imgUrl = await pollImageStatus(data.requestId);
 
+        // 3. Amankan gambar jadi data URL permanen sebelum ditampilkan/disimpan,
+        //    supaya tidak hilang saat link sementara dari penyedia kedaluwarsa.
+        const savedImg = await fetchImageAsDataUrl(imgUrl);
+        const imgToUse = savedImg || imgUrl;
+
         removeTyping();
-        appendMessage('ai', `🎨 **"${text}"**`, null, null, imgUrl);
+        appendMessage('ai', `🎨 **"${text}"**`, null, null, imgToUse);
         sendNotification('🎨 Mindbot v2.5', 'Gambar sudah selesai dibuat!');
         const ec = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
         const msgs = ec ? ec.messages : [];
         msgs.push({ role:'user', textContent: text });
-        msgs.push({ role:'assistant', textContent: `🎨 Gambar: "${text}"`, generatedImageUrl: imgUrl });
+        msgs.push({ role:'assistant', textContent: `🎨 Gambar: "${text}"`, generatedImageUrl: imgToUse });
         saveConversation({ id:sessionId, title:'🎨 '+text.slice(0,35), messages:msgs, createdAt:ec?.createdAt||Date.now(), updatedAt:Date.now() });
         loadConversations();
       } catch(err) {
@@ -853,11 +883,19 @@
       removeTyping();
       if(!res.ok) throw new Error(data.error||'Terjadi kesalahan');
 
+      // Jika balasan chat biasa juga menyertakan gambar (mis. model vision yang
+      // ikut menghasilkan gambar), amankan juga jadi data URL permanen.
+      let permanentGenImg = data.generatedImageUrl || null;
+      if (permanentGenImg) {
+        const saved = await fetchImageAsDataUrl(permanentGenImg);
+        if (saved) permanentGenImg = saved;
+      }
+
       if(data.searched) {
-        appendMessage('ai', '🔍 *[Mencari informasi terkini dari web...]*\n\n' + data.reply, null, null, data.generatedImageUrl);
+        appendMessage('ai', '🔍 *[Mencari informasi terkini dari web...]*\n\n' + data.reply, null, null, permanentGenImg);
       } else {
         const cleanReply = data.reply.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-        appendMessage('ai', cleanReply, null, null, data.generatedImageUrl);
+        appendMessage('ai', cleanReply, null, null, permanentGenImg);
         sendNotification('🤖 Mindbot Genius', data.reply);
       }
 
@@ -869,7 +907,7 @@
       const existingConv = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
       const msgs = existingConv ? existingConv.messages : [];
       msgs.push({ role:'user', textContent: text, imageData: imagePreview||null, fileName: fileName||null });
-      msgs.push({ role:'assistant', textContent: data.reply, generatedImageUrl: data.generatedImageUrl||null });
+      msgs.push({ role:'assistant', textContent: data.reply, generatedImageUrl: permanentGenImg });
       const convData = {
         id: sessionId,
         title: data.title || document.getElementById('chat-title').textContent,
