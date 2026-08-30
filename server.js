@@ -2,10 +2,95 @@ require('dotenv').config();
 const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
+const fs      = require('fs');
 
 const app = express();
 
 const sessions = {};
+
+// ── INGATAN LINTAS-PERCAKAPAN (per perangkat / deviceId) ──
+// Ini berbeda dari `sessions` di atas: `sessions` hanya menyimpan riwayat
+// pesan mentah untuk SATU percakapan (dibuang saat user klik "Percakapan
+// Baru"). `memory-store.json` di bawah ini menyimpan RANGKUMAN fakta
+// penting tentang pengguna (nama, preferensi, proyek, dst) yang tetap ada
+// walau user membuka percakapan baru atau kembali besok — sehingga AI bisa
+// "mengingat" dan ditanya lagi soal hal-hal dari sesi sebelumnya.
+//
+// CATATAN DEPLOYMENT: jika di-deploy ke platform serverless (mis. Vercel),
+// filesystem bersifat sementara/tidak dijamin persisten antar invocation —
+// untuk produksi jangka panjang di platform seperti itu, ganti implementasi
+// loadMemoryStore/saveMemoryStore di bawah dengan database (Vercel KV,
+// Supabase, MongoDB, dll). Di server dengan disk persisten (VPS, Railway,
+// server sendiri) pendekatan file JSON ini sudah cukup dan akan bertahan
+// antar restart.
+const MEMORY_FILE = path.join(__dirname, 'memory-store.json');
+const MAX_MEMORY_CHARS = 4000;
+
+function loadMemoryStore() {
+  try {
+    return JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf-8'));
+  } catch (e) {
+    return {};
+  }
+}
+function saveMemoryStore(store) {
+  try {
+    fs.writeFileSync(MEMORY_FILE, JSON.stringify(store, null, 2));
+  } catch (e) {
+    console.error('Gagal menyimpan memory-store.json:', e.message);
+  }
+}
+function getUserMemory(deviceId) {
+  if (!deviceId) return '';
+  const store = loadMemoryStore();
+  return store[deviceId]?.memory || '';
+}
+function setUserMemory(deviceId, memoryText) {
+  if (!deviceId || !memoryText) return;
+  const store = loadMemoryStore();
+  store[deviceId] = { memory: memoryText.slice(0, MAX_MEMORY_CHARS), updatedAt: Date.now() };
+  saveMemoryStore(store);
+}
+function clearUserMemory(deviceId) {
+  if (!deviceId) return;
+  const store = loadMemoryStore();
+  delete store[deviceId];
+  saveMemoryStore(store);
+}
+
+// Setelah tiap balasan AI, minta model merangkum ulang catatan ingatan
+// penting tentang pengguna, digabung dengan catatan lama. Dijalankan di
+// latar belakang (fire-and-forget) supaya TIDAK menunda balasan ke user.
+async function updateMemoryInBackground(deviceId, userText, aiText) {
+  if (!deviceId || !process.env.GROQ_API_KEY) return;
+  try {
+    const oldMemory = getUserMemory(deviceId);
+    const prompt = `Ini adalah catatan ingatanmu tentang seorang pengguna dari percakapan-percakapan sebelumnya:
+"""${oldMemory || '(belum ada catatan)'}"""
+
+Percakapan baru saja terjadi:
+Pengguna: "${(userText || '').slice(0, 500)}"
+AI: "${(aiText || '').slice(0, 500)}"
+
+Perbarui catatan ingatan tersebut. Simpan HANYA fakta yang layak diingat jangka panjang tentang pengguna (nama, pekerjaan/sekolah, preferensi, proyek yang sedang dikerjakan, konteks penting lain) dalam bentuk poin-poin singkat berbahasa Indonesia. Gabungkan dengan catatan lama, buang yang sudah tidak relevan atau sudah digantikan info baru. Jangan tulis penjelasan lain, jangan tulis ulang seluruh percakapan — HANYA daftar poin ingatan (maksimal 15 poin, satu poin per baris diawali "- "). Jika tidak ada fakta baru yang layak diingat, kembalikan catatan lama apa adanya.`;
+
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-20b',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 500
+      }),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const updated = data.choices?.[0]?.message?.content?.trim();
+    if (updated) setUserMemory(deviceId, updated);
+  } catch (e) {
+    console.error('Gagal memperbarui ingatan:', e.message);
+  }
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -23,6 +108,20 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.get('/api/conversations', (req, res) => res.json([]));
 app.get('/api/conversations/:id', (req, res) => res.status(404).json({ error: 'Tidak ditemukan' }));
 app.delete('/api/conversations/:id', (req, res) => res.json({ ok: true }));
+
+// ── INGATAN: lihat & hapus ──
+app.get('/api/memory', (req, res) => {
+  const deviceId = req.query.deviceId;
+  if (!deviceId) return res.status(400).json({ error: 'deviceId diperlukan' });
+  res.json({ memory: getUserMemory(deviceId) });
+});
+
+app.delete('/api/memory', (req, res) => {
+  const deviceId = req.query.deviceId || req.body?.deviceId;
+  if (!deviceId) return res.status(400).json({ error: 'deviceId diperlukan' });
+  clearUserMemory(deviceId);
+  res.json({ ok: true });
+});
 
 // ── WEB SEARCH KEYWORDS ──
 const NEWS_KEYWORDS = [
@@ -181,7 +280,7 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
 
 // ── CHAT ──
 app.post('/api/chat', upload.single('file'), async (req, res) => {
-  const { message, sessionId, model: reqModel } = req.body;
+  const { message, sessionId, model: reqModel, deviceId } = req.body;
   if (!sessionId) return res.status(400).json({ error: 'sessionId diperlukan' });
 
   const text = message || '';
@@ -233,7 +332,9 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
     ? 'qwen/qwen3.6-27b'
     : (ALLOWED_MODELS.includes(reqModel) ? reqModel : 'openai/gpt-oss-120b');
 
-  const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dengan singkat dan dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
+  const userMemory = deviceId ? getUserMemory(deviceId) : '';
+
+  const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dengan singkat dan dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${userMemory ? '\n\nBerikut catatan ingatanmu tentang pengguna ini dari percakapan-percakapan sebelumnya. Gunakan jika relevan dengan pertanyaan sekarang, dan jika pengguna bertanya apa yang kamu ingat tentang mereka, jawab berdasarkan catatan ini:\n'+userMemory : ''}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
 
   try {
     const history = sessions[sessionId].slice(-20);
@@ -259,6 +360,9 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
 
     const title = text.slice(0,40) || (file ? `📎 ${file.originalname}` : 'Percakapan');
     res.json({ reply, title, searched: !!webContext });
+
+    // Perbarui ingatan lintas-percakapan di latar belakang (tidak menunda respons di atas)
+    if (deviceId) updateMemoryInBackground(deviceId, text || (file ? `[file: ${file.originalname}]` : ''), reply);
   } catch(err) {
     console.error(err.message);
     res.status(500).json({ error: err.message });
