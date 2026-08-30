@@ -801,6 +801,43 @@
     }
   }
 
+  // ── Judul percakapan dibuat oleh AI, bukan sekadar cuplikan pertanyaan user ──
+  // Meminta model membuat judul singkat berdasarkan isi percakapan (pesan user + balasan AI).
+  // Dikirim ke sessionId sementara (terpisah) supaya tidak ikut tercampur ke riwayat
+  // percakapan yang sesungguhnya di backend.
+  async function generateAiTitle(userText, aiText) {
+    try {
+      const titlePrompt = `Buatkan SATU judul singkat (maksimal 6 kata) untuk percakapan berikut, dalam Bahasa Indonesia. Jawab HANYA dengan judulnya saja, tanpa tanda kutip dan tanpa penjelasan tambahan.
+
+Pesan pengguna: "${(userText||'').slice(0,300)}"
+Balasan AI: "${(aiText||'').slice(0,300)}"`;
+
+      const formData = new FormData();
+      formData.append('message', titlePrompt);
+      formData.append('sessionId', 'title_' + Math.random().toString(36).substr(2, 9));
+      formData.append('model', currentModel);
+
+      const res = await fetch('/api/chat', { method: 'POST', body: formData });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data || !data.reply) return null;
+
+      let title = data.reply
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .split('\n')[0]
+        .trim()
+        .replace(/^["'“”‘’]+|["'“”‘’.]+$/g, '')
+        .trim();
+
+      if (!title) return null;
+      if (title.length > 60) title = title.slice(0, 57).trim() + '…';
+      return title;
+    } catch (e) {
+      console.warn('Gagal membuat judul otomatis, tetap pakai judul cadangan:', e);
+      return null;
+    }
+  }
+
   async function sendMessage() {
     if(isLoading) return;
     const input = document.getElementById('input');
@@ -852,12 +889,40 @@
         removeTyping();
         appendMessage('ai', `🎨 **"${text}"**`, null, null, imgToUse);
         sendNotification('🎨 Mindbot v2.5', 'Gambar sudah selesai dibuat!');
+
+        const titleEl = document.getElementById('chat-title');
+        const isNewConv = titleEl.classList.contains('new');
+        // Judul sementara (cuplikan prompt) supaya header langsung terisi;
+        // akan ditimpa oleh judul buatan AI begitu selesai dibuat.
+        let interimTitle = titleEl.textContent;
+        if (isNewConv) {
+          interimTitle = '🎨 ' + text.slice(0,35);
+          titleEl.textContent = interimTitle;
+          titleEl.classList.remove('new');
+        }
+
         const ec = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
         const msgs = ec ? ec.messages : [];
         msgs.push({ role:'user', textContent: text });
         msgs.push({ role:'assistant', textContent: `🎨 Gambar: "${text}"`, generatedImageUrl: imgToUse });
-        saveConversation({ id:sessionId, title:'🎨 '+text.slice(0,35), messages:msgs, createdAt:ec?.createdAt||Date.now(), updatedAt:Date.now() });
+        saveConversation({ id:sessionId, title:interimTitle, messages:msgs, createdAt:ec?.createdAt||Date.now(), updatedAt:Date.now() });
         loadConversations();
+
+        // Minta AI membuat judul yang lebih deskriptif untuk percakapan gambar ini,
+        // dijalankan di latar belakang supaya tidak menunda tampilnya gambar.
+        if (isNewConv) {
+          const thisSession = sessionId;
+          generateAiTitle(text, `Gambar yang dibuat dari deskripsi: ${text}`).then(aiTitle => {
+            if (!aiTitle) return;
+            if (thisSession === sessionId) titleEl.textContent = '🎨 ' + aiTitle;
+            const conv = JSON.parse(localStorage.getItem('conv_'+thisSession)||'null');
+            if (conv) {
+              conv.title = '🎨 ' + aiTitle;
+              saveConversation(conv);
+              loadConversations();
+            }
+          });
+        }
       } catch(err) {
         removeTyping();
         showError(err.message || 'Gagal generate gambar');
@@ -899,9 +964,15 @@
         sendNotification('🤖 Mindbot Genius', data.reply);
       }
 
-      if(data.title && document.getElementById('chat-title').classList.contains('new')){
-        document.getElementById('chat-title').textContent = data.title;
-        document.getElementById('chat-title').classList.remove('new');
+      const titleEl = document.getElementById('chat-title');
+      const isNewConv = titleEl.classList.contains('new');
+      // Judul sementara supaya header langsung terisi; akan ditimpa oleh
+      // judul buatan AI (bukan sekadar cuplikan pertanyaan user) begitu selesai dibuat.
+      let interimTitle = titleEl.textContent;
+      if (isNewConv) {
+        interimTitle = data.title || (text ? text.slice(0,35) : (fileName || 'Percakapan Baru'));
+        titleEl.textContent = interimTitle;
+        titleEl.classList.remove('new');
       }
 
       const existingConv = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
@@ -910,7 +981,7 @@
       msgs.push({ role:'assistant', textContent: data.reply, generatedImageUrl: permanentGenImg });
       const convData = {
         id: sessionId,
-        title: data.title || document.getElementById('chat-title').textContent,
+        title: interimTitle,
         messages: msgs,
         createdAt: existingConv?.createdAt || Date.now(),
         updatedAt: Date.now(),
@@ -918,6 +989,24 @@
       };
       saveConversation(convData);
       loadConversations();
+
+      // ── Minta AI membuat judul percakapan yang sesungguhnya ──
+      // Dijalankan di latar belakang supaya tidak menunda balasan yang sudah tampil di layar.
+      if (isNewConv) {
+        const thisSession = sessionId;
+        generateAiTitle(text, data.reply).then(aiTitle => {
+          if (!aiTitle) return;
+          if (thisSession === sessionId) {
+            titleEl.textContent = aiTitle; // update header hanya jika masih di percakapan yang sama
+          }
+          const conv = JSON.parse(localStorage.getItem('conv_'+thisSession)||'null');
+          if (conv) {
+            conv.title = aiTitle;
+            saveConversation(conv);
+            loadConversations();
+          }
+        });
+      }
     } catch(err){ removeTyping(); showError(err.message); }
     finally { isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); }
   }
