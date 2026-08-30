@@ -161,6 +161,11 @@
     .streak-flame { font-size: 12px; }
     .streak-toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #1a4fc4, var(--gold)); color: #fff; padding: 10px 20px; border-radius: 10px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; z-index: 200; box-shadow: 0 8px 30px rgba(0,0,0,0.4); animation: streak-in 0.35s cubic-bezier(0.16,1,0.3,1) both; }
     @keyframes streak-in { from{opacity:0;transform:translate(-50%,-10px) scale(0.9)} to{opacity:1;transform:translate(-50%,0) scale(1)} }
+    #memory-panel { display: none; position: fixed; top: 60px; right: 12px; left: 12px; max-width: 380px; margin-left: auto; background: #080a12; border: 1px solid var(--border); border-radius: 14px; padding: 14px; z-index: 300; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+    .memory-item { display: flex; align-items: flex-start; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.5; }
+    .memory-item span { flex: 1; }
+    .memory-del { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 2px 5px; border-radius: 5px; flex-shrink: 0; }
+    .memory-del:hover { background: rgba(220,38,38,0.2); color: #f87171; }
     @media (max-width: 768px) {
       :root { --sidebar-w: 260px; }
       .menu-toggle { display: block; }
@@ -186,6 +191,7 @@
       .code-block pre { font-size: 11px; }
       .model-selector { position: static; }
       .model-dropdown { position: fixed; top: 60px; right: 8px; left: 8px; min-width: unset; }
+      #memory-panel { position: fixed; top: 60px; right: 8px; left: 8px; max-width: unset; }
     }
     @media (max-width: 380px) {
       .btn-label { display: none; }
@@ -196,6 +202,7 @@
 </head>
 <body>
 <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+<div class="overlay" id="memory-overlay" onclick="closeMemoryPanel()"></div>
 <div id="drop-overlay">
   <div class="drop-card">
     <div class="drop-icon">📎</div>
@@ -204,6 +211,17 @@
   </div>
 </div>
 <div id="lightbox" onclick="closeLightbox()"><img id="lb-img" src="" alt=""/></div>
+<div id="memory-panel">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+    <div style="font-size:13px;font-weight:800;">🧠 Ingatan AI</div>
+    <button class="btn-icon" onclick="closeMemoryPanel()">✕</button>
+  </div>
+  <div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">
+    Hal-hal yang diingat Mindbot Genius tentangmu dari percakapan-percakapan sebelumnya, di perangkat ini.
+  </div>
+  <div id="memory-list" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+  <button class="code-btn" style="margin-top:10px;width:100%;padding:7px;" onclick="confirmClearMemory()">🗑️ Hapus semua ingatan</button>
+</div>
 <div id="sidebar">
   <div style="padding:14px;">
     <div class="sidebar-head" style="padding:0 0 12px;">
@@ -232,6 +250,7 @@
       <div class="streak-badge" id="streakBadge" title="Streak harian">
         <span class="streak-flame">🔥</span><span id="streakCount">0</span>
       </div>
+      <button class="btn-icon" id="memoryBtn" onclick="toggleMemoryPanel()" title="Ingatan AI">🧠</button>
       <button class="btn-icon" id="notifBtn" onclick="toggleNotification()" title="Notifikasi">🔔</button>
       <button class="btn-icon" id="downloadBtn" onclick="window.open('download.html', '_blank')" title="Download">⬇️<span class="btn-label"> Download</span></button>
       <div class="model-selector" id="modelSelector">
@@ -328,6 +347,97 @@
   let isLoading = false;
   let selectedFile = null;
   let notifEnabled = localStorage.getItem('notif_enabled') !== 'false';
+
+  // ── INGATAN AI (memory) ──
+  // Fakta penting tentang pengguna diekstrak oleh AI dari tiap pertukaran pesan
+  // dan disimpan di localStorage per perangkat (deviceId), sehingga tetap ada
+  // walau pengguna membuka "Percakapan Baru" atau balik lagi lain hari.
+  function getMemoryKey() { return 'mbg_memory_' + deviceId; }
+
+  function getMemory() {
+    try { return JSON.parse(localStorage.getItem(getMemoryKey()) || '[]'); }
+    catch(e) { return []; }
+  }
+
+  function setMemory(arr) {
+    try { localStorage.setItem(getMemoryKey(), JSON.stringify(arr.slice(0, 60))); }
+    catch(e) { console.warn('Gagal menyimpan ingatan:', e); }
+  }
+
+  function addMemoryFacts(facts) {
+    if (!facts || !facts.length) return;
+    const merged = getMemory();
+    facts.forEach(f => {
+      const norm = (f || '').trim();
+      if (norm && !merged.some(m => m.toLowerCase() === norm.toLowerCase())) merged.push(norm);
+    });
+    while (merged.length > 60) merged.shift(); // buang yang paling lama jika kepenuhan
+    setMemory(merged);
+    renderMemoryList();
+  }
+
+  function removeMemoryFact(idx) {
+    const current = getMemory();
+    current.splice(idx, 1);
+    setMemory(current);
+    renderMemoryList();
+  }
+
+  function clearMemory() {
+    setMemory([]);
+    renderMemoryList();
+  }
+
+  function renderMemoryList() {
+    const el = document.getElementById('memory-list');
+    if (!el) return;
+    const mem = getMemory();
+    if (!mem.length) {
+      el.innerHTML = '<div class="conv-empty" style="padding:16px 4px;">Belum ada ingatan.<br/>AI akan mulai mengingat hal penting seiring percakapan berjalan.</div>';
+      return;
+    }
+    el.innerHTML = mem.map((f, i) => `
+      <div class="memory-item">
+        <span>${escapeHtml(f)}</span>
+        <button class="memory-del" onclick="removeMemoryFact(${i})" title="Hapus">✕</button>
+      </div>`).join('');
+  }
+
+  function toggleMemoryPanel() {
+    const panel = document.getElementById('memory-panel');
+    const overlay = document.getElementById('memory-overlay');
+    const isOpen = panel.style.display === 'block';
+    if (isOpen) { closeMemoryPanel(); return; }
+    renderMemoryList();
+    panel.style.display = 'block';
+    overlay.classList.add('show');
+  }
+
+  function closeMemoryPanel() {
+    document.getElementById('memory-panel').style.display = 'none';
+    document.getElementById('memory-overlay').classList.remove('show');
+  }
+
+  function confirmClearMemory() {
+    if (confirm('Hapus semua ingatan AI tentang kamu di perangkat ini? Tindakan ini tidak bisa dibatalkan.')) clearMemory();
+  }
+
+  // Diminta ke server di latar belakang setelah tiap balasan AI, supaya
+  // fakta baru (nama, preferensi, proyek yang dikerjakan, dll) ikut tersimpan.
+  async function extractAndSaveMemory(userText, aiText) {
+    if (!userText) return;
+    try {
+      const existingMemory = getMemory();
+      const res = await fetch('/api/memory/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userText, aiText, existingMemory })
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.facts && data.facts.length) addMemoryFacts(data.facts);
+    } catch(e) { console.warn('Gagal memperbarui ingatan:', e); }
+  }
 
   // ── Daily Streak ──
   // Format tanggal lokal YYYY-MM-DD (bukan UTC), supaya "hari" mengikuti hari
@@ -940,6 +1050,7 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       if(text) formData.append('message', text);
       formData.append('sessionId', sessionId);
       formData.append('model', currentModel);
+      formData.append('memory', JSON.stringify(getMemory()));
       if(fileToSend) formData.append('file', fileToSend);
 
       const res = await fetch('/api/chat', { method:'POST', body: formData });
@@ -963,6 +1074,9 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
         appendMessage('ai', cleanReply, null, null, permanentGenImg);
         sendNotification('🤖 Mindbot Genius', data.reply);
       }
+
+      // Update ingatan AI di latar belakang, tidak menunda tampilan balasan
+      if (text) extractAndSaveMemory(text, data.reply);
 
       const titleEl = document.getElementById('chat-title');
       const isNewConv = titleEl.classList.contains('new');
