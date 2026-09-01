@@ -2,7 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
-const AdmZip  = require('adm-zip'); // npm install adm-zip
+
+// AdmZip bersifat opsional: kalau paket "adm-zip" belum ter-install,
+// jangan sampai seluruh server ikut crash — cukup nonaktifkan fitur baca ZIP.
+let AdmZip = null;
+try {
+  AdmZip = require('adm-zip'); // npm install adm-zip
+} catch (e) {
+  console.warn('⚠️  Paket "adm-zip" belum ter-install. Jalankan: npm install adm-zip — fitur baca isi ZIP dinonaktifkan sementara.');
+}
 
 const app = express();
 
@@ -33,6 +41,7 @@ function isZipLike(mimetype, filename) {
 
 // Baca ringkasan isi ZIP: struktur file + isi file-file teks di dalamnya (dibatasi)
 function readZipSummary(buffer, maxFiles = 25, maxCharsPerFile = 1500, maxTotalChars = 12000) {
+  if (!AdmZip) return null; // paket adm-zip belum ter-install di server
   try {
     const zip = new AdmZip(buffer);
     const entries = zip.getEntries();
@@ -306,8 +315,24 @@ Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikas
   }
 });
 
+// Bungkus middleware upload supaya error (file kebesaran, dll) selalu
+// dibalas sebagai JSON, bukan halaman error HTML dari Express yang bikin
+// frontend gagal parsing (muncul "Server error - coba lagi").
+function safeUpload(req, res, next) {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      console.error('Upload error:', err.message);
+      const msg = err.code === 'LIMIT_FILE_SIZE'
+        ? 'Ukuran file terlalu besar (maksimal 20MB)'
+        : (err.message || 'Gagal mengunggah file');
+      return res.status(400).json({ error: msg });
+    }
+    next();
+  });
+}
+
 // ── CHAT ──
-app.post('/api/chat', upload.single('file'), async (req, res) => {
+app.post('/api/chat', safeUpload, async (req, res) => {
   const { message, sessionId, model: reqModel, memory } = req.body;
   if (!sessionId) return res.status(400).json({ error: 'sessionId diperlukan' });
 
@@ -421,6 +446,16 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
     console.error(err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── Jaring pengaman terakhir ──
+// Kalau ada error tak terduga yang lolos dari try/catch di rute manapun,
+// pastikan tetap dibalas JSON (bukan halaman HTML Express) supaya frontend
+// tidak gagal parsing dan menampilkan "Server error - coba lagi" tanpa detail.
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: err.message || 'Terjadi kesalahan pada server' });
 });
 
 // JANGAN pakai app.listen() di Vercel — export app-nya saja
