@@ -2,17 +2,86 @@ require('dotenv').config();
 const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
+const AdmZip  = require('adm-zip'); // npm install adm-zip
 
 const app = express();
 
 const sessions = {};
 
+// ── Ekstensi yang dianggap "teks" dan boleh dibaca langsung isinya ──
+const TEXT_EXTENSIONS = [
+  '.js','.jsx','.mjs','.cjs','.ts','.tsx','.html','.htm','.css','.scss','.sass',
+  '.json','.xml','.csv','.tsv','.md','.markdown','.py','.java','.c','.cpp','.h',
+  '.hpp','.cs','.php','.rb','.go','.rs','.sh','.bash','.yml','.yaml','.sql',
+  '.txt','.log','.ini','.toml','.env','.svg','.vue','.svelte','.graphql'
+];
+
+function isTextLike(mimetype, filename) {
+  const ext = path.extname(filename || '').toLowerCase();
+  if (TEXT_EXTENSIONS.includes(ext)) return true;
+  if (mimetype && (
+    mimetype.startsWith('text/') ||
+    ['application/json','application/javascript','application/xml','application/x-yaml','application/x-sh'].includes(mimetype)
+  )) return true;
+  return false;
+}
+
+function isZipLike(mimetype, filename) {
+  const ext = path.extname(filename || '').toLowerCase();
+  return ext === '.zip' || (mimetype && mimetype.includes('zip'));
+}
+
+// Baca ringkasan isi ZIP: struktur file + isi file-file teks di dalamnya (dibatasi)
+function readZipSummary(buffer, maxFiles = 25, maxCharsPerFile = 1500, maxTotalChars = 12000) {
+  try {
+    const zip = new AdmZip(buffer);
+    const entries = zip.getEntries();
+
+    let out = `[Isi arsip ZIP — ${entries.length} entri]\n\n`;
+    const fileList = entries.map(e => (e.isDirectory ? '📁 ' : '📄 ') + e.entryName).join('\n');
+    out += 'Struktur file:\n' + fileList.slice(0, 3000) + (fileList.length > 3000 ? '\n... (dipotong)' : '') + '\n\n';
+
+    let shown = 0;
+    let totalChars = out.length;
+    for (const entry of entries) {
+      if (entry.isDirectory) continue;
+      if (shown >= maxFiles || totalChars >= maxTotalChars) break;
+      const ext = path.extname(entry.entryName).toLowerCase();
+      if (!TEXT_EXTENSIONS.includes(ext)) continue;
+      if (entry.header.size > 200 * 1024) continue; // lewati file teks yang terlalu besar
+
+      try {
+        const content = entry.getData().toString('utf-8').slice(0, maxCharsPerFile);
+        out += `--- ${entry.entryName} ---\n${content}\n\n`;
+        totalChars += content.length + entry.entryName.length + 10;
+        shown++;
+      } catch (e) {
+        // lewati file yang gagal dibaca (kemungkinan biner)
+      }
+    }
+    if (shown === 0) out += '(Tidak ada file teks yang bisa ditampilkan isinya, atau semua file terlalu besar/biner)\n';
+    return out.slice(0, maxTotalChars + 3000);
+  } catch (e) {
+    console.error('Zip read error:', e.message);
+    return null;
+  }
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const ok = ['image/jpeg','image/png','image/gif','image/webp','text/plain','application/pdf'];
-    cb(null, ok.includes(file.mimetype));
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const okMimes = [
+      'image/jpeg','image/png','image/gif','image/webp',
+      'text/plain','application/pdf',
+      'text/html','text/css','text/csv','text/markdown','text/xml',
+      'application/json','application/javascript','text/javascript',
+      'application/xml','application/x-yaml','application/zip',
+      'application/x-zip-compressed','application/octet-stream'
+    ];
+    const okExts = TEXT_EXTENSIONS.concat(['.zip']);
+    cb(null, okMimes.includes(file.mimetype) || okExts.includes(ext));
   }
 });
 
@@ -249,7 +318,8 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
   if (!sessions[sessionId]) sessions[sessionId] = [];
 
   const isImage = file && file.mimetype.startsWith('image/');
-  const isText  = file && file.mimetype === 'text/plain';
+  const isZip   = file && !isImage && isZipLike(file.mimetype, file.originalname);
+  const isText  = file && !isImage && !isZip && isTextLike(file.mimetype, file.originalname);
   let groqContent, displayText = text;
 
   if (isImage) {
@@ -259,10 +329,27 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
       { type:'text', text: text||'Tolong analisis gambar ini.' }
     ];
     displayText = text||'Analisis gambar ini.';
+  } else if (isZip) {
+    const zipSummary = readZipSummary(file.buffer);
+    if (zipSummary) {
+      groqContent = text
+        ? `${text}\n\n[File ZIP: "${file.originalname}"]\n${zipSummary}`
+        : `Analisis isi file ZIP ini:\n\n${zipSummary}`;
+    } else {
+      groqContent = text
+        ? `${text}\n\n[File ZIP: "${file.originalname}" — gagal dibaca, mungkin rusak atau terenkripsi]`
+        : `File ZIP "${file.originalname}" gagal dibaca (mungkin rusak atau terenkripsi).`;
+    }
+    displayText = text || `🗜️ ${file.originalname}`;
   } else if (isText) {
     const fc = file.buffer.toString('utf-8').slice(0,8000);
     groqContent = text ? `${text}\n\n[File: "${file.originalname}"]\n${fc}` : `Analisis file ini:\n\n${fc}`;
     displayText = text||`📄 ${file.originalname}`;
+  } else if (file) {
+    groqContent = text
+      ? `${text}\n\n[File "${file.originalname}" diterima, namun tipe filenya tidak didukung untuk dibaca isinya.]`
+      : `File "${file.originalname}" diterima, namun tipe filenya tidak didukung untuk dibaca isinya.`;
+    displayText = text || `📎 ${file.originalname}`;
   } else {
     groqContent = text;
   }
