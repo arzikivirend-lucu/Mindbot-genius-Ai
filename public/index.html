@@ -218,7 +218,7 @@
   <div class="drop-card">
     <div class="drop-icon">📎</div>
     <div class="drop-title">Lepaskan file di sini</div>
-    <div class="drop-sub">Gambar, PDF, atau teks akan otomatis terlampir</div>
+    <div class="drop-sub">Gambar, dokumen, kode, atau ZIP akan otomatis terlampir</div>
   </div>
 </div>
 <div id="lightbox" onclick="closeLightbox()"><img id="lb-img" src="" alt=""/></div>
@@ -336,7 +336,7 @@
         <button class="upload-btn" id="upload-btn" onclick="document.getElementById('file-input').click()" title="Upload gambar/file">
           📎
         </button>
-        <input type="file" id="file-input" accept="image/*,.txt,.pdf" style="display:none" onchange="handleFileSelect(event)"/>
+        <input type="file" id="file-input" accept="image/*,.txt,.pdf,.html,.htm,.css,.js,.jsx,.mjs,.cjs,.ts,.tsx,.json,.xml,.csv,.tsv,.md,.markdown,.py,.java,.c,.cpp,.h,.hpp,.cs,.php,.rb,.go,.rs,.sh,.bash,.yml,.yaml,.sql,.svg,.vue,.svelte,.zip" style="display:none" onchange="handleFileSelect(event)"/>
         <textarea id="input" class="input-box" placeholder="Ketik pesan atau upload file/gambar..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
         <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="Bicara ke AI">🎙️</button>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">
@@ -603,7 +603,13 @@
       reader.onload = ev => { thumb.src = ev.target.result; thumb.style.display='block'; icon.style.display='none'; };
       reader.readAsDataURL(file);
     } else {
-      icon.textContent = file.type==='application/pdf' ? '📄' : '📝';
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      const zipExts = ['zip'];
+      const codeExts = ['js','jsx','mjs','cjs','ts','tsx','html','htm','css','scss','sass','json','xml','py','java','c','cpp','h','hpp','cs','php','rb','go','rs','sh','bash','yml','yaml','sql','md','markdown','svg','vue','svelte'];
+      if (file.type === 'application/pdf') icon.textContent = '📄';
+      else if (zipExts.includes(ext)) icon.textContent = '🗜️';
+      else if (codeExts.includes(ext)) icon.textContent = '💻';
+      else icon.textContent = '📝';
       icon.style.display = 'block'; thumb.style.display = 'none';
     }
   }
@@ -661,9 +667,9 @@
     const files = e.dataTransfer.files;
     if (!files || !files.length) return;
     const file = files[0];
-    const allowed = ['image/', 'application/pdf', 'text/plain'];
-    const isAllowed = allowed.some(a => file.type.startsWith(a)) || /\.(txt|pdf|png|jpe?g|gif|webp)$/i.test(file.name);
-    if (!isAllowed) { showError('Tipe file tidak didukung. Gunakan gambar, PDF, atau teks.'); return; }
+    const codeAndDocExtRegex = /\.(txt|pdf|png|jpe?g|gif|webp|html?|css|scss|sass|js|jsx|mjs|cjs|ts|tsx|json|xml|csv|tsv|md|markdown|py|java|c|cpp|h|hpp|cs|php|rb|go|rs|sh|bash|ya?ml|sql|svg|vue|svelte|zip)$/i;
+    const isAllowed = file.type.startsWith('image/') || file.type === 'application/pdf' || codeAndDocExtRegex.test(file.name);
+    if (!isAllowed) { showError('Tipe file tidak didukung.'); return; }
     processFile(file);
     document.getElementById('input').focus();
   });
@@ -1338,4 +1344,4 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
   let autoSpeak = false;
 </script>
 </body>
-          </html>
+</html>
