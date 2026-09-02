@@ -227,7 +227,7 @@
     .auth-switch { text-align: center; margin-top: 14px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); }
     .auth-switch a { color: var(--gold); text-decoration: none; cursor: pointer; }
     .auth-close { position: absolute; top: 14px; right: 16px; background: none; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer; }
-    .auth-error { font-size: 11px; font-family: 'DM Mono', monospace; color: #f87171; margin-top: 8px; display: none; line-height: 1.5; }
+    .auth-error { font-size: 11px; font-family: 'DM Mono', monospace; color: #f87171; margin-top: 8px; display: none; line-height: 1.55; word-break: break-word; }
     .auth-error.show { display: block; }
     .user-chip { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
     .user-chip .email { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
@@ -532,27 +532,39 @@
         if (error) throw error;
 
         if (!data.session) {
+          // Email confirmation is still enabled in Supabase.
+          // User must log in after confirming (or after admin disables confirmation).
           errEl.style.color = '#4ade80';
-          errEl.textContent = 'Akun berhasil dibuat! Silakan login.';
+          errEl.textContent = 'Akun berhasil dibuat! Silakan login sekarang. (Jika gagal login, nonaktifkan "Confirm email" di Supabase Dashboard → Authentication → Providers → Email)';
           errEl.classList.add('show');
           btn.disabled = false;
           btn.textContent = 'Daftar';
+          // Switch to login mode so user can try logging in immediately
+          authMode = 'login';
+          updateAuthModalTexts();
           return;
         }
 
-        const { error: profileError } = await supabaseClient
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            username: username.toLowerCase(),
-            display_name: username
-          });
+        // Session exists → email confirmation is disabled (ideal case)
+        try {
+          const { error: profileError } = await supabaseClient
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              username: username.toLowerCase(),
+              display_name: username
+            });
 
-        if (profileError) {
-          if (profileError.code === '23505') {
-            throw new Error('Username sudah digunakan. Pilih username lain.');
+          if (profileError) {
+            if (profileError.code === '23505') {
+              // Unique violation – username already taken by another user
+              console.warn('Profile already exists or username conflict:', profileError.message);
+            } else {
+              console.warn('Gagal insert profile:', profileError.message);
+            }
           }
-          console.warn('Gagal insert profile:', profileError.message);
+        } catch (pe) {
+          console.warn('Profile insert exception:', pe);
         }
 
         currentUser = data.user;
@@ -562,6 +574,7 @@
         await onLoginSuccess();
 
       } else {
+        // ── LOGIN ──
         const { data, error } = await supabaseClient.auth.signInWithPassword({
           email: syntheticEmail,
           password
@@ -580,11 +593,18 @@
     } catch (e) {
       errEl.style.color = '#f87171';
       let msg = e.message || 'Gagal memproses. Coba lagi.';
-      if (msg.includes('Invalid login credentials')) {
+
+      // Better Indonesian error messages
+      if (msg.toLowerCase().includes('email rate limit exceeded') || msg.toLowerCase().includes('rate limit')) {
+        msg = 'Terlalu banyak percobaan daftar. Tunggu ±1 jam, atau nonaktifkan "Confirm email" di Supabase Dashboard (Authentication → Providers → Email) supaya rate limit tidak lagi terjadi.';
+      } else if (msg.includes('Invalid login credentials')) {
         msg = 'Username atau password salah';
-      } else if (msg.includes('User already registered')) {
+      } else if (msg.includes('User already registered') || msg.includes('already been registered')) {
         msg = 'Username sudah terdaftar. Silakan login.';
+      } else if (msg.includes('Email not confirmed')) {
+        msg = 'Email belum dikonfirmasi. Nonaktifkan "Confirm email" di Supabase Dashboard agar bisa langsung masuk.';
       }
+
       errEl.textContent = msg;
       errEl.classList.add('show');
     } finally {
