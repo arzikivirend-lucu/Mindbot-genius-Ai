@@ -1269,7 +1269,15 @@
   }
   function removeTyping(){ const t=document.getElementById('typing'); if(t)t.remove(); }
 
-  function showError(msg){ const t=document.createElement('div'); t.className='error-toast'; t.textContent='⚠ '+msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3500); }
+  function showError(msg){
+    const t = document.createElement('div');
+    t.className = 'error-toast';
+    t.textContent = '⚠ ' + msg;
+    t.style.maxWidth = '90vw';
+    t.style.textAlign = 'center';
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 5500);
+  }
 
   let currentModel = 'openai/gpt-oss-120b';
   let currentModelName = 'Mindbot v1.0';
@@ -1472,9 +1480,23 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
 
       const res = await fetch('/api/chat', { method:'POST', body: formData, headers: authHeaders() });
       let data;
-      try { data = await res.json(); } catch(e) { removeTyping(); showError('Server error - coba lagi'); isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); return; }
+      const rawBody = await res.text();
+      try {
+        data = rawBody ? JSON.parse(rawBody) : null;
+      } catch (e) {
+        removeTyping();
+        console.error('Non-JSON response from /api/chat:', res.status, rawBody.slice(0, 300));
+        showError(res.status === 502 || res.status === 504
+          ? 'Server timeout / sedang sibuk. Coba lagi sebentar.'
+          : `Server error (${res.status}). Cek GROQ_API_KEY di environment variables.`);
+        isLoading = false;
+        document.getElementById('sendBtn').disabled = false;
+        input.focus();
+        return;
+      }
       removeTyping();
-      if(!res.ok) throw new Error(data.error||'Terjadi kesalahan');
+      if (!res.ok) throw new Error((data && data.error) || `Terjadi kesalahan (${res.status})`);
+      if (!data || !data.reply) throw new Error((data && data.error) || 'AI tidak mengembalikan balasan');
 
       let permanentGenImg = data.generatedImageUrl || null;
       if (permanentGenImg) {
