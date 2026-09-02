@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
+const { createClient } = require('@supabase/supabase-js'); // npm install @supabase/supabase-js
 
 // AdmZip bersifat opsional: kalau paket "adm-zip" belum ter-install,
 // jangan sampai seluruh server ikut crash — cukup nonaktifkan fitur baca ZIP.
@@ -15,6 +16,51 @@ try {
 const app = express();
 
 const sessions = {};
+
+// ── SUPABASE (auth + penyimpanan lintas perangkat) ──
+// SUPABASE_URL & SUPABASE_ANON_KEY diambil dari Project Settings → API di dashboard Supabase.
+// Kita PAKAI ANON KEY di backend (bukan service_role), tapi disisipi token JWT milik
+// user yang sedang login pada tiap request — jadi Row Level Security di database
+// tetap otomatis membatasi setiap user hanya bisa akses datanya sendiri.
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn('⚠️  SUPABASE_URL / SUPABASE_ANON_KEY belum diset di environment variables — auth & sync lintas perangkat dinonaktifkan, app tetap jalan sebagai mode tamu (localStorage).');
+}
+
+function supabaseForRequest(req) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return null;
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+
+// Middleware: kalau ada token Bearer yang valid, lampirkan req.user & req.supabase.
+// TIDAK menolak request tanpa token — chat tetap bisa dipakai sebagai tamu.
+async function attachUser(req, res, next) {
+  req.user = null;
+  req.supabase = null;
+  const sb = supabaseForRequest(req);
+  if (!sb) return next();
+  try {
+    const { data, error } = await sb.auth.getUser();
+    if (!error && data && data.user) {
+      req.user = data.user;
+      req.supabase = sb;
+    }
+  } catch (e) { /* token invalid/kedaluwarsa — anggap tamu */ }
+  next();
+}
+
+function requireAuth(req, res, next) {
+  if (!req.user) return res.status(401).json({ error: 'Silakan login terlebih dahulu' });
+  next();
+}
 
 // ── Ekstensi yang dianggap "teks" dan boleh dibaca langsung isinya ──
 const TEXT_EXTENSIONS = [
@@ -41,7 +87,7 @@ function isZipLike(mimetype, filename) {
 
 // Baca ringkasan isi ZIP: struktur file + isi file-file teks di dalamnya (dibatasi)
 function readZipSummary(buffer, maxFiles = 25, maxCharsPerFile = 1500, maxTotalChars = 12000) {
-  if (!AdmZip) return null; // paket adm-zip belum ter-install di server
+  if (!AdmZip) return null;
   try {
     const zip = new AdmZip(buffer);
     const entries = zip.getEntries();
@@ -57,16 +103,14 @@ function readZipSummary(buffer, maxFiles = 25, maxCharsPerFile = 1500, maxTotalC
       if (shown >= maxFiles || totalChars >= maxTotalChars) break;
       const ext = path.extname(entry.entryName).toLowerCase();
       if (!TEXT_EXTENSIONS.includes(ext)) continue;
-      if (entry.header.size > 200 * 1024) continue; // lewati file teks yang terlalu besar
+      if (entry.header.size > 200 * 1024) continue;
 
       try {
         const content = entry.getData().toString('utf-8').slice(0, maxCharsPerFile);
         out += `--- ${entry.entryName} ---\n${content}\n\n`;
         totalChars += content.length + entry.entryName.length + 10;
         shown++;
-      } catch (e) {
-        // lewati file yang gagal dibaca (kemungkinan biner)
-      }
+      } catch (e) { /* lewati file yang gagal dibaca (kemungkinan biner) */ }
     }
     if (shown === 0) out += '(Tidak ada file teks yang bisa ditampilkan isinya, atau semua file terlalu besar/biner)\n';
     return out.slice(0, maxTotalChars + 3000);
@@ -95,12 +139,94 @@ const upload = multer({
 });
 
 app.use(express.json());
+app.use(attachUser);
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Dummy endpoints
-app.get('/api/conversations', (req, res) => res.json([]));
-app.get('/api/conversations/:id', (req, res) => res.status(404).json({ error: 'Tidak ditemukan' }));
-app.delete('/api/conversations/:id', (req, res) => res.json({ ok: true }));
+// Dummy endpoints (kompatibilitas lama)
+app.get('/api/conversations-legacy', (req, res) => res.json([]));
+
+// ═══════════════════════════════════════════════════════
+// ── PERCAKAPAN (Supabase — hanya untuk user yang login) ──
+// Menyimpan { id, title, messages[], preview } per baris, dibatasi RLS
+// supaya tiap user cuma bisa baca/tulis/hapus percakapan miliknya sendiri.
+// ═══════════════════════════════════════════════════════
+app.get('/api/conversations', requireAuth, async (req, res) => {
+  const { data, error } = await req.supabase
+    .from('conversations')
+    .select('id,title,preview,created_at,updated_at')
+    .order('updated_at', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.get('/api/conversations/:id', requireAuth, async (req, res) => {
+  const { data, error } = await req.supabase
+    .from('conversations')
+    .select('*')
+    .eq('id', req.params.id)
+    .single();
+  if (error) return res.status(404).json({ error: 'Percakapan tidak ditemukan' });
+  res.json(data);
+});
+
+app.put('/api/conversations/:id', requireAuth, async (req, res) => {
+  const { title, messages, preview } = req.body;
+  const { data, error } = await req.supabase
+    .from('conversations')
+    .upsert({
+      id: req.params.id,
+      user_id: req.user.id,
+      title: title || 'Percakapan Baru',
+      messages: messages || [],
+      preview: preview || '',
+      updated_at: new Date().toISOString()
+    })
+    .select()
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.delete('/api/conversations/:id', requireAuth, async (req, res) => {
+  const { error } = await req.supabase.from('conversations').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+// ═══════════════════════════════════════════════════════
+// ── INGATAN AI (Supabase — hanya untuk user yang login) ──
+// Tamu (belum login) tetap pakai localStorage di sisi klien seperti sebelumnya.
+// ═══════════════════════════════════════════════════════
+app.get('/api/memory', requireAuth, async (req, res) => {
+  const { data, error } = await req.supabase
+    .from('memory_facts')
+    .select('id,fact,created_at')
+    .order('created_at', { ascending: true });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.post('/api/memory', requireAuth, async (req, res) => {
+  const { facts } = req.body;
+  if (!Array.isArray(facts) || !facts.length) return res.json({ inserted: [] });
+  const rows = facts.filter(f => typeof f === 'string' && f.trim()).map(f => ({ user_id: req.user.id, fact: f.trim() }));
+  if (!rows.length) return res.json({ inserted: [] });
+  const { data, error } = await req.supabase.from('memory_facts').insert(rows).select();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ inserted: data });
+});
+
+app.delete('/api/memory/:id', requireAuth, async (req, res) => {
+  const { error } = await req.supabase.from('memory_facts').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+app.delete('/api/memory', requireAuth, async (req, res) => {
+  const { error } = await req.supabase.from('memory_facts').delete().eq('user_id', req.user.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
 
 // ── WEB SEARCH KEYWORDS ──
 const NEWS_KEYWORDS = [
@@ -153,7 +279,7 @@ async function searchWeb(query) {
 
 // ── MINDBOT v2.5 IMAGE GENERATION (deAPI.ai) — async job + polling ──
 const DEAPI_BASE  = 'https://api.deapi.ai/api/v1/client';
-const DEAPI_MODEL = 'ZImageTurbo_INT8'; // model cepat, cocok untuk realtime chat
+const DEAPI_MODEL = 'ZImageTurbo_INT8';
 
 function deapiHeaders() {
   return {
@@ -163,7 +289,6 @@ function deapiHeaders() {
   };
 }
 
-// 1. Submit job — balas cepat dengan requestId, TIDAK menunggu gambar jadi
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
@@ -201,7 +326,6 @@ app.post('/api/imagine', async (req, res) => {
   }
 });
 
-// 2. Cek status job — dipanggil berulang (polling) oleh frontend tiap 1-2 detik
 app.get('/api/imagine/status/:requestId', async (req, res) => {
   const DEAPI_KEY = process.env.DEAPI_API_KEY;
   if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset' });
@@ -216,14 +340,13 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
     }
 
     const statusData = await statusResp.json();
-    const d = statusData?.data || statusData; // fallback kalau nggak dibungkus "data"
+    const d = statusData?.data || statusData;
     const rawStatus = (d?.status || '').toLowerCase();
 
     const DONE_STATUSES   = ['done', 'completed', 'success', 'succeeded', 'finished'];
     const FAILED_STATUSES = ['failed', 'error', 'cancelled'];
 
     if (DONE_STATUSES.includes(rawStatus)) {
-      // Coba semua kemungkinan lokasi field URL gambar
       const imageUrl =
         d?.result_url ||
         d?.result?.url ||
@@ -240,7 +363,6 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
         null;
 
       if (!imageUrl) {
-        // Belum ketemu field yang cocok — kirim raw data supaya bisa dicek di Network tab
         return res.json({ status: 'done', imageUrl: null, debugRaw: statusData });
       }
       return res.json({ status: 'completed', imageUrl });
@@ -257,11 +379,11 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
   }
 });
 
-// ── INGATAN AI (memory) ──
-// AI tidak punya database sendiri untuk mengingat pengguna antar-percakapan,
-// jadi fakta penting diekstrak per-pertukaran pesan lalu disimpan di sisi klien
-// (localStorage, per deviceId) dan dikirim balik ke sini setiap chat baru supaya
-// bisa disisipkan ke system prompt.
+// ── INGATAN AI: ekstraksi fakta per-pertukaran pesan ──
+// Jika request datang dari user yang LOGIN (req.user ada), fakta baru langsung
+// disimpan ke tabel memory_facts di Supabase (persist lintas perangkat).
+// Jika TAMU, cukup dikembalikan ke klien supaya disimpan di localStorage sisi klien
+// seperti sebelumnya — server tidak menyimpan apa pun untuk tamu.
 app.post('/api/memory/extract', async (req, res) => {
   const { userText, aiText, existingMemory } = req.body;
   if (!userText && !aiText) return res.json({ facts: [] });
@@ -308,6 +430,16 @@ Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikas
     }
     if (!Array.isArray(facts)) facts = [];
     facts = facts.filter(f => typeof f === 'string' && f.trim().length > 0).slice(0, 3);
+
+    // Kalau user login, simpan langsung ke Supabase supaya tidak bergantung
+    // pada klien untuk persist-nya.
+    if (facts.length && req.user && req.supabase) {
+      const rows = facts.map(f => ({ user_id: req.user.id, fact: f }));
+      req.supabase.from('memory_facts').insert(rows).then(({ error }) => {
+        if (error) console.warn('Gagal simpan ingatan ke Supabase:', error.message);
+      });
+    }
+
     res.json({ facts });
   } catch (err) {
     console.error('Memory extract error:', err.message);
@@ -316,8 +448,7 @@ Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikas
 });
 
 // Bungkus middleware upload supaya error (file kebesaran, dll) selalu
-// dibalas sebagai JSON, bukan halaman error HTML dari Express yang bikin
-// frontend gagal parsing (muncul "Server error - coba lagi").
+// dibalas sebagai JSON, bukan halaman error HTML dari Express.
 function safeUpload(req, res, next) {
   upload.single('file')(req, res, (err) => {
     if (err) {
@@ -390,17 +521,27 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     }
   }
 
-  // ── INGATAN AI dari percakapan sebelumnya (dikirim dari klien) ──
-  let memoryContext = '';
-  if (memory) {
+  // ── INGATAN AI ──
+  // User login: ambil dari Supabase (sumber kebenaran, lintas perangkat).
+  // Tamu: pakai apa yang dikirim klien dari localStorage (field `memory`).
+  let memArr = [];
+  if (req.user && req.supabase) {
     try {
-      const memArr = JSON.parse(memory);
-      if (Array.isArray(memArr) && memArr.length) {
-        memoryContext = '\n\nBerikut hal-hal yang kamu ingat tentang pengguna ini dari percakapan-percakapan sebelumnya:\n'
-          + memArr.slice(0, 60).map(f => '- ' + f).join('\n')
-          + '\nGunakan informasi ini secara alami jika relevan dengan pertanyaan pengguna saat ini. Jika pengguna bertanya apa yang kamu ingat tentangnya, sebutkan poin-poin di atas secara ringkas.';
-      }
+      const { data } = await req.supabase.from('memory_facts').select('fact').order('created_at', { ascending: true });
+      memArr = (data || []).map(r => r.fact);
+    } catch (e) { /* abaikan, tetap lanjut tanpa memori */ }
+  } else if (memory) {
+    try {
+      const memParsed = JSON.parse(memory);
+      if (Array.isArray(memParsed)) memArr = memParsed;
     } catch (e) { /* abaikan jika format tidak valid */ }
+  }
+
+  let memoryContext = '';
+  if (memArr.length) {
+    memoryContext = '\n\nBerikut hal-hal yang kamu ingat tentang pengguna ini dari percakapan-percakapan sebelumnya:\n'
+      + memArr.slice(0, 60).map(f => '- ' + f).join('\n')
+      + '\nGunakan informasi ini secara alami jika relevan dengan pertanyaan pengguna saat ini. Jika pengguna bertanya apa yang kamu ingat tentangnya, sebutkan poin-poin di atas secara ringkas.';
   }
 
   sessions[sessionId].push({ role:'user', content: displayText });
@@ -449,9 +590,6 @@ app.post('/api/chat', safeUpload, async (req, res) => {
 });
 
 // ── Jaring pengaman terakhir ──
-// Kalau ada error tak terduga yang lolos dari try/catch di rute manapun,
-// pastikan tetap dibalas JSON (bukan halaman HTML Express) supaya frontend
-// tidak gagal parsing dan menampilkan "Server error - coba lagi" tanpa detail.
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   if (res.headersSent) return next(err);
