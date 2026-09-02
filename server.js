@@ -2,26 +2,20 @@ require('dotenv').config();
 const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
-const { createClient } = require('@supabase/supabase-js'); // npm install @supabase/supabase-js
+const { createClient } = require('@supabase/supabase-js');
 
-// AdmZip bersifat opsional: kalau paket "adm-zip" belum ter-install,
-// jangan sampai seluruh server ikut crash — cukup nonaktifkan fitur baca ZIP.
+// AdmZip bersifat opsional
 let AdmZip = null;
 try {
-  AdmZip = require('adm-zip'); // npm install adm-zip
+  AdmZip = require('adm-zip');
 } catch (e) {
   console.warn('⚠️  Paket "adm-zip" belum ter-install. Jalankan: npm install adm-zip — fitur baca isi ZIP dinonaktifkan sementara.');
 }
 
 const app = express();
-
 const sessions = {};
 
-// ── SUPABASE (auth + penyimpanan lintas perangkat) ──
-// SUPABASE_URL & SUPABASE_ANON_KEY diambil dari Project Settings → API di dashboard Supabase.
-// Kita PAKAI ANON KEY di backend (bukan service_role), tapi disisipi token JWT milik
-// user yang sedang login pada tiap request — jadi Row Level Security di database
-// tetap otomatis membatasi setiap user hanya bisa akses datanya sendiri.
+// ── SUPABASE ──
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
@@ -40,8 +34,6 @@ function supabaseForRequest(req) {
   });
 }
 
-// Middleware: kalau ada token Bearer yang valid, lampirkan req.user & req.supabase.
-// TIDAK menolak request tanpa token — chat tetap bisa dipakai sebagai tamu.
 async function attachUser(req, res, next) {
   req.user = null;
   req.supabase = null;
@@ -53,7 +45,7 @@ async function attachUser(req, res, next) {
       req.user = data.user;
       req.supabase = sb;
     }
-  } catch (e) { /* token invalid/kedaluwarsa — anggap tamu */ }
+  } catch (e) { /* token invalid */ }
   next();
 }
 
@@ -62,7 +54,7 @@ function requireAuth(req, res, next) {
   next();
 }
 
-// ── Ekstensi yang dianggap "teks" dan boleh dibaca langsung isinya ──
+// ── Ekstensi teks ──
 const TEXT_EXTENSIONS = [
   '.js','.jsx','.mjs','.cjs','.ts','.tsx','.html','.htm','.css','.scss','.sass',
   '.json','.xml','.csv','.tsv','.md','.markdown','.py','.java','.c','.cpp','.h',
@@ -85,17 +77,14 @@ function isZipLike(mimetype, filename) {
   return ext === '.zip' || (mimetype && mimetype.includes('zip'));
 }
 
-// Baca ringkasan isi ZIP: struktur file + isi file-file teks di dalamnya (dibatasi)
 function readZipSummary(buffer, maxFiles = 25, maxCharsPerFile = 1500, maxTotalChars = 12000) {
   if (!AdmZip) return null;
   try {
     const zip = new AdmZip(buffer);
     const entries = zip.getEntries();
-
     let out = `[Isi arsip ZIP — ${entries.length} entri]\n\n`;
     const fileList = entries.map(e => (e.isDirectory ? '📁 ' : '📄 ') + e.entryName).join('\n');
     out += 'Struktur file:\n' + fileList.slice(0, 3000) + (fileList.length > 3000 ? '\n... (dipotong)' : '') + '\n\n';
-
     let shown = 0;
     let totalChars = out.length;
     for (const entry of entries) {
@@ -104,13 +93,12 @@ function readZipSummary(buffer, maxFiles = 25, maxCharsPerFile = 1500, maxTotalC
       const ext = path.extname(entry.entryName).toLowerCase();
       if (!TEXT_EXTENSIONS.includes(ext)) continue;
       if (entry.header.size > 200 * 1024) continue;
-
       try {
         const content = entry.getData().toString('utf-8').slice(0, maxCharsPerFile);
         out += `--- ${entry.entryName} ---\n${content}\n\n`;
         totalChars += content.length + entry.entryName.length + 10;
         shown++;
-      } catch (e) { /* lewati file yang gagal dibaca (kemungkinan biner) */ }
+      } catch (e) {}
     }
     if (shown === 0) out += '(Tidak ada file teks yang bisa ditampilkan isinya, atau semua file terlalu besar/biner)\n';
     return out.slice(0, maxTotalChars + 3000);
@@ -142,14 +130,10 @@ app.use(express.json());
 app.use(attachUser);
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Dummy endpoints (kompatibilitas lama)
+// Dummy
 app.get('/api/conversations-legacy', (req, res) => res.json([]));
 
-// ═══════════════════════════════════════════════════════
-// ── PERCAKAPAN (Supabase — hanya untuk user yang login) ──
-// Menyimpan { id, title, messages[], preview } per baris, dibatasi RLS
-// supaya tiap user cuma bisa baca/tulis/hapus percakapan miliknya sendiri.
-// ═══════════════════════════════════════════════════════
+// ── PERCAKAPAN ──
 app.get('/api/conversations', requireAuth, async (req, res) => {
   const { data, error } = await req.supabase
     .from('conversations')
@@ -193,10 +177,7 @@ app.delete('/api/conversations/:id', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-// ═══════════════════════════════════════════════════════
-// ── INGATAN AI (Supabase — hanya untuk user yang login) ──
-// Tamu (belum login) tetap pakai localStorage di sisi klien seperti sebelumnya.
-// ═══════════════════════════════════════════════════════
+// ── INGATAN AI ──
 app.get('/api/memory', requireAuth, async (req, res) => {
   const { data, error } = await req.supabase
     .from('memory_facts')
@@ -228,7 +209,7 @@ app.delete('/api/memory', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-// ── WEB SEARCH KEYWORDS ──
+// ── WEB SEARCH ──
 const NEWS_KEYWORDS = [
   'berita','terkini','terbaru','hari ini','sekarang','minggu ini','bulan ini',
   'update','breaking','news','today','latest','current','recently','happened',
@@ -246,7 +227,6 @@ async function searchWeb(query) {
   try {
     const TAVILY_KEY = process.env.TAVILY_API_KEY;
     if (!TAVILY_KEY) return null;
-
     const resp = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -258,10 +238,8 @@ async function searchWeb(query) {
         include_answer: true
       })
     });
-
     if (!resp.ok) return null;
     const data = await resp.json();
-
     let context = `[Hasil pencarian web untuk: "${query}"]\n\n`;
     if (data.answer) context += `Ringkasan: ${data.answer}\n\n`;
     if (data.results?.length) {
@@ -277,7 +255,7 @@ async function searchWeb(query) {
   }
 }
 
-// ── MINDBOT v2.5 IMAGE GENERATION (deAPI.ai) — async job + polling ──
+// ── IMAGE GENERATION ──
 const DEAPI_BASE  = 'https://api.deapi.ai/api/v1/client';
 const DEAPI_MODEL = 'ZImageTurbo_INT8';
 
@@ -292,10 +270,8 @@ function deapiHeaders() {
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
-
   const DEAPI_KEY = process.env.DEAPI_API_KEY;
   if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset' });
-
   try {
     const submitResp = await fetch(`${DEAPI_BASE}/txt2img`, {
       method: 'POST',
@@ -309,16 +285,13 @@ app.post('/api/imagine', async (req, res) => {
         seed: -1
       })
     });
-
     if (!submitResp.ok) {
       const errText = await submitResp.text();
       throw new Error(`deAPI submit error (${submitResp.status}): ${errText}`);
     }
-
     const submitData = await submitResp.json();
     const requestId = submitData?.data?.request_id;
     if (!requestId) throw new Error('deAPI tidak mengembalikan request_id');
-
     res.json({ requestId, status: 'pending' });
   } catch (err) {
     console.error('Imagine submit error:', err.message);
@@ -329,7 +302,6 @@ app.post('/api/imagine', async (req, res) => {
 app.get('/api/imagine/status/:requestId', async (req, res) => {
   const DEAPI_KEY = process.env.DEAPI_API_KEY;
   if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset' });
-
   try {
     const statusResp = await fetch(`${DEAPI_BASE}/request-status/${req.params.requestId}`, {
       headers: deapiHeaders()
@@ -338,14 +310,11 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
       const errText = await statusResp.text();
       throw new Error(`deAPI status error (${statusResp.status}): ${errText}`);
     }
-
     const statusData = await statusResp.json();
     const d = statusData?.data || statusData;
     const rawStatus = (d?.status || '').toLowerCase();
-
     const DONE_STATUSES   = ['done', 'completed', 'success', 'succeeded', 'finished'];
     const FAILED_STATUSES = ['failed', 'error', 'cancelled'];
-
     if (DONE_STATUSES.includes(rawStatus)) {
       const imageUrl =
         d?.result_url ||
@@ -361,17 +330,14 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
         d?.results_alt_formats?.jpg ||
         d?.results_alt_formats?.webp ||
         null;
-
       if (!imageUrl) {
         return res.json({ status: 'done', imageUrl: null, debugRaw: statusData });
       }
       return res.json({ status: 'completed', imageUrl });
     }
-
     if (FAILED_STATUSES.includes(rawStatus)) {
       return res.json({ status: 'failed', error: d?.error || d?.error_message || 'Gagal membuat gambar' });
     }
-
     res.json({ status: rawStatus || 'pending' });
   } catch (err) {
     console.error('Imagine status error:', err.message);
@@ -379,35 +345,23 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
   }
 });
 
-// ── INGATAN AI: ekstraksi fakta per-pertukaran pesan ──
-// Jika request datang dari user yang LOGIN (req.user ada), fakta baru langsung
-// disimpan ke tabel memory_facts di Supabase (persist lintas perangkat).
-// Jika TAMU, cukup dikembalikan ke klien supaya disimpan di localStorage sisi klien
-// seperti sebelumnya — server tidak menyimpan apa pun untuk tamu.
+// ── MEMORY EXTRACT ──
 app.post('/api/memory/extract', async (req, res) => {
   const { userText, aiText, existingMemory } = req.body;
   if (!userText && !aiText) return res.json({ facts: [] });
-
   const GROQ_KEY = process.env.GROQ_API_KEY;
   if (!GROQ_KEY) return res.json({ facts: [] });
-
   const existing = Array.isArray(existingMemory) ? existingMemory.slice(0, 60) : [];
-
   const extractPrompt = `Kamu bertugas mengekstrak fakta PENTING dan TAHAN LAMA tentang pengguna dari potongan percakapan berikut, untuk disimpan sebagai memori jangka panjang asisten AI.
-
 Hanya ambil fakta seperti: nama pengguna, pekerjaan/proyek yang sedang dikerjakan, preferensi personal, informasi identitas yang relevan, tujuan jangka panjang, atau konteks penting lain yang kemungkinan berguna di percakapan mendatang.
 JANGAN ambil hal yang sifatnya sesaat (pertanyaan sekali pakai, small talk, permintaan teknis satu kali, atau hal yang sudah tercakup dalam memori yang sudah ada).
-
 Memori yang SUDAH ada (jangan ulangi jika sudah tercakup):
 ${existing.length ? existing.map(f => '- ' + f).join('\n') : '(belum ada)'}
-
 Percakapan baru:
 User: "${(userText || '').slice(0, 500)}"
 AI: "${(aiText || '').slice(0, 500)}"
-
 Balas HANYA dengan array JSON berisi string fakta baru yang layak diingat (maksimal 3 item, singkat dan jelas, dalam Bahasa Indonesia). Jika tidak ada fakta baru yang layak diingat, balas dengan array kosong [].
 Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikasi toko online"]`;
-
   try {
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -430,16 +384,12 @@ Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikas
     }
     if (!Array.isArray(facts)) facts = [];
     facts = facts.filter(f => typeof f === 'string' && f.trim().length > 0).slice(0, 3);
-
-    // Kalau user login, simpan langsung ke Supabase supaya tidak bergantung
-    // pada klien untuk persist-nya.
     if (facts.length && req.user && req.supabase) {
       const rows = facts.map(f => ({ user_id: req.user.id, fact: f }));
       req.supabase.from('memory_facts').insert(rows).then(({ error }) => {
         if (error) console.warn('Gagal simpan ingatan ke Supabase:', error.message);
       });
     }
-
     res.json({ facts });
   } catch (err) {
     console.error('Memory extract error:', err.message);
@@ -447,8 +397,6 @@ Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikas
   }
 });
 
-// Bungkus middleware upload supaya error (file kebesaran, dll) selalu
-// dibalas sebagai JSON, bukan halaman error HTML dari Express.
 function safeUpload(req, res, next) {
   upload.single('file')(req, res, (err) => {
     if (err) {
@@ -466,18 +414,14 @@ function safeUpload(req, res, next) {
 app.post('/api/chat', safeUpload, async (req, res) => {
   const { message, sessionId, model: reqModel, memory } = req.body;
   if (!sessionId) return res.status(400).json({ error: 'sessionId diperlukan' });
-
   const text = message || '';
   const file  = req.file;
   if (!text && !file) return res.status(400).json({ error: 'Pesan atau file diperlukan' });
-
   if (!sessions[sessionId]) sessions[sessionId] = [];
-
   const isImage = file && file.mimetype.startsWith('image/');
   const isZip   = file && !isImage && isZipLike(file.mimetype, file.originalname);
   const isText  = file && !isImage && !isZip && isTextLike(file.mimetype, file.originalname);
   let groqContent, displayText = text;
-
   if (isImage) {
     const b64 = file.buffer.toString('base64');
     groqContent = [
@@ -510,7 +454,6 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     groqContent = text;
   }
 
-  // ── WEB SEARCH jika perlu ──
   let webContext = '';
   if (text && needsWebSearch(text)) {
     console.log('🔍 Mencari:', text);
@@ -521,22 +464,18 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     }
   }
 
-  // ── INGATAN AI ──
-  // User login: ambil dari Supabase (sumber kebenaran, lintas perangkat).
-  // Tamu: pakai apa yang dikirim klien dari localStorage (field `memory`).
   let memArr = [];
   if (req.user && req.supabase) {
     try {
       const { data } = await req.supabase.from('memory_facts').select('fact').order('created_at', { ascending: true });
       memArr = (data || []).map(r => r.fact);
-    } catch (e) { /* abaikan, tetap lanjut tanpa memori */ }
+    } catch (e) {}
   } else if (memory) {
     try {
       const memParsed = JSON.parse(memory);
       if (Array.isArray(memParsed)) memArr = memParsed;
-    } catch (e) { /* abaikan jika format tidak valid */ }
+    } catch (e) {}
   }
-
   let memoryContext = '';
   if (memArr.length) {
     memoryContext = '\n\nBerikut hal-hal yang kamu ingat tentang pengguna ini dari percakapan-percakapan sebelumnya:\n'
@@ -549,8 +488,6 @@ app.post('/api/chat', safeUpload, async (req, res) => {
   const ALLOWED_MODELS = [
     'openai/gpt-oss-120b',
     'openai/gpt-oss-20b',
-    'qwen/qwen3.6-27b',
-    'openai/gpt-oss-120b',
     'qwen/qwen3.6-27b'
   ];
   const model = isImage
@@ -561,26 +498,21 @@ app.post('/api/chat', safeUpload, async (req, res) => {
 
   try {
     const history = sessions[sessionId].slice(-20);
-    const lastMsg = history[history.length - 1];
     const messages = [
       { role:'system', content: systemPrompt },
       ...history.slice(0,-1).map(m => ({ role: m.role, content: m.content })),
       { role:'user', content: isImage ? groqContent : (webContext ? `${text}\n\n${webContext}` : (typeof groqContent === 'string' ? groqContent : groqContent)) }
     ];
-
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${process.env.GROQ_API_KEY}` },
       body: JSON.stringify({ model, messages, max_tokens: 1024 }),
     });
-
     if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message||'API error'); }
     const data  = await resp.json();
     const reply = data.choices[0].message.content;
-
     sessions[sessionId].push({ role:'assistant', content: reply });
     if (sessions[sessionId].length > 40) sessions[sessionId] = sessions[sessionId].slice(-40);
-
     const title = text.slice(0,40) || (file ? `📎 ${file.originalname}` : 'Percakapan');
     res.json({ reply, title, searched: !!webContext });
   } catch(err) {
@@ -589,12 +521,11 @@ app.post('/api/chat', safeUpload, async (req, res) => {
   }
 });
 
-// ── Jaring pengaman terakhir ──
+// Error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   if (res.headersSent) return next(err);
   res.status(500).json({ error: err.message || 'Terjadi kesalahan pada server' });
 });
 
-// JANGAN pakai app.listen() di Vercel — export app-nya saja
 module.exports = app;
