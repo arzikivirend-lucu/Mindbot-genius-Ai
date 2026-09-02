@@ -2,59 +2,21 @@ require('dotenv').config();
 const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
-const { createClient } = require('@supabase/supabase-js');
 
-// AdmZip bersifat opsional
+// AdmZip bersifat opsional: kalau paket "adm-zip" belum ter-install,
+// jangan sampai seluruh server ikut crash — cukup nonaktifkan fitur baca ZIP.
 let AdmZip = null;
 try {
-  AdmZip = require('adm-zip');
+  AdmZip = require('adm-zip'); // npm install adm-zip
 } catch (e) {
   console.warn('⚠️  Paket "adm-zip" belum ter-install. Jalankan: npm install adm-zip — fitur baca isi ZIP dinonaktifkan sementara.');
 }
 
 const app = express();
+
 const sessions = {};
 
-// ── SUPABASE ──
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn('⚠️  SUPABASE_URL / SUPABASE_ANON_KEY belum diset — auth & sync lintas perangkat dinonaktifkan, app tetap jalan sebagai mode tamu (localStorage).');
-}
-
-function supabaseForRequest(req) {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token) return null;
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
-
-async function attachUser(req, res, next) {
-  req.user = null;
-  req.supabase = null;
-  const sb = supabaseForRequest(req);
-  if (!sb) return next();
-  try {
-    const { data, error } = await sb.auth.getUser();
-    if (!error && data && data.user) {
-      req.user = data.user;
-      req.supabase = sb;
-    }
-  } catch (e) { /* token invalid */ }
-  next();
-}
-
-function requireAuth(req, res, next) {
-  if (!req.user) return res.status(401).json({ error: 'Silakan login terlebih dahulu' });
-  next();
-}
-
-// ── Ekstensi teks ──
+// ── Ekstensi yang dianggap "teks" dan boleh dibaca langsung isinya ──
 const TEXT_EXTENSIONS = [
   '.js','.jsx','.mjs','.cjs','.ts','.tsx','.html','.htm','.css','.scss','.sass',
   '.json','.xml','.csv','.tsv','.md','.markdown','.py','.java','.c','.cpp','.h',
@@ -77,14 +39,17 @@ function isZipLike(mimetype, filename) {
   return ext === '.zip' || (mimetype && mimetype.includes('zip'));
 }
 
+// Baca ringkasan isi ZIP: struktur file + isi file-file teks di dalamnya (dibatasi)
 function readZipSummary(buffer, maxFiles = 25, maxCharsPerFile = 1500, maxTotalChars = 12000) {
-  if (!AdmZip) return null;
+  if (!AdmZip) return null; // paket adm-zip belum ter-install di server
   try {
     const zip = new AdmZip(buffer);
     const entries = zip.getEntries();
+
     let out = `[Isi arsip ZIP — ${entries.length} entri]\n\n`;
     const fileList = entries.map(e => (e.isDirectory ? '📁 ' : '📄 ') + e.entryName).join('\n');
     out += 'Struktur file:\n' + fileList.slice(0, 3000) + (fileList.length > 3000 ? '\n... (dipotong)' : '') + '\n\n';
+
     let shown = 0;
     let totalChars = out.length;
     for (const entry of entries) {
@@ -92,13 +57,16 @@ function readZipSummary(buffer, maxFiles = 25, maxCharsPerFile = 1500, maxTotalC
       if (shown >= maxFiles || totalChars >= maxTotalChars) break;
       const ext = path.extname(entry.entryName).toLowerCase();
       if (!TEXT_EXTENSIONS.includes(ext)) continue;
-      if (entry.header.size > 200 * 1024) continue;
+      if (entry.header.size > 200 * 1024) continue; // lewati file teks yang terlalu besar
+
       try {
         const content = entry.getData().toString('utf-8').slice(0, maxCharsPerFile);
         out += `--- ${entry.entryName} ---\n${content}\n\n`;
         totalChars += content.length + entry.entryName.length + 10;
         shown++;
-      } catch (e) {}
+      } catch (e) {
+        // lewati file yang gagal dibaca (kemungkinan biner)
+      }
     }
     if (shown === 0) out += '(Tidak ada file teks yang bisa ditampilkan isinya, atau semua file terlalu besar/biner)\n';
     return out.slice(0, maxTotalChars + 3000);
@@ -126,128 +94,15 @@ const upload = multer({
   }
 });
 
-app.use(express.json({ limit: '2mb' }));
-app.use(attachUser);
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Static files (adjust path if needed for your deployment)
-try {
-  app.use(express.static(path.join(__dirname, '..', 'public')));
-} catch (e) {
-  console.warn('Static path warning:', e.message);
-}
+// Dummy endpoints
+app.get('/api/conversations', (req, res) => res.json([]));
+app.get('/api/conversations/:id', (req, res) => res.status(404).json({ error: 'Tidak ditemukan' }));
+app.delete('/api/conversations/:id', (req, res) => res.json({ ok: true }));
 
-// Dummy
-app.get('/api/conversations-legacy', (req, res) => res.json([]));
-
-// ── PERCAKAPAN ──
-app.get('/api/conversations', requireAuth, async (req, res) => {
-  try {
-    const { data, error } = await req.supabase
-      .from('conversations')
-      .select('id,title,preview,created_at,updated_at')
-      .order('updated_at', { ascending: false });
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data || []);
-  } catch (e) {
-    res.status(500).json({ error: e.message || 'Gagal memuat percakapan' });
-  }
-});
-
-app.get('/api/conversations/:id', requireAuth, async (req, res) => {
-  try {
-    const { data, error } = await req.supabase
-      .from('conversations')
-      .select('*')
-      .eq('id', req.params.id)
-      .single();
-    if (error) return res.status(404).json({ error: 'Percakapan tidak ditemukan' });
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message || 'Gagal memuat percakapan' });
-  }
-});
-
-app.put('/api/conversations/:id', requireAuth, async (req, res) => {
-  try {
-    const { title, messages, preview } = req.body;
-    const { data, error } = await req.supabase
-      .from('conversations')
-      .upsert({
-        id: req.params.id,
-        user_id: req.user.id,
-        title: title || 'Percakapan Baru',
-        messages: messages || [],
-        preview: preview || '',
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message || 'Gagal menyimpan percakapan' });
-  }
-});
-
-app.delete('/api/conversations/:id', requireAuth, async (req, res) => {
-  try {
-    const { error } = await req.supabase.from('conversations').delete().eq('id', req.params.id);
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message || 'Gagal menghapus percakapan' });
-  }
-});
-
-// ── INGATAN AI ──
-app.get('/api/memory', requireAuth, async (req, res) => {
-  try {
-    const { data, error } = await req.supabase
-      .from('memory_facts')
-      .select('id,fact,created_at')
-      .order('created_at', { ascending: true });
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data || []);
-  } catch (e) {
-    res.status(500).json({ error: e.message || 'Gagal memuat ingatan' });
-  }
-});
-
-app.post('/api/memory', requireAuth, async (req, res) => {
-  try {
-    const { facts } = req.body;
-    if (!Array.isArray(facts) || !facts.length) return res.json({ inserted: [] });
-    const rows = facts.filter(f => typeof f === 'string' && f.trim()).map(f => ({ user_id: req.user.id, fact: f.trim() }));
-    if (!rows.length) return res.json({ inserted: [] });
-    const { data, error } = await req.supabase.from('memory_facts').insert(rows).select();
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ inserted: data });
-  } catch (e) {
-    res.status(500).json({ error: e.message || 'Gagal menyimpan ingatan' });
-  }
-});
-
-app.delete('/api/memory/:id', requireAuth, async (req, res) => {
-  try {
-    const { error } = await req.supabase.from('memory_facts').delete().eq('id', req.params.id);
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message || 'Gagal menghapus ingatan' });
-  }
-});
-
-app.delete('/api/memory', requireAuth, async (req, res) => {
-  try {
-    const { error } = await req.supabase.from('memory_facts').delete().eq('user_id', req.user.id);
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message || 'Gagal menghapus semua ingatan' });
-  }
-});
-
-// ── WEB SEARCH ──
+// ── WEB SEARCH KEYWORDS ──
 const NEWS_KEYWORDS = [
   'berita','terkini','terbaru','hari ini','sekarang','minggu ini','bulan ini',
   'update','breaking','news','today','latest','current','recently','happened',
@@ -257,7 +112,7 @@ const NEWS_KEYWORDS = [
 ];
 
 function needsWebSearch(text) {
-  const lower = (text || '').toLowerCase();
+  const lower = text.toLowerCase();
   return NEWS_KEYWORDS.some(kw => lower.includes(kw));
 }
 
@@ -265,6 +120,7 @@ async function searchWeb(query) {
   try {
     const TAVILY_KEY = process.env.TAVILY_API_KEY;
     if (!TAVILY_KEY) return null;
+
     const resp = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -276,26 +132,28 @@ async function searchWeb(query) {
         include_answer: true
       })
     });
+
     if (!resp.ok) return null;
     const data = await resp.json();
+
     let context = `[Hasil pencarian web untuk: "${query}"]\n\n`;
     if (data.answer) context += `Ringkasan: ${data.answer}\n\n`;
     if (data.results?.length) {
       context += 'Sumber:\n';
-      data.results.slice(0, 3).forEach((r, i) => {
-        context += `${i + 1}. ${r.title}\n   ${r.content?.slice(0, 300)}...\n   URL: ${r.url}\n\n`;
+      data.results.slice(0,3).forEach((r, i) => {
+        context += `${i+1}. ${r.title}\n   ${r.content?.slice(0,300)}...\n   URL: ${r.url}\n\n`;
       });
     }
     return context;
-  } catch (e) {
+  } catch(e) {
     console.error('Search error:', e.message);
     return null;
   }
 }
 
-// ── IMAGE GENERATION ──
+// ── MINDBOT v2.5 IMAGE GENERATION (deAPI.ai) — async job + polling ──
 const DEAPI_BASE  = 'https://api.deapi.ai/api/v1/client';
-const DEAPI_MODEL = 'ZImageTurbo_INT8';
+const DEAPI_MODEL = 'ZImageTurbo_INT8'; // model cepat, cocok untuk realtime chat
 
 function deapiHeaders() {
   return {
@@ -305,13 +163,15 @@ function deapiHeaders() {
   };
 }
 
+// 1. Submit job — balas cepat dengan requestId, TIDAK menunggu gambar jadi
 app.post('/api/imagine', async (req, res) => {
-  try {
-    const { prompt } = req.body || {};
-    if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
-    const DEAPI_KEY = process.env.DEAPI_API_KEY;
-    if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset di environment variables' });
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
 
+  const DEAPI_KEY = process.env.DEAPI_API_KEY;
+  if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset' });
+
+  try {
     const submitResp = await fetch(`${DEAPI_BASE}/txt2img`, {
       method: 'POST',
       headers: deapiHeaders(),
@@ -327,7 +187,7 @@ app.post('/api/imagine', async (req, res) => {
 
     if (!submitResp.ok) {
       const errText = await submitResp.text();
-      throw new Error(`deAPI submit error (${submitResp.status}): ${errText.slice(0, 300)}`);
+      throw new Error(`deAPI submit error (${submitResp.status}): ${errText}`);
     }
 
     const submitData = await submitResp.json();
@@ -337,31 +197,33 @@ app.post('/api/imagine', async (req, res) => {
     res.json({ requestId, status: 'pending' });
   } catch (err) {
     console.error('Imagine submit error:', err.message);
-    res.status(500).json({ error: err.message || 'Gagal memulai generate gambar' });
+    res.status(500).json({ error: err.message });
   }
 });
 
+// 2. Cek status job — dipanggil berulang (polling) oleh frontend tiap 1-2 detik
 app.get('/api/imagine/status/:requestId', async (req, res) => {
-  try {
-    const DEAPI_KEY = process.env.DEAPI_API_KEY;
-    if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset' });
+  const DEAPI_KEY = process.env.DEAPI_API_KEY;
+  if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset' });
 
+  try {
     const statusResp = await fetch(`${DEAPI_BASE}/request-status/${req.params.requestId}`, {
       headers: deapiHeaders()
     });
-
     if (!statusResp.ok) {
       const errText = await statusResp.text();
-      throw new Error(`deAPI status error (${statusResp.status}): ${errText.slice(0, 300)}`);
+      throw new Error(`deAPI status error (${statusResp.status}): ${errText}`);
     }
 
     const statusData = await statusResp.json();
-    const d = statusData?.data || statusData;
+    const d = statusData?.data || statusData; // fallback kalau nggak dibungkus "data"
     const rawStatus = (d?.status || '').toLowerCase();
+
     const DONE_STATUSES   = ['done', 'completed', 'success', 'succeeded', 'finished'];
     const FAILED_STATUSES = ['failed', 'error', 'cancelled'];
 
     if (DONE_STATUSES.includes(rawStatus)) {
+      // Coba semua kemungkinan lokasi field URL gambar
       const imageUrl =
         d?.result_url ||
         d?.result?.url ||
@@ -378,6 +240,7 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
         null;
 
       if (!imageUrl) {
+        // Belum ketemu field yang cocok — kirim raw data supaya bisa dicek di Network tab
         return res.json({ status: 'done', imageUrl: null, debugRaw: statusData });
       }
       return res.json({ status: 'completed', imageUrl });
@@ -390,24 +253,27 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
     res.json({ status: rawStatus || 'pending' });
   } catch (err) {
     console.error('Imagine status error:', err.message);
-    res.status(500).json({ error: err.message || 'Gagal cek status gambar' });
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ── MEMORY EXTRACT ──
+// ── INGATAN AI (memory) ──
+// AI tidak punya database sendiri untuk mengingat pengguna antar-percakapan,
+// jadi fakta penting diekstrak per-pertukaran pesan lalu disimpan di sisi klien
+// (localStorage, per deviceId) dan dikirim balik ke sini setiap chat baru supaya
+// bisa disisipkan ke system prompt.
 app.post('/api/memory/extract', async (req, res) => {
-  try {
-    const { userText, aiText, existingMemory } = req.body || {};
-    if (!userText && !aiText) return res.json({ facts: [] });
+  const { userText, aiText, existingMemory } = req.body;
+  if (!userText && !aiText) return res.json({ facts: [] });
 
-    const GROQ_KEY = process.env.GROQ_API_KEY;
-    if (!GROQ_KEY) return res.json({ facts: [] });
+  const GROQ_KEY = process.env.GROQ_API_KEY;
+  if (!GROQ_KEY) return res.json({ facts: [] });
 
-    const existing = Array.isArray(existingMemory) ? existingMemory.slice(0, 60) : [];
-    const extractPrompt = `Kamu bertugas mengekstrak fakta PENTING dan TAHAN LAMA tentang pengguna dari potongan percakapan berikut, untuk disimpan sebagai memori jangka panjang asisten AI.
+  const existing = Array.isArray(existingMemory) ? existingMemory.slice(0, 60) : [];
+
+  const extractPrompt = `Kamu bertugas mengekstrak fakta PENTING dan TAHAN LAMA tentang pengguna dari potongan percakapan berikut, untuk disimpan sebagai memori jangka panjang asisten AI.
 
 Hanya ambil fakta seperti: nama pengguna, pekerjaan/proyek yang sedang dikerjakan, preferensi personal, informasi identitas yang relevan, tujuan jangka panjang, atau konteks penting lain yang kemungkinan berguna di percakapan mendatang.
-
 JANGAN ambil hal yang sifatnya sesaat (pertanyaan sekali pakai, small talk, permintaan teknis satu kali, atau hal yang sudah tercakup dalam memori yang sudah ada).
 
 Memori yang SUDAH ada (jangan ulangi jika sudah tercakup):
@@ -420,12 +286,10 @@ AI: "${(aiText || '').slice(0, 500)}"
 Balas HANYA dengan array JSON berisi string fakta baru yang layak diingat (maksimal 3 item, singkat dan jelas, dalam Bahasa Indonesia). Jika tidak ada fakta baru yang layak diingat, balas dengan array kosong [].
 Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikasi toko online"]`;
 
+  try {
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_KEY}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
       body: JSON.stringify({
         model: 'openai/gpt-oss-20b',
         messages: [{ role: 'user', content: extractPrompt }],
@@ -433,9 +297,7 @@ Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikas
         temperature: 0.2
       }),
     });
-
     if (!resp.ok) return res.json({ facts: [] });
-
     const data = await resp.json();
     let raw = data.choices?.[0]?.message?.content || '[]';
     raw = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
@@ -446,14 +308,6 @@ Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikas
     }
     if (!Array.isArray(facts)) facts = [];
     facts = facts.filter(f => typeof f === 'string' && f.trim().length > 0).slice(0, 3);
-
-    if (facts.length && req.user && req.supabase) {
-      const rows = facts.map(f => ({ user_id: req.user.id, fact: f }));
-      req.supabase.from('memory_facts').insert(rows).then(({ error }) => {
-        if (error) console.warn('Gagal simpan ingatan ke Supabase:', error.message);
-      }).catch(() => {});
-    }
-
     res.json({ facts });
   } catch (err) {
     console.error('Memory extract error:', err.message);
@@ -461,6 +315,9 @@ Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikas
   }
 });
 
+// Bungkus middleware upload supaya error (file kebesaran, dll) selalu
+// dibalas sebagai JSON, bukan halaman error HTML dari Express yang bikin
+// frontend gagal parsing (muncul "Server error - coba lagi").
 function safeUpload(req, res, next) {
   upload.single('file')(req, res, (err) => {
     if (err) {
@@ -476,214 +333,130 @@ function safeUpload(req, res, next) {
 
 // ── CHAT ──
 app.post('/api/chat', safeUpload, async (req, res) => {
-  try {
-    const { message, sessionId, model: reqModel, memory } = req.body || {};
-    if (!sessionId) return res.status(400).json({ error: 'sessionId diperlukan' });
+  const { message, sessionId, model: reqModel, memory } = req.body;
+  if (!sessionId) return res.status(400).json({ error: 'sessionId diperlukan' });
 
-    const text = (message || '').trim();
-    const file = req.file;
+  const text = message || '';
+  const file  = req.file;
+  if (!text && !file) return res.status(400).json({ error: 'Pesan atau file diperlukan' });
 
-    if (!text && !file) return res.status(400).json({ error: 'Pesan atau file diperlukan' });
+  if (!sessions[sessionId]) sessions[sessionId] = [];
 
-    const GROQ_KEY = process.env.GROQ_API_KEY;
-    if (!GROQ_KEY) {
-      return res.status(500).json({
-        error: 'GROQ_API_KEY belum diset di environment variables server. Tambahkan di Vercel / .env'
-      });
-    }
+  const isImage = file && file.mimetype.startsWith('image/');
+  const isZip   = file && !isImage && isZipLike(file.mimetype, file.originalname);
+  const isText  = file && !isImage && !isZip && isTextLike(file.mimetype, file.originalname);
+  let groqContent, displayText = text;
 
-    if (!sessions[sessionId]) sessions[sessionId] = [];
-
-    const isImage = file && file.mimetype && file.mimetype.startsWith('image/');
-    const isZip   = file && !isImage && isZipLike(file.mimetype, file.originalname);
-    const isText  = file && !isImage && !isZip && isTextLike(file.mimetype, file.originalname);
-
-    let groqContent;
-    let displayText = text;
-
-    if (isImage) {
-      const b64 = file.buffer.toString('base64');
-      groqContent = [
-        { type: 'image_url', image_url: { url: `data:${file.mimetype};base64,${b64}` } },
-        { type: 'text', text: text || 'Tolong analisis gambar ini.' }
-      ];
-      displayText = text || 'Analisis gambar ini.';
-    } else if (isZip) {
-      const zipSummary = readZipSummary(file.buffer);
-      if (zipSummary) {
-        groqContent = text
-          ? `${text}\n\n[File ZIP: "${file.originalname}"]\n${zipSummary}`
-          : `Analisis isi file ZIP ini:\n\n${zipSummary}`;
-      } else {
-        groqContent = text
-          ? `${text}\n\n[File ZIP: "${file.originalname}" — gagal dibaca, mungkin rusak atau terenkripsi]`
-          : `File ZIP "${file.originalname}" gagal dibaca (mungkin rusak atau terenkripsi).`;
-      }
-      displayText = text || `🗜️ ${file.originalname}`;
-    } else if (isText) {
-      const fc = file.buffer.toString('utf-8').slice(0, 8000);
-      groqContent = text ? `${text}\n\n[File: "${file.originalname}"]\n${fc}` : `Analisis file ini:\n\n${fc}`;
-      displayText = text || `📄 ${file.originalname}`;
-    } else if (file) {
+  if (isImage) {
+    const b64 = file.buffer.toString('base64');
+    groqContent = [
+      { type:'image_url', image_url:{ url:`data:${file.mimetype};base64,${b64}` } },
+      { type:'text', text: text||'Tolong analisis gambar ini.' }
+    ];
+    displayText = text||'Analisis gambar ini.';
+  } else if (isZip) {
+    const zipSummary = readZipSummary(file.buffer);
+    if (zipSummary) {
       groqContent = text
-        ? `${text}\n\n[File "${file.originalname}" diterima, namun tipe filenya tidak didukung untuk dibaca isinya.]`
-        : `File "${file.originalname}" diterima, namun tipe filenya tidak didukung untuk dibaca isinya.`;
-      displayText = text || `📎 ${file.originalname}`;
+        ? `${text}\n\n[File ZIP: "${file.originalname}"]\n${zipSummary}`
+        : `Analisis isi file ZIP ini:\n\n${zipSummary}`;
     } else {
-      groqContent = text;
+      groqContent = text
+        ? `${text}\n\n[File ZIP: "${file.originalname}" — gagal dibaca, mungkin rusak atau terenkripsi]`
+        : `File ZIP "${file.originalname}" gagal dibaca (mungkin rusak atau terenkripsi).`;
     }
+    displayText = text || `🗜️ ${file.originalname}`;
+  } else if (isText) {
+    const fc = file.buffer.toString('utf-8').slice(0,8000);
+    groqContent = text ? `${text}\n\n[File: "${file.originalname}"]\n${fc}` : `Analisis file ini:\n\n${fc}`;
+    displayText = text||`📄 ${file.originalname}`;
+  } else if (file) {
+    groqContent = text
+      ? `${text}\n\n[File "${file.originalname}" diterima, namun tipe filenya tidak didukung untuk dibaca isinya.]`
+      : `File "${file.originalname}" diterima, namun tipe filenya tidak didukung untuk dibaca isinya.`;
+    displayText = text || `📎 ${file.originalname}`;
+  } else {
+    groqContent = text;
+  }
 
-    let webContext = '';
-    if (text && needsWebSearch(text)) {
-      console.log('🔍 Mencari:', text);
-      const result = await searchWeb(text);
-      if (result) {
-        webContext = result;
-        console.log('✅ Web search berhasil');
+  // ── WEB SEARCH jika perlu ──
+  let webContext = '';
+  if (text && needsWebSearch(text)) {
+    console.log('🔍 Mencari:', text);
+    const result = await searchWeb(text);
+    if (result) {
+      webContext = result;
+      console.log('✅ Web search berhasil');
+    }
+  }
+
+  // ── INGATAN AI dari percakapan sebelumnya (dikirim dari klien) ──
+  let memoryContext = '';
+  if (memory) {
+    try {
+      const memArr = JSON.parse(memory);
+      if (Array.isArray(memArr) && memArr.length) {
+        memoryContext = '\n\nBerikut hal-hal yang kamu ingat tentang pengguna ini dari percakapan-percakapan sebelumnya:\n'
+          + memArr.slice(0, 60).map(f => '- ' + f).join('\n')
+          + '\nGunakan informasi ini secara alami jika relevan dengan pertanyaan pengguna saat ini. Jika pengguna bertanya apa yang kamu ingat tentangnya, sebutkan poin-poin di atas secara ringkas.';
       }
-    }
+    } catch (e) { /* abaikan jika format tidak valid */ }
+  }
 
-    // Memory
-    let memArr = [];
-    if (req.user && req.supabase) {
-      try {
-        const { data } = await req.supabase
-          .from('memory_facts')
-          .select('fact')
-          .order('created_at', { ascending: true });
-        memArr = (data || []).map(r => r.fact);
-      } catch (e) {
-        console.warn('Gagal ambil memory dari Supabase:', e.message);
-      }
-    } else if (memory) {
-      try {
-        const memParsed = typeof memory === 'string' ? JSON.parse(memory) : memory;
-        if (Array.isArray(memParsed)) memArr = memParsed;
-      } catch (e) {}
-    }
+  sessions[sessionId].push({ role:'user', content: displayText });
 
-    let memoryContext = '';
-    if (memArr.length) {
-      memoryContext = '\n\nBerikut hal-hal yang kamu ingat tentang pengguna ini dari percakapan-percakapan sebelumnya:\n'
-        + memArr.slice(0, 60).map(f => '- ' + f).join('\n')
-        + '\nGunakan informasi ini secara alami jika relevan dengan pertanyaan pengguna saat ini. Jika pengguna bertanya apa yang kamu ingat tentangnya, sebutkan poin-poin di atas secara ringkas.';
-    }
+  const ALLOWED_MODELS = [
+    'openai/gpt-oss-120b',
+    'openai/gpt-oss-20b',
+    'qwen/qwen3.6-27b',
+    'openai/gpt-oss-120b',
+    'qwen/qwen3.6-27b'
+  ];
+  const model = isImage
+    ? 'qwen/qwen3.6-27b'
+    : (ALLOWED_MODELS.includes(reqModel) ? reqModel : 'openai/gpt-oss-120b');
 
-    sessions[sessionId].push({ role: 'user', content: displayText });
+  const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dengan singkat dan dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
 
-    // Models yang didukung
-    const ALLOWED_MODELS = [
-      'openai/gpt-oss-120b',
-      'openai/gpt-oss-20b',
-      'qwen/qwen3.6-27b'
-    ];
-
-    // Vision model jika ada gambar
-    const model = isImage
-      ? 'qwen/qwen3.6-27b'
-      : (ALLOWED_MODELS.includes(reqModel) ? reqModel : 'openai/gpt-oss-120b');
-
-    const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dengan singkat dan dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n' + webContext : ''}`;
-
+  try {
     const history = sessions[sessionId].slice(-20);
-
-    // Build messages carefully
+    const lastMsg = history[history.length - 1];
     const messages = [
-      { role: 'system', content: systemPrompt },
-      ...history.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
+      { role:'system', content: systemPrompt },
+      ...history.slice(0,-1).map(m => ({ role: m.role, content: m.content })),
+      { role:'user', content: isImage ? groqContent : (webContext ? `${text}\n\n${webContext}` : (typeof groqContent === 'string' ? groqContent : groqContent)) }
     ];
-
-    // Last user message
-    if (isImage) {
-      messages.push({ role: 'user', content: groqContent });
-    } else {
-      const finalText = webContext
-        ? `${text}\n\n${webContext}`
-        : (typeof groqContent === 'string' ? groqContent : text);
-      messages.push({ role: 'user', content: finalText });
-    }
-
-    console.log(`[chat] model=${model} session=${sessionId} msgs=${messages.length}`);
 
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_KEY}`
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        max_tokens: 1024,
-        temperature: 0.7
-      }),
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${process.env.GROQ_API_KEY}` },
+      body: JSON.stringify({ model, messages, max_tokens: 1024 }),
     });
 
-    // Parse response safely
-    let data;
-    const rawText = await resp.text();
-    try {
-      data = JSON.parse(rawText);
-    } catch (parseErr) {
-      console.error('Groq non-JSON response:', rawText.slice(0, 500));
-      return res.status(502).json({
-        error: `Groq mengembalikan respons tidak valid (status ${resp.status}). Coba lagi sebentar.`
-      });
-    }
+    if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message||'API error'); }
+    const data  = await resp.json();
+    const reply = data.choices[0].message.content;
 
-    if (!resp.ok) {
-      const errMsg = data?.error?.message || data?.message || `API error (${resp.status})`;
-      console.error('Groq API error:', errMsg);
-      return res.status(resp.status >= 500 ? 502 : 400).json({ error: errMsg });
-    }
+    sessions[sessionId].push({ role:'assistant', content: reply });
+    if (sessions[sessionId].length > 40) sessions[sessionId] = sessions[sessionId].slice(-40);
 
-    const reply = data?.choices?.[0]?.message?.content;
-    if (!reply) {
-      console.error('Groq empty reply:', JSON.stringify(data).slice(0, 400));
-      return res.status(502).json({ error: 'AI tidak mengembalikan balasan. Coba lagi.' });
-    }
-
-    sessions[sessionId].push({ role: 'assistant', content: reply });
-    if (sessions[sessionId].length > 40) {
-      sessions[sessionId] = sessions[sessionId].slice(-40);
-    }
-
-    const title = text.slice(0, 40) || (file ? `📎 ${file.originalname}` : 'Percakapan');
-
-    res.json({
-      reply,
-      title,
-      searched: !!webContext
-    });
-
-  } catch (err) {
-    console.error('Chat handler error:', err);
-    // Selalu return JSON supaya frontend tidak dapat "Server error - coba lagi"
-    if (!res.headersSent) {
-      res.status(500).json({
-        error: err.message || 'Terjadi kesalahan pada server'
-      });
-    }
+    const title = text.slice(0,40) || (file ? `📎 ${file.originalname}` : 'Percakapan');
+    res.json({ reply, title, searched: !!webContext });
+  } catch(err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({
-    ok: true,
-    groq: !!process.env.GROQ_API_KEY,
-    supabase: !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY),
-    deapi: !!process.env.DEAPI_API_KEY,
-    tavily: !!process.env.TAVILY_API_KEY,
-    time: new Date().toISOString()
-  });
-});
-
-// Global error handler — selalu JSON
+// ── Jaring pengaman terakhir ──
+// Kalau ada error tak terduga yang lolos dari try/catch di rute manapun,
+// pastikan tetap dibalas JSON (bukan halaman HTML Express) supaya frontend
+// tidak gagal parsing dan menampilkan "Server error - coba lagi" tanpa detail.
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   if (res.headersSent) return next(err);
   res.status(500).json({ error: err.message || 'Terjadi kesalahan pada server' });
 });
 
+// JANGAN pakai app.listen() di Vercel — export app-nya saja
 module.exports = app;
