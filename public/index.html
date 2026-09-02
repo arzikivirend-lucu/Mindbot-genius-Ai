@@ -214,7 +214,7 @@
     /* ── AUTH MODAL ── */
     #auth-overlay { display: none; position: fixed; inset: 0; z-index: 600; background: rgba(6,8,16,0.88); backdrop-filter: blur(6px); align-items: center; justify-content: center; padding: 16px; }
     #auth-overlay.show { display: flex; }
-    .auth-card { width: 100%; max-width: 340px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .auth-card { width: 100%; max-width: 340px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); position: relative; }
     .auth-card h3 { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
     .auth-card h3 span { color: var(--gold); }
     .auth-sub { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5; }
@@ -227,10 +227,8 @@
     .auth-switch { text-align: center; margin-top: 14px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); }
     .auth-switch a { color: var(--gold); text-decoration: none; cursor: pointer; }
     .auth-close { position: absolute; top: 14px; right: 16px; background: none; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer; }
-    .auth-card { position: relative; }
     .auth-error { font-size: 11px; font-family: 'DM Mono', monospace; color: #f87171; margin-top: 8px; display: none; line-height: 1.5; }
     .auth-error.show { display: block; }
-    .auth-note { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-top: 12px; line-height: 1.5; text-align: center; }
     .user-chip { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
     .user-chip .email { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
     .user-chip .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
@@ -249,15 +247,15 @@
 </div>
 <div id="lightbox" onclick="closeLightbox()"><img id="lb-img" src="" alt=""/></div>
 
-<!-- ── AUTH MODAL: login / daftar ── -->
+<!-- ── AUTH MODAL: Username + Password ── -->
 <div id="auth-overlay">
   <div class="auth-card">
     <button class="auth-close" onclick="closeAuthModal()">✕</button>
     <h3 id="authTitle">Masuk ke <span>Mindbot Genius</span></h3>
     <div class="auth-sub" id="authSub">Login supaya percakapan &amp; ingatan AI-mu tersimpan dan bisa diakses dari perangkat lain.</div>
     <div class="auth-field">
-      <label>Email</label>
-      <input type="email" id="authEmail" placeholder="kamu@email.com" autocomplete="email"/>
+      <label>Username</label>
+      <input type="text" id="authUsername" placeholder="username_kamu" autocomplete="username" maxlength="30"/>
     </div>
     <div class="auth-field">
       <label>Password</label>
@@ -397,12 +395,9 @@
 </div>
 <script>
   // ── KONFIGURASI SUPABASE ──
-  // Ganti dengan URL & anon key project Supabase-mu (Project Settings → API).
-  // anon key AMAN dipakai di frontend — akses data tetap dibatasi oleh Row Level Security.
   const SUPABASE_URL = 'https://fdausfmrbalnwnpoespv.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYXVzZm1yYmFsbnducG9lc3B2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNDIxNzQsImV4cCI6MjEwMzkxODE3NH0.ln7MX0M4ZfvbSoYHLLAsVJAO3GGGm3KGmtN-T_sQBGE';
   
-  // Perbaikan: cek yang lebih aman
   const supabaseClient = (SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_URL.includes('xxxx') && !SUPABASE_ANON_KEY.includes('PASTE'))
     ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
     : null;
@@ -417,10 +412,15 @@
   let selectedFile = null;
   let notifEnabled = localStorage.getItem('notif_enabled') !== 'false';
 
-  // ── AUTH STATE ──
+  // ── AUTH STATE (Username + Password) ──
   let currentUser = null;
   let currentSession = null;
+  let currentUsername = null;
   let authMode = 'login';
+
+  function makeSyntheticEmail(username) {
+    return username.toLowerCase().trim() + '@mindbot.local';
+  }
 
   function isAuthed() { return !!(currentUser && currentSession); }
   function authToken() { return currentSession ? currentSession.access_token : null; }
@@ -434,64 +434,192 @@
     authMode = mode || 'login';
     updateAuthModalTexts();
     document.getElementById('authError').classList.remove('show');
+    document.getElementById('authUsername').value = '';
+    document.getElementById('authPassword').value = '';
     document.getElementById('auth-overlay').classList.add('show');
+    setTimeout(() => document.getElementById('authUsername').focus(), 100);
   }
   function closeAuthModal() { document.getElementById('auth-overlay').classList.remove('show'); }
-  function toggleAuthMode() { authMode = authMode === 'login' ? 'signup' : 'login'; updateAuthModalTexts(); }
+  function toggleAuthMode() { 
+    authMode = authMode === 'login' ? 'signup' : 'login'; 
+    updateAuthModalTexts(); 
+    document.getElementById('authError').classList.remove('show');
+  }
   function updateAuthModalTexts() {
     const isLogin = authMode === 'login';
-    document.getElementById('authTitle').innerHTML = isLogin ? 'Masuk ke <span>Mindbot Genius</span>' : 'Daftar ke <span>Mindbot Genius</span>';
+    document.getElementById('authTitle').innerHTML = isLogin 
+      ? 'Masuk ke <span>Mindbot Genius</span>' 
+      : 'Daftar ke <span>Mindbot Genius</span>';
     document.getElementById('authSubmitBtn').textContent = isLogin ? 'Masuk' : 'Daftar';
     document.getElementById('authSwitch').innerHTML = isLogin
       ? 'Belum punya akun? <a onclick="toggleAuthMode()">Daftar di sini</a>'
       : 'Sudah punya akun? <a onclick="toggleAuthMode()">Masuk di sini</a>';
   }
 
+  function validateUsername(username) {
+    const u = (username || '').trim();
+    if (u.length < 3) return 'Username minimal 3 karakter';
+    if (u.length > 30) return 'Username maksimal 30 karakter';
+    if (!/^[a-zA-Z0-9_]+$/.test(u)) return 'Username hanya boleh huruf, angka, dan underscore (_)';
+    return null;
+  }
+
+  async function isUsernameTaken(username) {
+    if (!supabaseClient) return false;
+    const lower = username.toLowerCase().trim();
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('username')
+      .ilike('username', lower)
+      .maybeSingle();
+    if (error) {
+      console.warn('Cek username error:', error.message);
+      return false;
+    }
+    return !!data;
+  }
+
   async function submitAuth() {
-    if (!supabaseClient) { showError('Supabase belum dikonfigurasi di frontend'); return; }
-    const email = document.getElementById('authEmail').value.trim();
+    if (!supabaseClient) { 
+      showError('Supabase belum dikonfigurasi di frontend'); 
+      return; 
+    }
+
+    const username = document.getElementById('authUsername').value.trim();
     const password = document.getElementById('authPassword').value;
     const errEl = document.getElementById('authError');
     errEl.classList.remove('show');
-    if (!email || !password) { errEl.textContent = 'Email dan password wajib diisi'; errEl.classList.add('show'); return; }
-    if (password.length < 6) { errEl.textContent = 'Password minimal 6 karakter'; errEl.classList.add('show'); return; }
+    errEl.style.color = '#f87171';
+
+    if (!username || !password) {
+      errEl.textContent = 'Username dan password wajib diisi';
+      errEl.classList.add('show');
+      return;
+    }
+    if (password.length < 6) {
+      errEl.textContent = 'Password minimal 6 karakter';
+      errEl.classList.add('show');
+      return;
+    }
+
+    const usernameError = validateUsername(username);
+    if (usernameError) {
+      errEl.textContent = usernameError;
+      errEl.classList.add('show');
+      return;
+    }
 
     const btn = document.getElementById('authSubmitBtn');
-    btn.disabled = true; btn.textContent = 'Memproses...';
+    btn.disabled = true;
+    btn.textContent = 'Memproses...';
+
     try {
-      let result;
-      if (authMode === 'login') {
-        result = await supabaseClient.auth.signInWithPassword({ email, password });
+      const syntheticEmail = makeSyntheticEmail(username);
+
+      if (authMode === 'signup') {
+        const taken = await isUsernameTaken(username);
+        if (taken) {
+          throw new Error('Username sudah digunakan. Pilih username lain.');
+        }
+
+        const { data, error } = await supabaseClient.auth.signUp({
+          email: syntheticEmail,
+          password,
+          options: {
+            data: { username: username }
+          }
+        });
+        if (error) throw error;
+
+        if (!data.session) {
+          errEl.style.color = '#4ade80';
+          errEl.textContent = 'Akun berhasil dibuat! Silakan login.';
+          errEl.classList.add('show');
+          btn.disabled = false;
+          btn.textContent = 'Daftar';
+          return;
+        }
+
+        const { error: profileError } = await supabaseClient
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            username: username.toLowerCase(),
+            display_name: username
+          });
+
+        if (profileError) {
+          if (profileError.code === '23505') {
+            throw new Error('Username sudah digunakan. Pilih username lain.');
+          }
+          console.warn('Gagal insert profile:', profileError.message);
+        }
+
+        currentUser = data.user;
+        currentSession = data.session;
+        currentUsername = username;
+        closeAuthModal();
+        await onLoginSuccess();
+
       } else {
-        result = await supabaseClient.auth.signUp({ email, password });
-      }
-      if (result.error) throw result.error;
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email: syntheticEmail,
+          password
+        });
+        if (error) throw error;
 
-      if (authMode === 'signup' && !result.data.session) {
-        errEl.style.color = '#4ade80';
-        errEl.textContent = 'Akun dibuat! Cek email untuk verifikasi, lalu login.';
-        errEl.classList.add('show');
-        btn.disabled = false; btn.textContent = 'Daftar';
-        return;
-      }
+        currentUser = data.user;
+        currentSession = data.session;
+        currentUsername = data.user.user_metadata?.username || username;
 
-      currentUser = result.data.user;
-      currentSession = result.data.session;
-      closeAuthModal();
-      await onLoginSuccess();
+        await ensureProfile(data.user.id, currentUsername);
+
+        closeAuthModal();
+        await onLoginSuccess();
+      }
     } catch (e) {
       errEl.style.color = '#f87171';
-      errEl.textContent = e.message || 'Gagal memproses. Coba lagi.';
+      let msg = e.message || 'Gagal memproses. Coba lagi.';
+      if (msg.includes('Invalid login credentials')) {
+        msg = 'Username atau password salah';
+      } else if (msg.includes('User already registered')) {
+        msg = 'Username sudah terdaftar. Silakan login.';
+      }
+      errEl.textContent = msg;
       errEl.classList.add('show');
     } finally {
-      btn.disabled = false; btn.textContent = authMode === 'login' ? 'Masuk' : 'Daftar';
+      btn.disabled = false;
+      btn.textContent = authMode === 'login' ? 'Masuk' : 'Daftar';
+    }
+  }
+
+  async function ensureProfile(userId, username) {
+    if (!supabaseClient || !userId) return;
+    try {
+      const { data } = await supabaseClient
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!data) {
+        await supabaseClient.from('profiles').insert({
+          id: userId,
+          username: username.toLowerCase(),
+          display_name: username
+        });
+      }
+    } catch (e) {
+      console.warn('ensureProfile error:', e.message);
     }
   }
 
   async function signOut() {
     if (!supabaseClient) return;
     await supabaseClient.auth.signOut();
-    currentUser = null; currentSession = null;
+    currentUser = null;
+    currentSession = null;
+    currentUsername = null;
     renderAuthArea();
     newChat();
     loadConversations();
@@ -502,10 +630,11 @@
     const el = document.getElementById('authArea');
     if (!el) return;
     if (isAuthed()) {
+      const displayName = currentUsername || currentUser?.user_metadata?.username || 'User';
       el.innerHTML = `
         <div class="user-chip">
           <span class="sync-dot" title="Tersinkron ke akun"></span>
-          <span class="email">${escapeHtml(currentUser.email || '')}</span>
+          <span class="email">@${escapeHtml(displayName)}</span>
         </div>
         <button class="code-btn" style="width:100%;padding:6px;" onclick="signOut()">🚪 Keluar</button>`;
     } else {
@@ -522,16 +651,39 @@
   }
 
   async function initAuth() {
-    if (!supabaseClient) { renderAuthArea(); return; }
+    if (!supabaseClient) { 
+      renderAuthArea(); 
+      return; 
+    }
     const { data } = await supabaseClient.auth.getSession();
     if (data && data.session) {
       currentSession = data.session;
       currentUser = data.session.user;
+      currentUsername = data.session.user.user_metadata?.username || null;
+
+      if (!currentUsername) {
+        try {
+          const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('username, display_name')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+          if (profile) {
+            currentUsername = profile.display_name || profile.username;
+          }
+        } catch (e) {}
+      }
     }
     renderAuthArea();
+
     supabaseClient.auth.onAuthStateChange((event, session) => {
       currentSession = session;
       currentUser = session ? session.user : null;
+      if (session) {
+        currentUsername = session.user.user_metadata?.username || currentUsername;
+      } else {
+        currentUsername = null;
+      }
       renderAuthArea();
     });
   }
@@ -1544,7 +1696,6 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
   }
 
   speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
-  let autoSpeak = false;
 </script>
 </body>
 </html>
