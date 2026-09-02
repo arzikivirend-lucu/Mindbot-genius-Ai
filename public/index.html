@@ -399,8 +399,9 @@
   // ── KONFIGURASI SUPABASE ──
   // Ganti dengan URL & anon key project Supabase-mu (Project Settings → API).
   // anon key AMAN dipakai di frontend — akses data tetap dibatasi oleh Row Level Security.
-  const SUPABASE_URL = 'https://xxxxxxxxxxxx.supabase.co';
-  const SUPABASE_ANON_KEY = 'PASTE_ANON_KEY_DI_SINI';
+  const SUPABASE_URL = 'https://fdausfmrbalnwnpoespv.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYXVzZm1yYmFsbnducG9lc3B2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNDIxNzQsImV4cCI6MjEwMzkxODE3NH0.ln7MX0M4ZfvbSoYHLLAsVJAO3GGGm3KGmtN-T_sQBGE'
+  ';
   const supabaseClient = (SUPABASE_URL.includes('xxxx') || SUPABASE_ANON_KEY.includes('PASTE'))
     ? null
     : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
