@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="logo.png"/>
   <link rel="shortcut icon" type="image/x-icon" href="logo.ico"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
     :root {
       --bg: #0a0c14; --surface: #0f1220; --surface2: #171b2e;
@@ -210,6 +211,31 @@
       .btn-icon { padding: 5px 7px; }
       .header-title { max-width: 100px; }
     }
+    /* ── AUTH MODAL ── */
+    #auth-overlay { display: none; position: fixed; inset: 0; z-index: 600; background: rgba(6,8,16,0.88); backdrop-filter: blur(6px); align-items: center; justify-content: center; padding: 16px; }
+    #auth-overlay.show { display: flex; }
+    .auth-card { width: 100%; max-width: 340px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .auth-card h3 { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+    .auth-card h3 span { color: var(--gold); }
+    .auth-sub { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5; }
+    .auth-field { margin-bottom: 10px; }
+    .auth-field label { display: block; font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-bottom: 5px; letter-spacing: 0.5px; }
+    .auth-field input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: 9px 11px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; }
+    .auth-field input:focus { border-color: var(--gold); }
+    .auth-submit { width: 100%; margin-top: 6px; padding: 10px; border: none; border-radius: 10px; background: linear-gradient(135deg, #1a4fc4, var(--gold)); color: #fff; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
+    .auth-submit:hover { opacity: 0.85; } .auth-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+    .auth-switch { text-align: center; margin-top: 14px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); }
+    .auth-switch a { color: var(--gold); text-decoration: none; cursor: pointer; }
+    .auth-close { position: absolute; top: 14px; right: 16px; background: none; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer; }
+    .auth-card { position: relative; }
+    .auth-error { font-size: 11px; font-family: 'DM Mono', monospace; color: #f87171; margin-top: 8px; display: none; line-height: 1.5; }
+    .auth-error.show { display: block; }
+    .auth-note { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-top: 12px; line-height: 1.5; text-align: center; }
+    .user-chip { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
+    .user-chip .email { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+    .user-chip .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
+    .btn-login { width: 100%; padding: 8px 12px; border: 1px solid var(--gold); background: rgba(200,168,75,0.08); border-radius: 10px; color: var(--gold); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-bottom: 8px; }
+    .btn-login:hover { background: rgba(200,168,75,0.16); }
   </style>
 </head>
 <body>
@@ -222,6 +248,27 @@
   </div>
 </div>
 <div id="lightbox" onclick="closeLightbox()"><img id="lb-img" src="" alt=""/></div>
+
+<!-- ── AUTH MODAL: login / daftar ── -->
+<div id="auth-overlay">
+  <div class="auth-card">
+    <button class="auth-close" onclick="closeAuthModal()">✕</button>
+    <h3 id="authTitle">Masuk ke <span>Mindbot Genius</span></h3>
+    <div class="auth-sub" id="authSub">Login supaya percakapan &amp; ingatan AI-mu tersimpan dan bisa diakses dari perangkat lain.</div>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="authEmail" placeholder="kamu@email.com" autocomplete="email"/>
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" id="authPassword" placeholder="Minimal 6 karakter" autocomplete="current-password"/>
+    </div>
+    <button class="auth-submit" id="authSubmitBtn" onclick="submitAuth()">Masuk</button>
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-switch" id="authSwitch">Belum punya akun? <a onclick="toggleAuthMode()">Daftar di sini</a></div>
+  </div>
+</div>
+
 <div id="sidebar">
   <div style="padding:14px;">
     <div class="sidebar-head" style="padding:0 0 12px;">
@@ -247,6 +294,7 @@
   <div class="sidebar-section">Riwayat Percakapan</div>
   <div id="conv-list"><div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div></div>
   <div class="sidebar-footer">
+    <div id="authArea"></div>
     <a class="sidebar-link" href="https://apimindbot-genius.vercel.app/signup.html" target="_blank" rel="noopener noreferrer">🔑 API Key</a>
   </div>
 </div>
@@ -348,6 +396,15 @@
   </footer>
 </div>
 <script>
+  // ── KONFIGURASI SUPABASE ──
+  // Ganti dengan URL & anon key project Supabase-mu (Project Settings → API).
+  // anon key AMAN dipakai di frontend — akses data tetap dibatasi oleh Row Level Security.
+  const SUPABASE_URL = 'https://xxxxxxxxxxxx.supabase.co';
+  const SUPABASE_ANON_KEY = 'PASTE_ANON_KEY_DI_SINI';
+  const supabaseClient = (SUPABASE_URL.includes('xxxx') || SUPABASE_ANON_KEY.includes('PASTE'))
+    ? null
+    : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
   let deviceId = localStorage.getItem('mbg_device_id');
   if (!deviceId) {
     deviceId = 'dev_' + Math.random().toString(36).substr(2, 12);
@@ -358,58 +415,225 @@
   let selectedFile = null;
   let notifEnabled = localStorage.getItem('notif_enabled') !== 'false';
 
+  // ── AUTH STATE ──
+  let currentUser = null;      // objek user Supabase saat login, null jika tamu
+  let currentSession = null;   // session Supabase (berisi access_token)
+  let authMode = 'login';      // 'login' atau 'signup'
+
+  function isAuthed() { return !!(currentUser && currentSession); }
+  function authToken() { return currentSession ? currentSession.access_token : null; }
+
+  function authHeaders() {
+    const t = authToken();
+    return t ? { 'Authorization': 'Bearer ' + t } : {};
+  }
+
+  function openAuthModal(mode) {
+    authMode = mode || 'login';
+    updateAuthModalTexts();
+    document.getElementById('authError').classList.remove('show');
+    document.getElementById('auth-overlay').classList.add('show');
+  }
+  function closeAuthModal() { document.getElementById('auth-overlay').classList.remove('show'); }
+  function toggleAuthMode() { authMode = authMode === 'login' ? 'signup' : 'login'; updateAuthModalTexts(); }
+  function updateAuthModalTexts() {
+    const isLogin = authMode === 'login';
+    document.getElementById('authTitle').innerHTML = isLogin ? 'Masuk ke <span>Mindbot Genius</span>' : 'Daftar ke <span>Mindbot Genius</span>';
+    document.getElementById('authSubmitBtn').textContent = isLogin ? 'Masuk' : 'Daftar';
+    document.getElementById('authSwitch').innerHTML = isLogin
+      ? 'Belum punya akun? <a onclick="toggleAuthMode()">Daftar di sini</a>'
+      : 'Sudah punya akun? <a onclick="toggleAuthMode()">Masuk di sini</a>';
+  }
+
+  async function submitAuth() {
+    if (!supabaseClient) { showError('Supabase belum dikonfigurasi di frontend'); return; }
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const errEl = document.getElementById('authError');
+    errEl.classList.remove('show');
+    if (!email || !password) { errEl.textContent = 'Email dan password wajib diisi'; errEl.classList.add('show'); return; }
+    if (password.length < 6) { errEl.textContent = 'Password minimal 6 karakter'; errEl.classList.add('show'); return; }
+
+    const btn = document.getElementById('authSubmitBtn');
+    btn.disabled = true; btn.textContent = 'Memproses...';
+    try {
+      let result;
+      if (authMode === 'login') {
+        result = await supabaseClient.auth.signInWithPassword({ email, password });
+      } else {
+        result = await supabaseClient.auth.signUp({ email, password });
+      }
+      if (result.error) throw result.error;
+
+      if (authMode === 'signup' && !result.data.session) {
+        // Project dengan verifikasi email aktif: sesi belum langsung ada
+        errEl.style.color = '#4ade80';
+        errEl.textContent = 'Akun dibuat! Cek email untuk verifikasi, lalu login.';
+        errEl.classList.add('show');
+        btn.disabled = false; btn.textContent = 'Daftar';
+        return;
+      }
+
+      currentUser = result.data.user;
+      currentSession = result.data.session;
+      closeAuthModal();
+      await onLoginSuccess();
+    } catch (e) {
+      errEl.style.color = '#f87171';
+      errEl.textContent = e.message || 'Gagal memproses. Coba lagi.';
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false; btn.textContent = authMode === 'login' ? 'Masuk' : 'Daftar';
+    }
+  }
+
+  async function signOut() {
+    if (!supabaseClient) return;
+    await supabaseClient.auth.signOut();
+    currentUser = null; currentSession = null;
+    renderAuthArea();
+    newChat();
+    loadConversations();
+    renderMemoryList();
+  }
+
+  function renderAuthArea() {
+    const el = document.getElementById('authArea');
+    if (!el) return;
+    if (isAuthed()) {
+      el.innerHTML = `
+        <div class="user-chip">
+          <span class="sync-dot" title="Tersinkron ke akun"></span>
+          <span class="email">${escapeHtml(currentUser.email || '')}</span>
+        </div>
+        <button class="code-btn" style="width:100%;padding:6px;" onclick="signOut()">🚪 Keluar</button>`;
+    } else {
+      el.innerHTML = `<button class="btn-login" onclick="openAuthModal('login')">🔐 Masuk / Daftar</button>
+        <div style="font-size:9px;font-family:'DM Mono',monospace;color:var(--text-dim);text-align:center;margin-bottom:6px;">Masuk supaya bisa dipakai lintas perangkat</div>`;
+    }
+  }
+
+  // Dipanggil setelah login/signup sukses (atau saat sesi lama ditemukan
+  // waktu buka app): tarik ulang percakapan & ingatan dari server.
+  async function onLoginSuccess() {
+    renderAuthArea();
+    sendNotification && null;
+    newChat();
+    await loadConversations();
+    await renderMemoryList();
+  }
+
+  async function initAuth() {
+    if (!supabaseClient) { renderAuthArea(); return; }
+    const { data } = await supabaseClient.auth.getSession();
+    if (data && data.session) {
+      currentSession = data.session;
+      currentUser = data.session.user;
+    }
+    renderAuthArea();
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      currentSession = session;
+      currentUser = session ? session.user : null;
+      renderAuthArea();
+    });
+  }
+
   // ── INGATAN AI (memory) ──
-  // Fakta penting tentang pengguna diekstrak oleh AI dari tiap pertukaran pesan
-  // dan disimpan di localStorage per perangkat (deviceId), sehingga tetap ada
-  // walau pengguna membuka "Percakapan Baru" atau balik lagi lain hari.
+  // Jika sudah login: fakta disimpan permanen di Supabase (tabel memory_facts),
+  // tersedia di perangkat manapun. Jika masih tamu: tetap dipakai localStorage
+  // per perangkat seperti sebelumnya, supaya app tetap jalan tanpa akun.
   function getMemoryKey() { return 'mbg_memory_' + deviceId; }
 
-  function getMemory() {
+  function getLocalMemory() {
     try { return JSON.parse(localStorage.getItem(getMemoryKey()) || '[]'); }
     catch(e) { return []; }
   }
-
-  function setMemory(arr) {
+  function setLocalMemory(arr) {
     try { localStorage.setItem(getMemoryKey(), JSON.stringify(arr.slice(0, 60))); }
     catch(e) { console.warn('Gagal menyimpan ingatan:', e); }
   }
 
-  function addMemoryFacts(facts) {
+  // Cache ringan { id, fact } untuk render di sidebar. id null untuk item localStorage
+  // (dihapus berdasarkan index), berisi uuid Supabase untuk item milik akun.
+  let memoryCache = [];
+
+  async function loadMemory() {
+    if (isAuthed()) {
+      try {
+        const res = await fetch('/api/memory', { headers: authHeaders() });
+        if (res.ok) { memoryCache = await res.json(); return memoryCache; }
+      } catch(e) { console.warn('Gagal memuat ingatan dari server:', e); }
+      memoryCache = [];
+      return memoryCache;
+    }
+    memoryCache = getLocalMemory().map((f, i) => ({ id: 'local_'+i, fact: f }));
+    return memoryCache;
+  }
+
+  function getMemoryFactsOnly() { return memoryCache.map(m => m.fact); }
+
+  async function addMemoryFacts(facts) {
     if (!facts || !facts.length) return;
-    const merged = getMemory();
-    facts.forEach(f => {
-      const norm = (f || '').trim();
-      if (norm && !merged.some(m => m.toLowerCase() === norm.toLowerCase())) merged.push(norm);
-    });
-    while (merged.length > 60) merged.shift(); // buang yang paling lama jika kepenuhan
-    setMemory(merged);
-    renderMemoryList();
+    if (isAuthed()) {
+      try {
+        await fetch('/api/memory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ facts })
+        });
+      } catch(e) { console.warn('Gagal simpan ingatan ke server:', e); }
+    } else {
+      const merged = getLocalMemory();
+      facts.forEach(f => {
+        const norm = (f || '').trim();
+        if (norm && !merged.some(m => m.toLowerCase() === norm.toLowerCase())) merged.push(norm);
+      });
+      while (merged.length > 60) merged.shift();
+      setLocalMemory(merged);
+    }
+    await loadMemory();
+    renderMemoryListFromCache();
   }
 
-  function removeMemoryFact(idx) {
-    const current = getMemory();
-    current.splice(idx, 1);
-    setMemory(current);
-    renderMemoryList();
+  async function removeMemoryFact(id) {
+    if (isAuthed() && !String(id).startsWith('local_')) {
+      try { await fetch('/api/memory/' + id, { method: 'DELETE', headers: authHeaders() }); } catch(e) {}
+    } else {
+      const idx = parseInt(String(id).replace('local_',''), 10);
+      const current = getLocalMemory();
+      current.splice(idx, 1);
+      setLocalMemory(current);
+    }
+    await loadMemory();
+    renderMemoryListFromCache();
   }
 
-  function clearMemory() {
-    setMemory([]);
-    renderMemoryList();
+  async function clearMemory() {
+    if (isAuthed()) {
+      try { await fetch('/api/memory', { method: 'DELETE', headers: authHeaders() }); } catch(e) {}
+    } else {
+      setLocalMemory([]);
+    }
+    await loadMemory();
+    renderMemoryListFromCache();
   }
 
-  function renderMemoryList() {
+  async function renderMemoryList() {
+    await loadMemory();
+    renderMemoryListFromCache();
+  }
+
+  function renderMemoryListFromCache() {
     const el = document.getElementById('memory-list-sidebar');
     if (!el) return;
-    const mem = getMemory();
-    if (!mem.length) {
+    if (!memoryCache.length) {
       el.innerHTML = '<div class="memory-empty">Belum ada ingatan.<br/>AI akan mulai mengingat hal penting seiring percakapan berjalan.</div>';
       return;
     }
-    el.innerHTML = mem.map((f, i) => `
+    el.innerHTML = memoryCache.map((m) => `
       <div class="memory-item">
-        <span>${escapeHtml(f)}</span>
-        <button class="memory-del" onclick="removeMemoryFact(${i})" title="Hapus">✕</button>
+        <span>${escapeHtml(m.fact)}</span>
+        <button class="memory-del" onclick="removeMemoryFact('${m.id}')" title="Hapus">✕</button>
       </div>`).join('');
   }
 
@@ -423,29 +647,36 @@
   }
 
   function confirmClearMemory() {
-    if (confirm('Hapus semua ingatan AI tentang kamu di perangkat ini? Tindakan ini tidak bisa dibatalkan.')) clearMemory();
+    if (confirm('Hapus semua ingatan AI tentang kamu? Tindakan ini tidak bisa dibatalkan.')) clearMemory();
   }
 
   // Diminta ke server di latar belakang setelah tiap balasan AI, supaya
   // fakta baru (nama, preferensi, proyek yang dikerjakan, dll) ikut tersimpan.
+  // Jika sudah login, server langsung menyimpannya ke Supabase; kalau tamu,
+  // hasilnya dikembalikan ke klien dan disimpan ke localStorage seperti biasa.
   async function extractAndSaveMemory(userText, aiText) {
     if (!userText) return;
     try {
-      const existingMemory = getMemory();
+      const existingMemory = getMemoryFactsOnly();
       const res = await fetch('/api/memory/extract', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ userText, aiText, existingMemory })
       });
       if (!res.ok) return;
       const data = await res.json();
-      if (data.facts && data.facts.length) addMemoryFacts(data.facts);
+      if (data.facts && data.facts.length && !isAuthed()) {
+        // Tamu: server tidak menyimpan apa-apa (tidak ada user_id), simpan lokal di sini.
+        await addMemoryFacts(data.facts);
+      } else if (data.facts && data.facts.length && isAuthed()) {
+        // Sudah login: server sudah menyimpan ke DB, cukup refresh cache sidebar.
+        await loadMemory();
+        renderMemoryListFromCache();
+      }
     } catch(e) { console.warn('Gagal memperbarui ingatan:', e); }
   }
 
   // ── Daily Streak ──
-  // Format tanggal lokal YYYY-MM-DD (bukan UTC), supaya "hari" mengikuti hari
-  // di zona waktu pengguna, bukan berbalik tengah malam UTC.
   function todayKey(d = new Date()) {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -464,21 +695,13 @@
     let isNewDay = false;
 
     if (!lastVisit) {
-      // Kunjungan pertama sepanjang masa
       streak = 1;
       isNewDay = true;
     } else if (lastVisit === today) {
-      // Sudah buka hari ini sebelumnya, streak tidak berubah
       isNewDay = false;
     } else {
       const gap = daysBetween(lastVisit, today);
-      if (gap === 1) {
-        // Buka lagi tepat hari berikutnya → streak lanjut
-        streak += 1;
-      } else {
-        // Ada hari yang terlewat → streak reset
-        streak = 1;
-      }
+      if (gap === 1) { streak += 1; } else { streak = 1; }
       isNewDay = true;
     }
 
@@ -674,41 +897,68 @@
     document.getElementById('input').focus();
   });
 
-  // Cegah browser membuka file jika ter-drop di luar window/tab
   window.addEventListener('dragover', e => { if (isFileDrag(e)) e.preventDefault(); }, false);
   window.addEventListener('drop', e => { if (isFileDrag(e)) e.preventDefault(); }, false);
 
   function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); }
   function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
 
-  function getAllConversations() {
+  // ── PERCAKAPAN: server (Supabase, lintas perangkat) jika login,
+  // fallback ke localStorage per perangkat jika masih tamu ──
+  let conversationsCache = [];
+
+  function getLocalConversations() {
     const keys = Object.keys(localStorage).filter(k => k.startsWith('conv_'));
     return keys.map(k => { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }).filter(Boolean).sort((a,b) => b.updatedAt - a.updatedAt);
   }
 
-  function saveConversation(conv) {
+  async function fetchConversations() {
+    if (isAuthed()) {
+      try {
+        const res = await fetch('/api/conversations', { headers: authHeaders() });
+        if (res.ok) {
+          const rows = await res.json();
+          conversationsCache = rows.map(r => ({ id: r.id, title: r.title, preview: r.preview, updatedAt: new Date(r.updated_at).getTime() }));
+          return conversationsCache;
+        }
+      } catch(e) { console.warn('Gagal memuat percakapan dari server:', e); }
+      conversationsCache = [];
+      return conversationsCache;
+    }
+    conversationsCache = getLocalConversations();
+    return conversationsCache;
+  }
+
+  async function saveConversation(conv) {
+    if (isAuthed()) {
+      try {
+        await fetch('/api/conversations/' + encodeURIComponent(conv.id), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ title: conv.title, messages: conv.messages, preview: conv.preview || '' })
+        });
+      } catch(e) { console.warn('Gagal menyimpan percakapan ke server:', e); }
+      return;
+    }
     try {
       localStorage.setItem('conv_'+conv.id, JSON.stringify(conv));
     } catch(e) {
-      // Kemungkinan localStorage penuh (gambar cukup besar meski sudah dikompres).
-      // Coba buang percakapan lain yang paling lama diupdate lalu simpan ulang.
-      const all = getAllConversations().filter(c => c.id !== conv.id);
+      const all = getLocalConversations().filter(c => c.id !== conv.id);
       let saved = false;
       for (let i = all.length - 1; i >= 0 && !saved; i--) {
         localStorage.removeItem('conv_'+all[i].id);
         try { localStorage.setItem('conv_'+conv.id, JSON.stringify(conv)); saved = true; } catch(e2) {}
       }
       if (!saved) {
-        // Masih gagal → simpan tanpa data gambar supaya percakapan tetap ada
         const fallback = {...conv, messages: conv.messages.map(m => ({...m, imageData: null}))};
         try { localStorage.setItem('conv_'+conv.id, JSON.stringify(fallback)); showError('Penyimpanan penuh, gambar tidak tersimpan'); } catch(e3) {}
       }
-      loadConversations();
     }
   }
 
-  function loadConversations() {
-    const list = getAllConversations();
+  async function loadConversations() {
+    await fetchConversations();
+    const list = conversationsCache;
     const el = document.getElementById('conv-list');
     if (!list.length) { el.innerHTML='<div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div>'; return; }
     el.innerHTML = list.map(c=>`
@@ -723,9 +973,20 @@
     });
   }
 
-  function loadConv(id) {
+  async function loadConv(id) {
     if (id===sessionId) return;
-    const conv = JSON.parse(localStorage.getItem('conv_'+id));
+    let conv = null;
+    if (isAuthed()) {
+      try {
+        const res = await fetch('/api/conversations/' + encodeURIComponent(id), { headers: authHeaders() });
+        if (res.ok) {
+          const row = await res.json();
+          conv = { id: row.id, title: row.title, messages: row.messages || [] };
+        }
+      } catch(e) {}
+    } else {
+      conv = JSON.parse(localStorage.getItem('conv_'+id) || 'null');
+    }
     if (!conv) return showError('Percakapan tidak ditemukan');
     sessionId = id;
     document.getElementById('chat-title').textContent = conv.title;
@@ -741,35 +1002,32 @@
     closeSidebar();
   }
 
-  function deleteConv(id) {
-    localStorage.removeItem('conv_'+id);
+  async function deleteConv(id) {
+    if (isAuthed()) {
+      try { await fetch('/api/conversations/' + encodeURIComponent(id), { method: 'DELETE', headers: authHeaders() }); } catch(e) {}
+    } else {
+      localStorage.removeItem('conv_'+id);
+    }
     if(id===sessionId) newChat();
     loadConversations();
   }
 
   updateDailyStreak();
   requestNotificationPermission();
-  loadConversations();
-  renderMemoryList();
+  initAuth().then(() => { loadConversations(); renderMemoryList(); });
+
   if (localStorage.getItem('memory_section_collapsed') !== 'false') {
     document.getElementById('memory-section').style.display = 'none';
     document.getElementById('memoryToggleIcon').classList.add('collapsed');
   }
 
-  /* ── Keyboard / visualViewport fix ──
-     Jangan pakai translateY pada footer (itu yang bikin text box naik berlebihan).
-     Cukup sesuaikan tinggi #main ke visualViewport.height agar layout flex
-     tetap rapi saat keyboard muncul. */
   function updateAppHeight() {
     const vv = window.visualViewport;
     if (!vv) return;
-    // Tinggi area yang benar-benar terlihat (setelah keyboard muncul)
     const h = vv.height;
     document.documentElement.style.setProperty('--app-height', h + 'px');
-    // Opsional: scroll chat ke bawah supaya pesan terakhir tetap kelihatan
     const chat = document.getElementById('chat');
     if (chat) {
-      // Delay sedikit supaya layout sempat reflow dulu
       requestAnimationFrame(() => {
         chat.scrollTop = chat.scrollHeight;
       });
@@ -780,10 +1038,8 @@
     window.visualViewport.addEventListener('scroll', updateAppHeight);
     updateAppHeight();
   }
-  // Fallback untuk browser lama
   window.addEventListener('resize', updateAppHeight);
 
-  // Saat input difokuskan (keyboard muncul), pastikan chat scroll ke bawah
   document.getElementById('input')?.addEventListener('focus', () => {
     setTimeout(() => {
       const chat = document.getElementById('chat');
@@ -819,7 +1075,6 @@
       </div>`;
     }
     if (role==='ai') {
-      // NOTE: class="model-tag" ditambahkan supaya elemen ini bisa dibuang saat proses copy teks
       const modelLabel = (animate && currentModel) ? `<div class="model-tag" style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text-dim);margin-bottom:6px;display:flex;align-items:center;gap:4px;"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80;display:inline-block;"></span>${currentModelName}</div>` : '';
       const ttsId = 'tts_'+Math.random().toString(36).substr(2,6);
       const cpyId = 'cpy_'+Math.random().toString(36).substr(2,6);
@@ -899,7 +1154,6 @@
     return text;
   }
 
-  // ── Polling helper untuk generate gambar via deAPI (backend async job) ──
   async function pollImageStatus(requestId, { intervalMs = 1500, maxAttempts = 30 } = {}) {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await new Promise(r => setTimeout(r, intervalMs));
@@ -908,7 +1162,7 @@
         const statusRes = await fetch(`/api/imagine/status/${requestId}`);
         statusData = await statusRes.json();
       } catch (e) {
-        continue; // network hiccup sesaat, coba lagi di iterasi berikutnya
+        continue;
       }
       if (statusData.status === 'completed' && statusData.imageUrl) {
         return statusData.imageUrl;
@@ -916,16 +1170,10 @@
       if (statusData.status === 'failed') {
         throw new Error(statusData.error || 'Gagal generate gambar');
       }
-      // status masih 'pending'/'processing' → lanjut polling
     }
     throw new Error('Waktu tunggu habis, gambar belum selesai dibuat');
   }
 
-  // ── Simpan gambar hasil generate secara PERMANEN ──
-  // Link dari layanan image-gen (deAPI/grok-imagine) biasanya sementara dan
-  // dihapus dari server penyedia setelah beberapa hari. Supaya gambar tidak
-  // hilang, kita unduh datanya lalu ubah jadi data URL (base64) yang benar-benar
-  // tersimpan di percakapan — sama seperti cara kita menyimpan gambar upload user.
   async function fetchImageAsDataUrl(url, maxDim = 1000, quality = 0.8) {
     try {
       const res = await fetch(url, { mode: 'cors' });
@@ -939,17 +1187,11 @@
       });
       return await compressImageDataUrl(rawDataUrl, maxDim, quality);
     } catch (e) {
-      // Kemungkinan diblokir CORS oleh server penyedia gambar.
-      // Fallback: tetap pakai URL asli (berisiko kedaluwarsa setelah beberapa hari).
       console.warn('Gagal menyimpan gambar secara permanen, akan pakai link asli (bisa kedaluwarsa):', e);
       return null;
     }
   }
 
-  // ── Judul percakapan dibuat oleh AI, bukan sekadar cuplikan pertanyaan user ──
-  // Meminta model membuat judul singkat berdasarkan isi percakapan (pesan user + balasan AI).
-  // Dikirim ke sessionId sementara (terpisah) supaya tidak ikut tercampur ke riwayat
-  // percakapan yang sesungguhnya di backend.
   async function generateAiTitle(userText, aiText) {
     try {
       const titlePrompt = `Buatkan SATU judul singkat (maksimal 6 kata) untuk percakapan berikut, dalam Bahasa Indonesia. Jawab HANYA dengan judulnya saja, tanpa tanda kutip dan tanpa penjelasan tambahan.
@@ -962,7 +1204,7 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       formData.append('sessionId', 'title_' + Math.random().toString(36).substr(2, 9));
       formData.append('model', currentModel);
 
-      const res = await fetch('/api/chat', { method: 'POST', body: formData });
+      const res = await fetch('/api/chat', { method: 'POST', body: formData, headers: authHeaders() });
       if (!res.ok) return null;
       const data = await res.json();
       if (!data || !data.reply) return null;
@@ -1011,10 +1253,9 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       appendMessage('user', text);
       showTyping();
       try {
-        // 1. Submit job ke /api/imagine — balas cepat dengan requestId
         const res = await fetch('/api/imagine', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({ prompt: text })
         });
         let data;
@@ -1023,11 +1264,8 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
           throw new Error((data && data.error) || 'Gagal generate gambar');
         }
 
-        // 2. Polling status sampai gambar selesai
         const imgUrl = await pollImageStatus(data.requestId);
 
-        // 3. Amankan gambar jadi data URL permanen sebelum ditampilkan/disimpan,
-        //    supaya tidak hilang saat link sementara dari penyedia kedaluwarsa.
         const savedImg = await fetchImageAsDataUrl(imgUrl);
         const imgToUse = savedImg || imgUrl;
 
@@ -1037,8 +1275,6 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
 
         const titleEl = document.getElementById('chat-title');
         const isNewConv = titleEl.classList.contains('new');
-        // Judul sementara (cuplikan prompt) supaya header langsung terisi;
-        // akan ditimpa oleh judul buatan AI begitu selesai dibuat.
         let interimTitle = titleEl.textContent;
         if (isNewConv) {
           interimTitle = '🎨 ' + text.slice(0,35);
@@ -1046,26 +1282,17 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
           titleEl.classList.remove('new');
         }
 
-        const ec = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
-        const msgs = ec ? ec.messages : [];
-        msgs.push({ role:'user', textContent: text });
-        msgs.push({ role:'assistant', textContent: `🎨 Gambar: "${text}"`, generatedImageUrl: imgToUse });
-        saveConversation({ id:sessionId, title:interimTitle, messages:msgs, createdAt:ec?.createdAt||Date.now(), updatedAt:Date.now() });
+        const msgs = [{ role:'user', textContent: text }, { role:'assistant', textContent: `🎨 Gambar: "${text}"`, generatedImageUrl: imgToUse }];
+        await saveConversation({ id:sessionId, title:interimTitle, messages:msgs, createdAt:Date.now(), updatedAt:Date.now(), preview: `🎨 ${text}`.slice(0,80) });
         loadConversations();
 
-        // Minta AI membuat judul yang lebih deskriptif untuk percakapan gambar ini,
-        // dijalankan di latar belakang supaya tidak menunda tampilnya gambar.
         if (isNewConv) {
           const thisSession = sessionId;
-          generateAiTitle(text, `Gambar yang dibuat dari deskripsi: ${text}`).then(aiTitle => {
+          generateAiTitle(text, `Gambar yang dibuat dari deskripsi: ${text}`).then(async aiTitle => {
             if (!aiTitle) return;
             if (thisSession === sessionId) titleEl.textContent = '🎨 ' + aiTitle;
-            const conv = JSON.parse(localStorage.getItem('conv_'+thisSession)||'null');
-            if (conv) {
-              conv.title = '🎨 ' + aiTitle;
-              saveConversation(conv);
-              loadConversations();
-            }
+            await saveConversation({ id: thisSession, title: '🎨 ' + aiTitle, messages: msgs, createdAt: Date.now(), updatedAt: Date.now(), preview: `🎨 ${text}`.slice(0,80) });
+            loadConversations();
           });
         }
       } catch(err) {
@@ -1085,17 +1312,15 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       if(text) formData.append('message', text);
       formData.append('sessionId', sessionId);
       formData.append('model', currentModel);
-      formData.append('memory', JSON.stringify(getMemory()));
+      formData.append('memory', JSON.stringify(getMemoryFactsOnly()));
       if(fileToSend) formData.append('file', fileToSend);
 
-      const res = await fetch('/api/chat', { method:'POST', body: formData });
+      const res = await fetch('/api/chat', { method:'POST', body: formData, headers: authHeaders() });
       let data;
       try { data = await res.json(); } catch(e) { removeTyping(); showError('Server error - coba lagi'); isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); return; }
       removeTyping();
       if(!res.ok) throw new Error(data.error||'Terjadi kesalahan');
 
-      // Jika balasan chat biasa juga menyertakan gambar (mis. model vision yang
-      // ikut menghasilkan gambar), amankan juga jadi data URL permanen.
       let permanentGenImg = data.generatedImageUrl || null;
       if (permanentGenImg) {
         const saved = await fetchImageAsDataUrl(permanentGenImg);
@@ -1110,13 +1335,11 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
         sendNotification('🤖 Mindbot Genius', data.reply);
       }
 
-      // Update ingatan AI di latar belakang, tidak menunda tampilan balasan
+      // Update ingatan AI di latar belakang (server simpan langsung jika login)
       if (text) extractAndSaveMemory(text, data.reply);
 
       const titleEl = document.getElementById('chat-title');
       const isNewConv = titleEl.classList.contains('new');
-      // Judul sementara supaya header langsung terisi; akan ditimpa oleh
-      // judul buatan AI (bukan sekadar cuplikan pertanyaan user) begitu selesai dibuat.
       let interimTitle = titleEl.textContent;
       if (isNewConv) {
         interimTitle = data.title || (text ? text.slice(0,35) : (fileName || 'Percakapan Baru'));
@@ -1124,36 +1347,41 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
         titleEl.classList.remove('new');
       }
 
-      const existingConv = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
-      const msgs = existingConv ? existingConv.messages : [];
+      let existingMsgs = [];
+      if (!isNewConv) {
+        if (isAuthed()) {
+          try {
+            const r = await fetch('/api/conversations/' + encodeURIComponent(sessionId), { headers: authHeaders() });
+            if (r.ok) existingMsgs = (await r.json()).messages || [];
+          } catch(e) {}
+        } else {
+          const ec = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
+          existingMsgs = ec ? ec.messages : [];
+        }
+      }
+      const msgs = existingMsgs;
       msgs.push({ role:'user', textContent: text, imageData: imagePreview||null, fileName: fileName||null });
       msgs.push({ role:'assistant', textContent: data.reply, generatedImageUrl: permanentGenImg });
       const convData = {
         id: sessionId,
         title: interimTitle,
         messages: msgs,
-        createdAt: existingConv?.createdAt || Date.now(),
+        createdAt: Date.now(),
         updatedAt: Date.now(),
         preview: data.reply.slice(0,80)
       };
-      saveConversation(convData);
+      await saveConversation(convData);
       loadConversations();
 
-      // ── Minta AI membuat judul percakapan yang sesungguhnya ──
-      // Dijalankan di latar belakang supaya tidak menunda balasan yang sudah tampil di layar.
       if (isNewConv) {
         const thisSession = sessionId;
-        generateAiTitle(text, data.reply).then(aiTitle => {
+        generateAiTitle(text, data.reply).then(async aiTitle => {
           if (!aiTitle) return;
           if (thisSession === sessionId) {
-            titleEl.textContent = aiTitle; // update header hanya jika masih di percakapan yang sama
+            titleEl.textContent = aiTitle;
           }
-          const conv = JSON.parse(localStorage.getItem('conv_'+thisSession)||'null');
-          if (conv) {
-            conv.title = aiTitle;
-            saveConversation(conv);
-            loadConversations();
-          }
+          await saveConversation({ ...convData, id: thisSession, title: aiTitle });
+          loadConversations();
         });
       }
     } catch(err){ removeTyping(); showError(err.message); }
@@ -1164,8 +1392,6 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
     return new Promise(res => { const r=new FileReader(); r.onload=e=>res(e.target.result); r.readAsDataURL(file); });
   }
 
-  // Perkecil gambar sebelum disimpan supaya tidak hilang saat pindah percakapan
-  // (localStorage punya batas ukuran, gambar asli sering terlalu besar).
   function compressImageDataUrl(dataUrl, maxDim = 900, quality = 0.7) {
     return new Promise(resolve => {
       const img = new Image();
@@ -1280,8 +1506,6 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
     return idCount >= 2 ? 'id' : 'en';
   }
 
-  // ── FUNGSI DIPERBARUI: label model (Mindbot v1.0, dll) & toolbar kode
-  // sekarang dibuang dari clone sebelum teks disalin, jadi tidak ikut ter-copy.
   function copyMessage(btn, btnId) {
     const bubble = btn.closest('.bubble');
     const contentEl = bubble.querySelector('.bubble-content');
@@ -1289,11 +1513,8 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
 
     const clone = contentEl.cloneNode(true);
 
-    // buang label model & toolbar tombol kode (Salin/Unduh) sebelum disalin
     clone.querySelectorAll('.model-tag, .code-toolbar').forEach(el => el.remove());
-    // ubah <br> jadi baris baru asli supaya format tetap rapi
     clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
-    // beri jarak baris di sekitar blok kode
     clone.querySelectorAll('.code-block').forEach(cb => {
       cb.insertAdjacentText('beforebegin', '\n');
       cb.insertAdjacentText('afterend', '\n');
