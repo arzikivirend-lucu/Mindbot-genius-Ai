@@ -7,7 +7,6 @@
   <link rel="icon" type="image/png" href="logo.png"/>
   <link rel="shortcut icon" type="image/x-icon" href="logo.ico"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
     :root {
       --bg: #0a0c14; --surface: #0f1220; --surface2: #171b2e;
@@ -196,7 +195,7 @@
       #modelBtnLabel { max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .model-dropdown { min-width: 220px; right: 0; }
       footer { padding: 8px 12px env(safe-area-inset-bottom, 12px); padding-bottom: max(12px, env(safe-area-inset-bottom)); }
-      .input-box { font-size: 16px; padding: 10px 12px; } /* 16px mencegah auto-zoom di iOS */
+      .input-box { font-size: 16px; padding: 10px 12px; }
       .upload-btn, .voice-btn, .send-btn { width: 42px; height: 42px; }
       .bubble { max-width: 90%; font-size: 13px; padding: 10px 13px; }
       .message.user .bubble { max-width: 85%; }
@@ -211,31 +210,27 @@
       .btn-icon { padding: 5px 7px; }
       .header-title { max-width: 100px; }
     }
-    /* ── AUTH MODAL ── */
-    #auth-overlay { display: none; position: fixed; inset: 0; z-index: 600; background: rgba(6,8,16,0.88); backdrop-filter: blur(6px); align-items: center; justify-content: center; padding: 16px; }
-    #auth-overlay.show { display: flex; }
-    .auth-card { width: 100%; max-width: 340px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-    .auth-card h3 { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
-    .auth-card h3 span { color: var(--gold); }
-    .auth-sub { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5; }
+    .auth-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 600; align-items: center; justify-content: center; padding: 16px; }
+    .auth-modal-overlay.show { display: flex; }
+    .auth-modal { width: 100%; max-width: 340px; background: #0d0f1a; border: 1px solid var(--border); border-radius: 16px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); position: relative; }
+    .auth-modal h3 { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+    .auth-modal .auth-sub { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-bottom: 16px; }
     .auth-field { margin-bottom: 10px; }
     .auth-field label { display: block; font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-bottom: 5px; letter-spacing: 0.5px; }
-    .auth-field input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: 9px 11px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; }
+    .auth-field input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 9px 11px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; }
     .auth-field input:focus { border-color: var(--gold); }
-    .auth-submit { width: 100%; margin-top: 6px; padding: 10px; border: none; border-radius: 10px; background: linear-gradient(135deg, #1a4fc4, var(--gold)); color: #fff; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
+    .auth-submit { width: 100%; padding: 10px; margin-top: 6px; background: linear-gradient(135deg, #1a4fc4, var(--gold)); border: none; border-radius: 9px; color: #fff; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
     .auth-submit:hover { opacity: 0.85; } .auth-submit:disabled { opacity: 0.5; cursor: not-allowed; }
-    .auth-switch { text-align: center; margin-top: 14px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); }
-    .auth-switch a { color: var(--gold); text-decoration: none; cursor: pointer; }
-    .auth-close { position: absolute; top: 14px; right: 16px; background: none; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer; }
-    .auth-card { position: relative; }
-    .auth-error { font-size: 11px; font-family: 'DM Mono', monospace; color: #f87171; margin-top: 8px; display: none; line-height: 1.5; }
-    .auth-error.show { display: block; }
-    .auth-note { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-top: 12px; line-height: 1.5; text-align: center; }
-    .user-chip { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
-    .user-chip .email { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-    .user-chip .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
-    .btn-login { width: 100%; padding: 8px 12px; border: 1px solid var(--gold); background: rgba(200,168,75,0.08); border-radius: 10px; color: var(--gold); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-bottom: 8px; }
-    .btn-login:hover { background: rgba(200,168,75,0.16); }
+    .auth-switch { text-align: center; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-top: 14px; }
+    .auth-switch a { color: var(--gold); cursor: pointer; text-decoration: underline; }
+    .auth-error { font-size: 11px; font-family: 'DM Mono', monospace; color: #f87171; margin-top: 8px; min-height: 14px; }
+    .auth-close { position: absolute; top: 10px; right: 14px; background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; }
+    .user-chip { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin: 0 0 8px; }
+    .user-chip .avatar-letter { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg,#1a4fc4,var(--gold)); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; flex-shrink: 0; }
+    .user-chip .user-email { flex: 1; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-chip .logout-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 3px 6px; border-radius: 6px; }
+    .user-chip .logout-btn:hover { color: #f87171; background: rgba(220,38,38,0.15); }
+    .sync-badge { font-size: 9px; font-family: 'DM Mono', monospace; padding: 2px 7px; border-radius: 5px; background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.2); margin-left: 6px; }
   </style>
 </head>
 <body>
@@ -249,23 +244,22 @@
 </div>
 <div id="lightbox" onclick="closeLightbox()"><img id="lb-img" src="" alt=""/></div>
 
-<!-- ── AUTH MODAL: login / daftar ── -->
-<div id="auth-overlay">
-  <div class="auth-card">
+<div class="auth-modal-overlay" id="authModalOverlay">
+  <div class="auth-modal">
     <button class="auth-close" onclick="closeAuthModal()">✕</button>
-    <h3 id="authTitle">Masuk ke <span>Mindbot Genius</span></h3>
-    <div class="auth-sub" id="authSub">Login supaya percakapan &amp; ingatan AI-mu tersimpan dan bisa diakses dari perangkat lain.</div>
+    <h3 id="authTitle">Masuk</h3>
+    <div class="auth-sub" id="authSub">Masuk dengan email &amp; password (boleh email apa saja, tidak harus Gmail).</div>
     <div class="auth-field">
-      <label>Username</label>
-      <input type="text" id="authUsername" placeholder="username kamu" autocomplete="username"/>
+      <label>Email</label>
+      <input type="email" id="authEmail" placeholder="email@apa-saja.com" autocomplete="email"/>
     </div>
     <div class="auth-field">
       <label>Password</label>
       <input type="password" id="authPassword" placeholder="Minimal 6 karakter" autocomplete="current-password"/>
     </div>
-    <button class="auth-submit" id="authSubmitBtn" onclick="submitAuth()">Masuk</button>
+    <button class="auth-submit" id="authSubmitBtn" onclick="submitAuthForm()">Masuk</button>
     <div class="auth-error" id="authError"></div>
-    <div class="auth-switch" id="authSwitch">Belum punya akun? <a onclick="toggleAuthMode()">Daftar di sini</a></div>
+    <div class="auth-switch" id="authSwitch">Belum punya akun? <a onclick="toggleAuthMode()">Daftar</a></div>
   </div>
 </div>
 
@@ -283,6 +277,9 @@
       Percakapan Baru
     </button>
   </div>
+  <div style="padding:0 12px;" id="authAreaSidebar">
+    <button class="btn-icon" style="width:100%;padding:8px;margin-bottom:8px;" id="loginBtnSidebar" onclick="openAuthModal('login')">🔑 Masuk / Daftar untuk sinkron perangkat</button>
+  </div>
   <div class="memory-section-head" onclick="toggleMemorySection()">
     <span class="label">🧠 Ingatan AI</span>
     <span class="memory-toggle-icon" id="memoryToggleIcon">▾</span>
@@ -294,7 +291,6 @@
   <div class="sidebar-section">Riwayat Percakapan</div>
   <div id="conv-list"><div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div></div>
   <div class="sidebar-footer">
-    <div id="authArea"></div>
     <a class="sidebar-link" href="https://apimindbot-genius.vercel.app/signup.html" target="_blank" rel="noopener noreferrer">🔑 API Key</a>
   </div>
 </div>
@@ -395,15 +391,25 @@
     </div>
   </footer>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-  // ── KONFIGURASI SUPABASE ──
-  // Ganti dengan URL & anon key project Supabase-mu (Project Settings → API).
-  // anon key AMAN dipakai di frontend — akses data tetap dibatasi oleh Row Level Security.
-  const SUPABASE_URL = 'https://fdausfmrbalnwnpoespv.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYXVzZm1yYmFsbnducG9lc3B2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNDIxNzQsImV4cCI6MjEwMzkxODE3NH0.ln7MX0M4ZfvbSoYHLLAsVJAO3GGGm3KGmtN-T_sQBGE';
-  const supabaseClient = (SUPABASE_URL.includes('xxxx') || SUPABASE_ANON_KEY.includes('PASTE'))
-    ? null
-    : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // ══════════════════════════════════════════════════════════════
+  // AUTH LINTAS PERANGKAT (Supabase) — EMAIL + PASSWORD SAJA
+  // Tidak memakai Google / Gmail OAuth.
+  // Di Supabase Dashboard → Authentication → Providers → Email
+  // matikan "Confirm email" agar user tidak perlu cek inbox.
+  // ══════════════════════════════════════════════════════════════
+  const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';
+  const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
+
+  let supabaseClient = null;
+  let currentUser = null;
+
+  if (SUPABASE_URL.includes('YOUR-PROJECT')) {
+    console.warn('⚠️ Supabase belum dikonfigurasi. Isi SUPABASE_URL & SUPABASE_ANON_KEY di index.html agar login lintas perangkat aktif. Mode tamu (localStorage) tetap berjalan seperti biasa.');
+  } else {
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
 
   let deviceId = localStorage.getItem('mbg_device_id');
   if (!deviceId) {
@@ -415,167 +421,107 @@
   let selectedFile = null;
   let notifEnabled = localStorage.getItem('notif_enabled') !== 'false';
 
-  // ── AUTH STATE ──
-  let currentUser = null;      // objek user Supabase saat login, null jika tamu
-  let currentSession = null;   // session Supabase (berisi access_token)
-  let authMode = 'login';      // 'login' atau 'signup'
-
-  function isAuthed() { return !!(currentUser && currentSession); }
-  function authToken() { return currentSession ? currentSession.access_token : null; }
-
-  function authHeaders() {
-    const t = authToken();
-    return t ? { 'Authorization': 'Bearer ' + t } : {};
-  }
+  let authMode = 'login';
 
   function openAuthModal(mode) {
-    authMode = mode || 'login';
-    updateAuthModalTexts();
-    document.getElementById('authError').classList.remove('show');
-    document.getElementById('auth-overlay').classList.add('show');
+    authMode = mode;
+    updateAuthModalUi();
+    document.getElementById('authEmail').value = '';
+    document.getElementById('authPassword').value = '';
+    document.getElementById('authError').textContent = '';
+    document.getElementById('authModalOverlay').classList.add('show');
+    closeSidebar();
   }
-  function closeAuthModal() { document.getElementById('auth-overlay').classList.remove('show'); }
-  function toggleAuthMode() { authMode = authMode === 'login' ? 'signup' : 'login'; updateAuthModalTexts(); }
-  function updateAuthModalTexts() {
+  function closeAuthModal() { document.getElementById('authModalOverlay').classList.remove('show'); }
+  function toggleAuthMode() { authMode = authMode === 'login' ? 'signup' : 'login'; updateAuthModalUi(); }
+  function updateAuthModalUi() {
     const isLogin = authMode === 'login';
-    document.getElementById('authTitle').innerHTML = isLogin ? 'Masuk ke <span>Mindbot Genius</span>' : 'Daftar ke <span>Mindbot Genius</span>';
+    document.getElementById('authTitle').textContent = isLogin ? 'Masuk' : 'Buat Akun';
     document.getElementById('authSubmitBtn').textContent = isLogin ? 'Masuk' : 'Daftar';
+    document.getElementById('authSub').textContent = isLogin
+      ? 'Masuk dengan email & password (boleh email apa saja, tidak harus Gmail).'
+      : 'Daftar dengan email & password. Email boleh dari provider mana saja.';
     document.getElementById('authSwitch').innerHTML = isLogin
-      ? 'Belum punya akun? <a onclick="toggleAuthMode()">Daftar di sini</a>'
-      : 'Sudah punya akun? <a onclick="toggleAuthMode()">Masuk di sini</a>';
+      ? 'Belum punya akun? <a onclick="toggleAuthMode()">Daftar</a>'
+      : 'Sudah punya akun? <a onclick="toggleAuthMode()">Masuk</a>';
   }
 
-  // Supabase Auth secara internal butuh field "email", tapi kita tidak mau
-  // minta email ke pengguna. Solusinya: dari username dibuat "email semu"
-  // yang unik & konsisten (username tidak pernah dikirim ke mana pun, cuma
-  // dipakai sebagai identifier internal). Username asli disimpan terpisah
-  // di user_metadata supaya bisa ditampilkan apa adanya di UI.
-  const AUTH_EMAIL_DOMAIN = '@users.mindbotgenius.app';
-  function usernameToAuthEmail(username) {
-    const normalized = username.trim().toLowerCase().replace(/[^a-z0-9_.]/g, '');
-    return normalized + AUTH_EMAIL_DOMAIN;
-  }
-  function isValidUsername(username) {
-    return /^[a-zA-Z0-9_.]{3,24}$/.test(username.trim());
-  }
-
-  async function submitAuth() {
-    if (!supabaseClient) { showError('Supabase belum dikonfigurasi di frontend'); return; }
-    const username = document.getElementById('authUsername').value.trim();
+  async function submitAuthForm() {
+    if (!supabaseClient) { showError('Supabase belum dikonfigurasi di index.html'); return; }
+    const email = document.getElementById('authEmail').value.trim();
     const password = document.getElementById('authPassword').value;
     const errEl = document.getElementById('authError');
+    errEl.textContent = '';
     errEl.style.color = '#f87171';
-    errEl.classList.remove('show');
-    if (!username || !password) { errEl.textContent = 'Username dan password wajib diisi'; errEl.classList.add('show'); return; }
-    if (!isValidUsername(username)) { errEl.textContent = 'Username 3-24 karakter, huruf/angka/underscore saja'; errEl.classList.add('show'); return; }
-    if (password.length < 6) { errEl.textContent = 'Password minimal 6 karakter'; errEl.classList.add('show'); return; }
 
-    const authEmail = usernameToAuthEmail(username);
+    if (!email || !password) { errEl.textContent = 'Isi email dan password.'; return; }
+    if (password.length < 6) { errEl.textContent = 'Password minimal 6 karakter.'; return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errEl.textContent = 'Format email tidak valid.';
+      return;
+    }
+
     const btn = document.getElementById('authSubmitBtn');
-    btn.disabled = true; btn.textContent = 'Memproses...';
+    btn.disabled = true;
+    btn.textContent = 'Memproses...';
     try {
-      let result;
       if (authMode === 'login') {
-        result = await supabaseClient.auth.signInWithPassword({ email: authEmail, password });
-        if (result.error && /invalid login credentials/i.test(result.error.message || '')) {
-          throw new Error('Username atau password salah');
-        }
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        closeAuthModal();
       } else {
-        result = await supabaseClient.auth.signUp({
-          email: authEmail,
-          password,
-          options: { data: { username: username } }
-        });
-        if (result.error && /already registered|already exists/i.test(result.error.message || '')) {
-          throw new Error('Username sudah dipakai, coba username lain');
+        const { data, error } = await supabaseClient.auth.signUp({ email, password });
+        if (error) throw error;
+        if (data.session) {
+          closeAuthModal();
+        } else {
+          errEl.style.color = '#4ade80';
+          errEl.textContent = 'Akun dibuat! Jika Confirm email masih aktif di Supabase, cek inbox dulu. Disarankan matikan Confirm email agar langsung masuk.';
         }
       }
-      if (result.error) throw result.error;
-
-      if (authMode === 'signup' && !result.data.session) {
-        // Project masih mewajibkan verifikasi "email" (semu) — matikan opsi
-        // "Confirm email" di Supabase Dashboard supaya signup langsung aktif,
-        // karena email semu ini tidak bisa menerima email verifikasi.
-        errEl.style.color = '#f87171';
-        errEl.textContent = 'Signup butuh verifikasi email di project ini. Matikan "Confirm email" di Supabase Dashboard → Authentication → Settings, lalu daftar ulang.';
-        errEl.classList.add('show');
-        btn.disabled = false; btn.textContent = 'Daftar';
-        return;
-      }
-
-      currentUser = result.data.user;
-      currentSession = result.data.session;
-      closeAuthModal();
-      await onLoginSuccess();
     } catch (e) {
       errEl.style.color = '#f87171';
       errEl.textContent = e.message || 'Gagal memproses. Coba lagi.';
-      errEl.classList.add('show');
     } finally {
-      btn.disabled = false; btn.textContent = authMode === 'login' ? 'Masuk' : 'Daftar';
+      btn.disabled = false;
+      updateAuthModalUi();
     }
   }
 
-  function currentUsername() {
-    if (!currentUser) return '';
-    return (currentUser.user_metadata && currentUser.user_metadata.username) || (currentUser.email || '').split('@')[0];
-  }
-
-  async function signOut() {
+  async function signOutUser() {
     if (!supabaseClient) return;
     await supabaseClient.auth.signOut();
-    currentUser = null; currentSession = null;
-    renderAuthArea();
-    newChat();
-    loadConversations();
-    renderMemoryList();
   }
 
-  function renderAuthArea() {
-    const el = document.getElementById('authArea');
+  function renderAuthAreaSidebar() {
+    const el = document.getElementById('authAreaSidebar');
     if (!el) return;
-    if (isAuthed()) {
+    if (currentUser) {
+      const letter = (currentUser.email || '?').charAt(0).toUpperCase();
       el.innerHTML = `
         <div class="user-chip">
-          <span class="sync-dot" title="Tersinkron ke akun"></span>
-          <span class="email">@${escapeHtml(currentUsername())}</span>
-        </div>
-        <button class="code-btn" style="width:100%;padding:6px;" onclick="signOut()">🚪 Keluar</button>`;
+          <div class="avatar-letter">${letter}</div>
+          <div class="user-email">${escapeHtml(currentUser.email || '')}<span class="sync-badge">tersinkron</span></div>
+          <button class="logout-btn" onclick="signOutUser()" title="Keluar">⎋</button>
+        </div>`;
     } else {
-      el.innerHTML = `<button class="btn-login" onclick="openAuthModal('login')">🔐 Masuk / Daftar</button>
-        <div style="font-size:9px;font-family:'DM Mono',monospace;color:var(--text-dim);text-align:center;margin-bottom:6px;">Masuk supaya bisa dipakai lintas perangkat</div>`;
+      el.innerHTML = `<button class="btn-icon" style="width:100%;padding:8px;margin-bottom:8px;" id="loginBtnSidebar" onclick="openAuthModal('login')">🔑 Masuk / Daftar untuk sinkron perangkat</button>`;
     }
   }
 
-  // Dipanggil setelah login/signup sukses (atau saat sesi lama ditemukan
-  // waktu buka app): tarik ulang percakapan & ingatan dari server.
-  async function onLoginSuccess() {
-    renderAuthArea();
-    sendNotification && null;
-    newChat();
-    await loadConversations();
-    await renderMemoryList();
+  async function handleAuthChange(session) {
+    currentUser = session && session.user ? session.user : null;
+    renderAuthAreaSidebar();
+    newChat({ skipFocus: true });
+    await Promise.all([loadConversations(), renderMemoryList()]);
   }
 
-  async function initAuth() {
-    if (!supabaseClient) { renderAuthArea(); return; }
-    const { data } = await supabaseClient.auth.getSession();
-    if (data && data.session) {
-      currentSession = data.session;
-      currentUser = data.session.user;
-    }
-    renderAuthArea();
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-      currentSession = session;
-      currentUser = session ? session.user : null;
-      renderAuthArea();
-    });
+  if (supabaseClient) {
+    supabaseClient.auth.onAuthStateChange((_event, session) => { handleAuthChange(session); });
+    supabaseClient.auth.getSession().then(({ data }) => { handleAuthChange(data.session); });
   }
 
   // ── INGATAN AI (memory) ──
-  // Jika sudah login: fakta disimpan permanen di Supabase (tabel memory_facts),
-  // tersedia di perangkat manapun. Jika masih tamu: tetap dipakai localStorage
-  // per perangkat seperti sebelumnya, supaya app tetap jalan tanpa akun.
   function getMemoryKey() { return 'mbg_memory_' + deviceId; }
 
   function getLocalMemory() {
@@ -587,35 +533,31 @@
     catch(e) { console.warn('Gagal menyimpan ingatan:', e); }
   }
 
-  // Cache ringan { id, fact } untuk render di sidebar. id null untuk item localStorage
-  // (dihapus berdasarkan index), berisi uuid Supabase untuk item milik akun.
   let memoryCache = [];
 
-  async function loadMemory() {
-    if (isAuthed()) {
-      try {
-        const res = await fetch('/api/memory', { headers: authHeaders() });
-        if (res.ok) { memoryCache = await res.json(); return memoryCache; }
-      } catch(e) { console.warn('Gagal memuat ingatan dari server:', e); }
-      memoryCache = [];
-      return memoryCache;
+  async function getMemory() {
+    if (currentUser && supabaseClient) {
+      const { data, error } = await supabaseClient
+        .from('memory_facts').select('id, fact')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: true });
+      if (error) { console.warn('Gagal memuat ingatan dari server:', error.message); return memoryCache.map(m => m.fact); }
+      memoryCache = data || [];
+      return memoryCache.map(m => m.fact);
     }
-    memoryCache = getLocalMemory().map((f, i) => ({ id: 'local_'+i, fact: f }));
-    return memoryCache;
+    memoryCache = getLocalMemory().map(f => ({ id: null, fact: f }));
+    return memoryCache.map(m => m.fact);
   }
-
-  function getMemoryFactsOnly() { return memoryCache.map(m => m.fact); }
 
   async function addMemoryFacts(facts) {
     if (!facts || !facts.length) return;
-    if (isAuthed()) {
-      try {
-        await fetch('/api/memory', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders() },
-          body: JSON.stringify({ facts })
-        });
-      } catch(e) { console.warn('Gagal simpan ingatan ke server:', e); }
+    if (currentUser && supabaseClient) {
+      const existing = memoryCache.map(m => m.fact.toLowerCase());
+      const toInsert = facts.map(f => (f||'').trim()).filter(f => f && !existing.includes(f.toLowerCase()));
+      if (!toInsert.length) return;
+      const rows = toInsert.map(fact => ({ user_id: currentUser.id, fact }));
+      const { error } = await supabaseClient.from('memory_facts').insert(rows);
+      if (error) console.warn('Gagal menyimpan ingatan ke server:', error.message);
     } else {
       const merged = getLocalMemory();
       facts.forEach(f => {
@@ -625,49 +567,46 @@
       while (merged.length > 60) merged.shift();
       setLocalMemory(merged);
     }
-    await loadMemory();
-    renderMemoryListFromCache();
+    await renderMemoryList();
   }
 
-  async function removeMemoryFact(id) {
-    if (isAuthed() && !String(id).startsWith('local_')) {
-      try { await fetch('/api/memory/' + id, { method: 'DELETE', headers: authHeaders() }); } catch(e) {}
+  async function removeMemoryFact(idx) {
+    if (currentUser && supabaseClient) {
+      const item = memoryCache[idx];
+      if (item && item.id) {
+        const { error } = await supabaseClient.from('memory_facts').delete().eq('id', item.id);
+        if (error) { showError('Gagal menghapus ingatan'); return; }
+      }
     } else {
-      const idx = parseInt(String(id).replace('local_',''), 10);
       const current = getLocalMemory();
       current.splice(idx, 1);
       setLocalMemory(current);
     }
-    await loadMemory();
-    renderMemoryListFromCache();
+    await renderMemoryList();
   }
 
   async function clearMemory() {
-    if (isAuthed()) {
-      try { await fetch('/api/memory', { method: 'DELETE', headers: authHeaders() }); } catch(e) {}
+    if (currentUser && supabaseClient) {
+      const { error } = await supabaseClient.from('memory_facts').delete().eq('user_id', currentUser.id);
+      if (error) { showError('Gagal menghapus ingatan'); return; }
     } else {
       setLocalMemory([]);
     }
-    await loadMemory();
-    renderMemoryListFromCache();
+    await renderMemoryList();
   }
 
   async function renderMemoryList() {
-    await loadMemory();
-    renderMemoryListFromCache();
-  }
-
-  function renderMemoryListFromCache() {
     const el = document.getElementById('memory-list-sidebar');
     if (!el) return;
-    if (!memoryCache.length) {
+    const mem = await getMemory();
+    if (!mem.length) {
       el.innerHTML = '<div class="memory-empty">Belum ada ingatan.<br/>AI akan mulai mengingat hal penting seiring percakapan berjalan.</div>';
       return;
     }
-    el.innerHTML = memoryCache.map((m) => `
+    el.innerHTML = mem.map((f, i) => `
       <div class="memory-item">
-        <span>${escapeHtml(m.fact)}</span>
-        <button class="memory-del" onclick="removeMemoryFact('${m.id}')" title="Hapus">✕</button>
+        <span>${escapeHtml(f)}</span>
+        <button class="memory-del" onclick="removeMemoryFact(${i})" title="Hapus">✕</button>
       </div>`).join('');
   }
 
@@ -681,32 +620,21 @@
   }
 
   function confirmClearMemory() {
-    if (confirm('Hapus semua ingatan AI tentang kamu? Tindakan ini tidak bisa dibatalkan.')) clearMemory();
+    if (confirm('Hapus semua ingatan AI tentang kamu' + (currentUser ? ' (akun ini)' : ' di perangkat ini') + '? Tindakan ini tidak bisa dibatalkan.')) clearMemory();
   }
 
-  // Diminta ke server di latar belakang setelah tiap balasan AI, supaya
-  // fakta baru (nama, preferensi, proyek yang dikerjakan, dll) ikut tersimpan.
-  // Jika sudah login, server langsung menyimpannya ke Supabase; kalau tamu,
-  // hasilnya dikembalikan ke klien dan disimpan ke localStorage seperti biasa.
   async function extractAndSaveMemory(userText, aiText) {
     if (!userText) return;
     try {
-      const existingMemory = getMemoryFactsOnly();
+      const existingMemory = await getMemory();
       const res = await fetch('/api/memory/extract', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userText, aiText, existingMemory })
       });
       if (!res.ok) return;
       const data = await res.json();
-      if (data.facts && data.facts.length && !isAuthed()) {
-        // Tamu: server tidak menyimpan apa-apa (tidak ada user_id), simpan lokal di sini.
-        await addMemoryFacts(data.facts);
-      } else if (data.facts && data.facts.length && isAuthed()) {
-        // Sudah login: server sudah menyimpan ke DB, cukup refresh cache sidebar.
-        await loadMemory();
-        renderMemoryListFromCache();
-      }
+      if (data.facts && data.facts.length) addMemoryFacts(data.facts);
     } catch(e) { console.warn('Gagal memperbarui ingatan:', e); }
   }
 
@@ -735,7 +663,11 @@
       isNewDay = false;
     } else {
       const gap = daysBetween(lastVisit, today);
-      if (gap === 1) { streak += 1; } else { streak = 1; }
+      if (gap === 1) {
+        streak += 1;
+      } else {
+        streak = 1;
+      }
       isNewDay = true;
     }
 
@@ -844,7 +776,6 @@
   function openLightbox(src) { document.getElementById('lb-img').src=src; document.getElementById('lightbox').classList.add('show'); }
   function closeLightbox() { document.getElementById('lightbox').classList.remove('show'); }
 
-  // ── File selection: shared by 📎 button and drag-and-drop ──
   function processFile(file) {
     if (!file) return;
     selectedFile = file;
@@ -886,7 +817,6 @@
     document.getElementById('preview-icon').style.display = 'none';
   }
 
-  // ── Drag & drop: menaruh file dari luar sama seperti tombol 📎 ──
   let dragCounter = 0;
   const dropOverlay = document.getElementById('drop-overlay');
 
@@ -937,41 +867,33 @@
   function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); }
   function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
 
-  // ── PERCAKAPAN: server (Supabase, lintas perangkat) jika login,
-  // fallback ke localStorage per perangkat jika masih tamu ──
-  let conversationsCache = [];
-
+  // ── Riwayat percakapan ──
   function getLocalConversations() {
     const keys = Object.keys(localStorage).filter(k => k.startsWith('conv_'));
     return keys.map(k => { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }).filter(Boolean).sort((a,b) => b.updatedAt - a.updatedAt);
   }
 
-  async function fetchConversations() {
-    if (isAuthed()) {
-      try {
-        const res = await fetch('/api/conversations', { headers: authHeaders() });
-        if (res.ok) {
-          const rows = await res.json();
-          conversationsCache = rows.map(r => ({ id: r.id, title: r.title, preview: r.preview, updatedAt: new Date(r.updated_at).getTime() }));
-          return conversationsCache;
-        }
-      } catch(e) { console.warn('Gagal memuat percakapan dari server:', e); }
-      conversationsCache = [];
-      return conversationsCache;
+  async function getAllConversations() {
+    if (currentUser && supabaseClient) {
+      const { data, error } = await supabaseClient
+        .from('conversations').select('id, title, messages, created_at, updated_at, preview')
+        .eq('user_id', currentUser.id)
+        .order('updated_at', { ascending: false });
+      if (error) { console.warn('Gagal memuat percakapan dari server:', error.message); return []; }
+      return (data || []).map(c => ({ id: c.id, title: c.title, messages: c.messages || [], createdAt: new Date(c.created_at).getTime(), updatedAt: new Date(c.updated_at).getTime(), preview: c.preview }));
     }
-    conversationsCache = getLocalConversations();
-    return conversationsCache;
+    return getLocalConversations();
   }
 
   async function saveConversation(conv) {
-    if (isAuthed()) {
-      try {
-        await fetch('/api/conversations/' + encodeURIComponent(conv.id), {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', ...authHeaders() },
-          body: JSON.stringify({ title: conv.title, messages: conv.messages, preview: conv.preview || '' })
-        });
-      } catch(e) { console.warn('Gagal menyimpan percakapan ke server:', e); }
+    if (currentUser && supabaseClient) {
+      const row = {
+        id: conv.id, user_id: currentUser.id, title: conv.title,
+        messages: conv.messages, preview: conv.preview || '',
+        updated_at: new Date(conv.updatedAt || Date.now()).toISOString()
+      };
+      const { error } = await supabaseClient.from('conversations').upsert(row);
+      if (error) { console.warn('Gagal menyinkronkan percakapan:', error.message); showError('Gagal sinkron ke server, dicoba lagi nanti'); }
       return;
     }
     try {
@@ -987,12 +909,12 @@
         const fallback = {...conv, messages: conv.messages.map(m => ({...m, imageData: null}))};
         try { localStorage.setItem('conv_'+conv.id, JSON.stringify(fallback)); showError('Penyimpanan penuh, gambar tidak tersimpan'); } catch(e3) {}
       }
+      loadConversations();
     }
   }
 
   async function loadConversations() {
-    await fetchConversations();
-    const list = conversationsCache;
+    const list = await getAllConversations();
     const el = document.getElementById('conv-list');
     if (!list.length) { el.innerHTML='<div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div>'; return; }
     el.innerHTML = list.map(c=>`
@@ -1009,19 +931,15 @@
 
   async function loadConv(id) {
     if (id===sessionId) return;
-    let conv = null;
-    if (isAuthed()) {
-      try {
-        const res = await fetch('/api/conversations/' + encodeURIComponent(id), { headers: authHeaders() });
-        if (res.ok) {
-          const row = await res.json();
-          conv = { id: row.id, title: row.title, messages: row.messages || [] };
-        }
-      } catch(e) {}
+    let conv;
+    if (currentUser && supabaseClient) {
+      const { data, error } = await supabaseClient.from('conversations').select('*').eq('id', id).single();
+      if (error || !data) return showError('Percakapan tidak ditemukan');
+      conv = { id: data.id, title: data.title, messages: data.messages || [] };
     } else {
-      conv = JSON.parse(localStorage.getItem('conv_'+id) || 'null');
+      conv = JSON.parse(localStorage.getItem('conv_'+id));
+      if (!conv) return showError('Percakapan tidak ditemukan');
     }
-    if (!conv) return showError('Percakapan tidak ditemukan');
     sessionId = id;
     document.getElementById('chat-title').textContent = conv.title;
     document.getElementById('chat-title').classList.remove('new');
@@ -1037,8 +955,9 @@
   }
 
   async function deleteConv(id) {
-    if (isAuthed()) {
-      try { await fetch('/api/conversations/' + encodeURIComponent(id), { method: 'DELETE', headers: authHeaders() }); } catch(e) {}
+    if (currentUser && supabaseClient) {
+      const { error } = await supabaseClient.from('conversations').delete().eq('id', id);
+      if (error) { showError('Gagal menghapus percakapan'); return; }
     } else {
       localStorage.removeItem('conv_'+id);
     }
@@ -1048,8 +967,9 @@
 
   updateDailyStreak();
   requestNotificationPermission();
-  initAuth().then(() => { loadConversations(); renderMemoryList(); });
-
+  loadConversations();
+  renderMemoryList();
+  renderAuthAreaSidebar();
   if (localStorage.getItem('memory_section_collapsed') !== 'false') {
     document.getElementById('memory-section').style.display = 'none';
     document.getElementById('memoryToggleIcon').classList.add('collapsed');
@@ -1238,7 +1158,7 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       formData.append('sessionId', 'title_' + Math.random().toString(36).substr(2, 9));
       formData.append('model', currentModel);
 
-      const res = await fetch('/api/chat', { method: 'POST', body: formData, headers: authHeaders() });
+      const res = await fetch('/api/chat', { method: 'POST', body: formData });
       if (!res.ok) return null;
       const data = await res.json();
       if (!data || !data.reply) return null;
@@ -1289,7 +1209,7 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       try {
         const res = await fetch('/api/imagine', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: text })
         });
         let data;
@@ -1316,8 +1236,12 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
           titleEl.classList.remove('new');
         }
 
-        const msgs = [{ role:'user', textContent: text }, { role:'assistant', textContent: `🎨 Gambar: "${text}"`, generatedImageUrl: imgToUse }];
-        await saveConversation({ id:sessionId, title:interimTitle, messages:msgs, createdAt:Date.now(), updatedAt:Date.now(), preview: `🎨 ${text}`.slice(0,80) });
+        const allConvs = await getAllConversations();
+        const ec = allConvs.find(c => c.id === sessionId) || null;
+        const msgs = ec ? ec.messages : [];
+        msgs.push({ role:'user', textContent: text });
+        msgs.push({ role:'assistant', textContent: `🎨 Gambar: "${text}"`, generatedImageUrl: imgToUse });
+        await saveConversation({ id:sessionId, title:interimTitle, messages:msgs, createdAt:ec?.createdAt||Date.now(), updatedAt:Date.now() });
         loadConversations();
 
         if (isNewConv) {
@@ -1325,8 +1249,13 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
           generateAiTitle(text, `Gambar yang dibuat dari deskripsi: ${text}`).then(async aiTitle => {
             if (!aiTitle) return;
             if (thisSession === sessionId) titleEl.textContent = '🎨 ' + aiTitle;
-            await saveConversation({ id: thisSession, title: '🎨 ' + aiTitle, messages: msgs, createdAt: Date.now(), updatedAt: Date.now(), preview: `🎨 ${text}`.slice(0,80) });
-            loadConversations();
+            const convs = await getAllConversations();
+            const conv = convs.find(c => c.id === thisSession);
+            if (conv) {
+              conv.title = '🎨 ' + aiTitle;
+              await saveConversation(conv);
+              loadConversations();
+            }
           });
         }
       } catch(err) {
@@ -1346,10 +1275,10 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       if(text) formData.append('message', text);
       formData.append('sessionId', sessionId);
       formData.append('model', currentModel);
-      formData.append('memory', JSON.stringify(getMemoryFactsOnly()));
+      formData.append('memory', JSON.stringify(await getMemory()));
       if(fileToSend) formData.append('file', fileToSend);
 
-      const res = await fetch('/api/chat', { method:'POST', body: formData, headers: authHeaders() });
+      const res = await fetch('/api/chat', { method:'POST', body: formData });
       let data;
       try { data = await res.json(); } catch(e) { removeTyping(); showError('Server error - coba lagi'); isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); return; }
       removeTyping();
@@ -1369,7 +1298,6 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
         sendNotification('🤖 Mindbot Genius', data.reply);
       }
 
-      // Update ingatan AI di latar belakang (server simpan langsung jika login)
       if (text) extractAndSaveMemory(text, data.reply);
 
       const titleEl = document.getElementById('chat-title');
@@ -1381,26 +1309,16 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
         titleEl.classList.remove('new');
       }
 
-      let existingMsgs = [];
-      if (!isNewConv) {
-        if (isAuthed()) {
-          try {
-            const r = await fetch('/api/conversations/' + encodeURIComponent(sessionId), { headers: authHeaders() });
-            if (r.ok) existingMsgs = (await r.json()).messages || [];
-          } catch(e) {}
-        } else {
-          const ec = JSON.parse(localStorage.getItem('conv_'+sessionId)||'null');
-          existingMsgs = ec ? ec.messages : [];
-        }
-      }
-      const msgs = existingMsgs;
+      const allConvs = await getAllConversations();
+      const existingConv = allConvs.find(c => c.id === sessionId) || null;
+      const msgs = existingConv ? existingConv.messages : [];
       msgs.push({ role:'user', textContent: text, imageData: imagePreview||null, fileName: fileName||null });
       msgs.push({ role:'assistant', textContent: data.reply, generatedImageUrl: permanentGenImg });
       const convData = {
         id: sessionId,
         title: interimTitle,
         messages: msgs,
-        createdAt: Date.now(),
+        createdAt: existingConv?.createdAt || Date.now(),
         updatedAt: Date.now(),
         preview: data.reply.slice(0,80)
       };
@@ -1414,8 +1332,13 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
           if (thisSession === sessionId) {
             titleEl.textContent = aiTitle;
           }
-          await saveConversation({ ...convData, id: thisSession, title: aiTitle });
-          loadConversations();
+          const convs = await getAllConversations();
+          const conv = convs.find(c => c.id === thisSession);
+          if (conv) {
+            conv.title = aiTitle;
+            await saveConversation(conv);
+            loadConversations();
+          }
         });
       }
     } catch(err){ removeTyping(); showError(err.message); }
@@ -1452,7 +1375,8 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
     document.getElementById('input').value=text; sendMessage();
   }
 
-  function newChat() {
+  function newChat(opts) {
+    opts = opts || {};
     sessionId='sess_'+Math.random().toString(36).substr(2,9);
     document.getElementById('chat-title').textContent='Percakapan Baru';
     document.getElementById('chat-title').classList.add('new');
@@ -1468,7 +1392,7 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       </div></div></div>`;
     document.querySelectorAll('.conv-item').forEach(el=>el.classList.remove('active'));
     removeFile();
-    document.getElementById('input').focus();
+    if (!opts.skipFocus) document.getElementById('input').focus();
     closeSidebar();
   }
 
