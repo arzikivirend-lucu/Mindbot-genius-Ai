@@ -772,8 +772,25 @@
     // Buang reasoning internal model
     text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
+    // Jika model mengirim kode panjang TANPA fence markdown, bungkus otomatis
+    // supaya tetap tampil di code-block (bukan di-render browser / teks polos acak).
+    const hasFence = /```/.test(text);
+    const looksLikeCode = !hasFence && (
+      /<!DOCTYPE\s+html/i.test(text) ||
+      /<html[\s>]/i.test(text) ||
+      (/^(const|let|var|function|class|import|export)\s/m.test(text) && (text.match(/\n/g) || []).length >= 8) ||
+      (/\{[\s\S]*\}/.test(text) && /function\s*\(|=>\s*\{/.test(text) && (text.match(/\n/g) || []).length >= 10)
+    );
+    if (looksLikeCode) {
+      let lang = 'txt';
+      if (/<!DOCTYPE\s+html|<html[\s>]/i.test(text)) lang = 'html';
+      else if (/\b(def |import |print\()/m.test(text)) lang = 'python';
+      else if (/\b(const |let |var |function |=>)/m.test(text)) lang = 'javascript';
+      else if (/\{[\s\S]*\}/.test(text) && /[.#][a-zA-Z].*\{/.test(text)) lang = 'css';
+      text = '```' + lang + '\n' + text + '\n```';
+    }
+
     // 1) Ambil semua code fence (termasuk yang belum ditutup di akhir balasan)
-    //    Placeholder aman (tanpa null-byte) supaya tidak hilang saat di-parse DOM.
     const codeBlocks = [];
     const makeBlock = (lang, code) => {
       const id = 'c_' + Math.random().toString(36).substr(2, 6);
@@ -796,25 +813,22 @@
       codeBlocks.push(makeBlock(lang, code));
       return ph;
     });
-    // Unclosed trailing fence: ```lang\n...EOF (sering terjadi pada model coding)
+    // Unclosed trailing fence: ```lang\n...EOF
     text = text.replace(/```(\w*)\n?([\s\S]+)$/g, (_, lang, code) => {
       const ph = '%%CODEBLOCK' + codeBlocks.length + '%%';
       codeBlocks.push(makeBlock(lang, code));
       return ph;
     });
 
-    // 2) Escape HTML di sisa teks — PENTING:
-    //    Tanpa ini, HTML mentah dari Genius v3.0 / model coding akan di-render
-    //    browser sebagai elemen kosong (bubble tinggi tanpa kode terlihat).
+    // 2) Escape HTML di sisa teks
     text = escapeHtml(text);
 
-    // 3) Markdown sederhana (aman karena sudah di-escape)
+    // 3) Markdown sederhana
     text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
     text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     text = text.replace(/\n/g, '<br/>');
 
-    // 4) Kembalikan code block (placeholder ikut ter-escape jadi &amp; dll? 
-    //    Tidak — placeholder hanya huruf/angka/%, tidak berubah setelah escapeHtml)
+    // 4) Kembalikan code block
     codeBlocks.forEach((block, i) => {
       text = text.split('%%CODEBLOCK' + i + '%%').join(block);
     });
