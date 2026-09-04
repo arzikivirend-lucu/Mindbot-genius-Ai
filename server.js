@@ -479,6 +479,4 @@ app.use((err, req, res, next) => {
 });
 
 // JANGAN pakai app.listen() di Vercel — export app-nya saja
-// Vercel serverless: izinkan hingga 60 detik (butuh paket Pro untuk >10s)
 module.exports = app;
-module.exports.config = { maxDuration: 60 };
