@@ -390,6 +390,12 @@ app.post('/api/chat', safeUpload, async (req, res) => {
 
   const useRunBios = RUNBIOS_CODING_MODELS.includes(model);
 
+  // Jangan asumsikan setiap pesan yang dikirim saat model coding aktif itu
+  // permintaan kode — basa-basi seperti "Halo" tidak perlu (dan tidak boleh)
+  // menunggu RunBios sama sekali, itu cuma membuang jatah waktu 10 dtk Vercel.
+  const looksLikeCodeRequest = !!text && /html|game|kode|code|css|javascript|python|script|buatkan|bikin|make me|buat|fungsi|function|program/i.test(text);
+  const routeToRunBios = useRunBios && looksLikeCodeRequest;
+
   // Prompt coding yang sangat ketat agar cepat selesai di Hobby
   const codingExtra = useRunBios
     ? ` Saat diminta membuat kode (HTML/CSS/JS/Python/dll), ikuti aturan ini DENGAN KETAT:
@@ -411,27 +417,28 @@ app.post('/api/chat', safeUpload, async (req, res) => {
       { role:'user', content: isImage ? groqContent : (webContext ? `${text}\n\n${webContext}` : (typeof groqContent === 'string' ? groqContent : groqContent)) }
     ];
 
-    const apiUrl = useRunBios ? RUNBIOS_BASE : 'https://api.groq.com/openai/v1/chat/completions';
-    const apiKey = useRunBios ? process.env.RUNBIOS_API_KEY : process.env.GROQ_API_KEY;
+    // Hanya pakai endpoint & key RunBios kalau memang benar-benar mau di-route
+    // ke sana. Kalau model coding dipilih tapi pesannya bukan permintaan kode,
+    // pakai Groq langsung dengan model teks biasa (kimi-k2.7-code bukan model
+    // Groq yang valid, jadi tidak bisa dipakai di jalur ini).
+    const apiUrl = routeToRunBios ? RUNBIOS_BASE : 'https://api.groq.com/openai/v1/chat/completions';
+    const apiKey = routeToRunBios ? process.env.RUNBIOS_API_KEY : process.env.GROQ_API_KEY;
+    const effectiveModel = routeToRunBios ? model : 'openai/gpt-oss-120b';
 
-    if (useRunBios && !apiKey) throw new Error('RUNBIOS_API_KEY belum diset di server');
-    if (!useRunBios && !apiKey) throw new Error('GROQ_API_KEY belum diset di server');
+    if (routeToRunBios && !apiKey) throw new Error('RUNBIOS_API_KEY belum diset di server');
+    if (!routeToRunBios && !apiKey) throw new Error('GROQ_API_KEY belum diset di server');
 
     // Tambahan instruksi brevity untuk coding
-    if (useRunBios && text) {
-      const lower = text.toLowerCase();
-      const wantsCode = /html|game|kode|code|css|javascript|python|script|buatkan|bikin|make me|buat/.test(lower);
-      if (wantsCode) {
-        const brevity = '\n\n[SISTEM STRICT]: Balas HANYA 1 fence markdown. File HTML lengkap (inline CSS+JS). MAKSIMAL 40 baris. Tanpa penjelasan panjang, tanpa komentar, tanpa particle/canvas kompleks. Mekanik paling sederhana saja.';
-        const last = messages[messages.length - 1];
-        if (last && last.role === 'user' && typeof last.content === 'string') {
-          last.content = last.content + brevity;
-        }
+    if (routeToRunBios) {
+      const brevity = '\n\n[SISTEM STRICT]: Balas HANYA 1 fence markdown. File HTML lengkap (inline CSS+JS). MAKSIMAL 40 baris. Tanpa penjelasan panjang, tanpa komentar, tanpa particle/canvas kompleks. Mekanik paling sederhana saja.';
+      const last = messages[messages.length - 1];
+      if (last && last.role === 'user' && typeof last.content === 'string') {
+        last.content = last.content + brevity;
       }
     }
 
     // Token lebih kecil = lebih cepat di Hobby
-    const maxTokens = useRunBios ? 768 : 2048;
+    const maxTokens = routeToRunBios ? 768 : 2048;
 
     // callChat menerima timeoutMs opsional: membatalkan fetch via AbortController
     // supaya request yang menggantung tidak diam-diam memakan jatah waktu function.
@@ -462,18 +469,18 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     }
 
     let reply;
-    if (useRunBios) {
+    if (routeToRunBios) {
       const groqKey = process.env.GROQ_API_KEY;
       // Anggaran waktu KETAT agar total tetap di bawah batas 10 dtk Vercel Hobby
-      // (lihat vercel.json → maxDuration: 10):
-      //   - percobaan RunBios: maksimal 4.0 dtk (dipaksa berhenti via AbortController,
+      // (lihat vercel.json → maxDuration: 10), plus sisa buffer untuk cold start:
+      //   - percobaan RunBios: maksimal 3.5 dtk (dipaksa berhenti via AbortController,
       //     bukan cuma "diabaikan" seperti sebelumnya — sehingga tidak ada request
       //     yang diam-diam masih berjalan dan membebani sisa waktu)
-      //   - fallback Groq: maksimal 3.5 dtk
-      // Total terburuk ≈ 7.5 dtk, masih menyisakan buffer ~2.5 dtk untuk overhead
-      // parsing/upload/response sebelum function di-kill.
+      //   - fallback Groq: maksimal 3.0 dtk
+      // Total terburuk ≈ 6.5 dtk, menyisakan buffer ~3.5 dtk untuk cold start,
+      // parsing, dan overhead response sebelum function di-kill.
       try {
-        reply = await callChat(apiUrl, apiKey, model, maxTokens, 4000);
+        reply = await callChat(apiUrl, apiKey, effectiveModel, maxTokens, 3500);
       } catch (e) {
         console.warn('RunBios lambat/gagal, fallback Groq:', e.message);
         if (!groqKey) throw new Error('RunBios timeout/gagal dan GROQ_API_KEY belum diset');
@@ -482,11 +489,13 @@ app.post('/api/chat', safeUpload, async (req, res) => {
           groqKey,
           'openai/gpt-oss-120b',
           768,
-          3500
+          3000
         );
       }
     } else {
-      reply = await callChat(apiUrl, apiKey, model, maxTokens);
+      // Chat biasa (termasuk basa-basi saat model coding aktif tapi pesannya
+      // bukan permintaan kode): langsung ke Groq, tanpa mampir RunBios.
+      reply = await callChat(apiUrl, apiKey, effectiveModel, maxTokens, 8000);
     }
 
     sessions[sessionId].push({ role:'assistant', content: reply });
