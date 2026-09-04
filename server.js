@@ -13,7 +13,6 @@ try {
 }
 
 const app = express();
-
 const sessions = {};
 
 // ── Ekstensi yang dianggap "teks" dan boleh dibaca langsung isinya ──
@@ -45,11 +44,9 @@ function readZipSummary(buffer, maxFiles = 25, maxCharsPerFile = 1500, maxTotalC
   try {
     const zip = new AdmZip(buffer);
     const entries = zip.getEntries();
-
     let out = `[Isi arsip ZIP — ${entries.length} entri]\n\n`;
     const fileList = entries.map(e => (e.isDirectory ? '📁 ' : '📄 ') + e.entryName).join('\n');
     out += 'Struktur file:\n' + fileList.slice(0, 3000) + (fileList.length > 3000 ? '\n... (dipotong)' : '') + '\n\n';
-
     let shown = 0;
     let totalChars = out.length;
     for (const entry of entries) {
@@ -58,7 +55,6 @@ function readZipSummary(buffer, maxFiles = 25, maxCharsPerFile = 1500, maxTotalC
       const ext = path.extname(entry.entryName).toLowerCase();
       if (!TEXT_EXTENSIONS.includes(ext)) continue;
       if (entry.header.size > 200 * 1024) continue; // lewati file teks yang terlalu besar
-
       try {
         const content = entry.getData().toString('utf-8').slice(0, maxCharsPerFile);
         out += `--- ${entry.entryName} ---\n${content}\n\n`;
@@ -120,7 +116,6 @@ async function searchWeb(query) {
   try {
     const TAVILY_KEY = process.env.TAVILY_API_KEY;
     if (!TAVILY_KEY) return null;
-
     const resp = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -132,10 +127,8 @@ async function searchWeb(query) {
         include_answer: true
       })
     });
-
     if (!resp.ok) return null;
     const data = await resp.json();
-
     let context = `[Hasil pencarian web untuk: "${query}"]\n\n`;
     if (data.answer) context += `Ringkasan: ${data.answer}\n\n`;
     if (data.results?.length) {
@@ -163,21 +156,23 @@ function deapiHeaders() {
   };
 }
 
-// ── RUN BIOS — model khusus coding (OpenAI-compatible) ──
+// ── RUN BIOS — model coding / Genius v3.0 (OpenAI-compatible) ──
 // Base URL & endpoint chat completions RunBios (https://platform.runbios.ai/docs/api-serverless)
 const RUNBIOS_BASE = 'https://api.runbios.ai/v1/chat/completions';
 // Slug model yang dianggap "model RunBios" — kalau reqModel cocok salah satu ini,
 // request akan dialihkan ke RunBios (bukan Groq).
-const RUNBIOS_CODING_MODELS = ['kimi-k2.7-code']; // model coding dari RunBios
+// Genius v3.0 di frontend memakai 'kimi-k2.7-code'
+const RUNBIOS_CODING_MODELS = [
+  'kimi-k2.7-code', // Genius v3.0 — coding specialist
+  'kimi-k3'         // opsional: flagship RunBios 1M ctx (jika nanti dipakai)
+];
 
 // 1. Submit job — balas cepat dengan requestId, TIDAK menunggu gambar jadi
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
-
   const DEAPI_KEY = process.env.DEAPI_API_KEY;
   if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset' });
-
   try {
     const submitResp = await fetch(`${DEAPI_BASE}/txt2img`, {
       method: 'POST',
@@ -191,16 +186,13 @@ app.post('/api/imagine', async (req, res) => {
         seed: -1
       })
     });
-
     if (!submitResp.ok) {
       const errText = await submitResp.text();
       throw new Error(`deAPI submit error (${submitResp.status}): ${errText}`);
     }
-
     const submitData = await submitResp.json();
     const requestId = submitData?.data?.request_id;
     if (!requestId) throw new Error('deAPI tidak mengembalikan request_id');
-
     res.json({ requestId, status: 'pending' });
   } catch (err) {
     console.error('Imagine submit error:', err.message);
@@ -212,7 +204,6 @@ app.post('/api/imagine', async (req, res) => {
 app.get('/api/imagine/status/:requestId', async (req, res) => {
   const DEAPI_KEY = process.env.DEAPI_API_KEY;
   if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset' });
-
   try {
     const statusResp = await fetch(`${DEAPI_BASE}/request-status/${req.params.requestId}`, {
       headers: deapiHeaders()
@@ -221,14 +212,11 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
       const errText = await statusResp.text();
       throw new Error(`deAPI status error (${statusResp.status}): ${errText}`);
     }
-
     const statusData = await statusResp.json();
     const d = statusData?.data || statusData; // fallback kalau nggak dibungkus "data"
     const rawStatus = (d?.status || '').toLowerCase();
-
     const DONE_STATUSES   = ['done', 'completed', 'success', 'succeeded', 'finished'];
     const FAILED_STATUSES = ['failed', 'error', 'cancelled'];
-
     if (DONE_STATUSES.includes(rawStatus)) {
       // Coba semua kemungkinan lokasi field URL gambar
       const imageUrl =
@@ -245,18 +233,15 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
         d?.results_alt_formats?.jpg ||
         d?.results_alt_formats?.webp ||
         null;
-
       if (!imageUrl) {
         // Belum ketemu field yang cocok — kirim raw data supaya bisa dicek di Network tab
         return res.json({ status: 'done', imageUrl: null, debugRaw: statusData });
       }
       return res.json({ status: 'completed', imageUrl });
     }
-
     if (FAILED_STATUSES.includes(rawStatus)) {
       return res.json({ status: 'failed', error: d?.error || d?.error_message || 'Gagal membuat gambar' });
     }
-
     res.json({ status: rawStatus || 'pending' });
   } catch (err) {
     console.error('Imagine status error:', err.message);
@@ -272,15 +257,13 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
 app.post('/api/memory/extract', async (req, res) => {
   const { userText, aiText, existingMemory } = req.body;
   if (!userText && !aiText) return res.json({ facts: [] });
-
   const GROQ_KEY = process.env.GROQ_API_KEY;
   if (!GROQ_KEY) return res.json({ facts: [] });
-
   const existing = Array.isArray(existingMemory) ? existingMemory.slice(0, 60) : [];
-
   const extractPrompt = `Kamu bertugas mengekstrak fakta PENTING dan TAHAN LAMA tentang pengguna dari potongan percakapan berikut, untuk disimpan sebagai memori jangka panjang asisten AI.
 
 Hanya ambil fakta seperti: nama pengguna, pekerjaan/proyek yang sedang dikerjakan, preferensi personal, informasi identitas yang relevan, tujuan jangka panjang, atau konteks penting lain yang kemungkinan berguna di percakapan mendatang.
+
 JANGAN ambil hal yang sifatnya sesaat (pertanyaan sekali pakai, small talk, permintaan teknis satu kali, atau hal yang sudah tercakup dalam memori yang sudah ada).
 
 Memori yang SUDAH ada (jangan ulangi jika sudah tercakup):
@@ -292,7 +275,6 @@ AI: "${(aiText || '').slice(0, 500)}"
 
 Balas HANYA dengan array JSON berisi string fakta baru yang layak diingat (maksimal 3 item, singkat dan jelas, dalam Bahasa Indonesia). Jika tidak ada fakta baru yang layak diingat, balas dengan array kosong [].
 Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikasi toko online"]`;
-
   try {
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -342,18 +324,16 @@ function safeUpload(req, res, next) {
 app.post('/api/chat', safeUpload, async (req, res) => {
   const { message, sessionId, model: reqModel, memory } = req.body;
   if (!sessionId) return res.status(400).json({ error: 'sessionId diperlukan' });
-
   const text = message || '';
   const file  = req.file;
   if (!text && !file) return res.status(400).json({ error: 'Pesan atau file diperlukan' });
-
   if (!sessions[sessionId]) sessions[sessionId] = [];
 
   const isImage = file && file.mimetype.startsWith('image/');
   const isZip   = file && !isImage && isZipLike(file.mimetype, file.originalname);
   const isText  = file && !isImage && !isZip && isTextLike(file.mimetype, file.originalname);
-  let groqContent, displayText = text;
 
+  let groqContent, displayText = text;
   if (isImage) {
     const b64 = file.buffer.toString('base64');
     groqContent = [
@@ -412,17 +392,22 @@ app.post('/api/chat', safeUpload, async (req, res) => {
 
   sessions[sessionId].push({ role:'user', content: displayText });
 
+  // Model yang diizinkan:
+  // - Groq: openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.6-27b
+  // - RunBios (Genius v3.0): kimi-k2.7-code, kimi-k3
   const ALLOWED_MODELS = [
     'openai/gpt-oss-120b',
     'openai/gpt-oss-20b',
     'qwen/qwen3.6-27b',
-    'kimi-k2.7-code' // RunBios — khusus coding
+    'kimi-k2.7-code', // Genius v3.0 (RunBios)
+    'kimi-k3'         // opsional RunBios flagship
   ];
+
   const model = isImage
     ? 'qwen/qwen3.6-27b'
     : (ALLOWED_MODELS.includes(reqModel) ? reqModel : 'openai/gpt-oss-120b');
 
-  // Model coding (RunBios) dipanggil lewat endpoint RunBios, sisanya tetap lewat Groq.
+  // Model coding / Genius v3.0 (RunBios) dipanggil lewat endpoint RunBios, sisanya tetap lewat Groq.
   const useRunBios = RUNBIOS_CODING_MODELS.includes(model);
 
   const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dengan singkat dan dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
@@ -442,6 +427,9 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     if (useRunBios && !apiKey) {
       throw new Error('RUNBIOS_API_KEY belum diset di server');
     }
+    if (!useRunBios && !apiKey) {
+      throw new Error('GROQ_API_KEY belum diset di server');
+    }
 
     const resp = await fetch(apiUrl, {
       method: 'POST',
@@ -449,10 +437,13 @@ app.post('/api/chat', safeUpload, async (req, res) => {
       body: JSON.stringify({ model, messages, max_tokens: 1024 }),
     });
 
-    if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message||e.detail||'API error'); }
+    if (!resp.ok) {
+      const e = await resp.json().catch(() => ({}));
+      throw new Error(e.error?.message || e.detail || e.error || 'API error');
+    }
+
     const data  = await resp.json();
     const reply = data.choices[0].message.content;
-
     sessions[sessionId].push({ role:'assistant', content: reply });
     if (sessions[sessionId].length > 40) sessions[sessionId] = sessions[sessionId].slice(-40);
 
