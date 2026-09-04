@@ -412,12 +412,13 @@ app.post('/api/chat', safeUpload, async (req, res) => {
 
   // Prompt: coding model (Genius v3.0) harus selesaikan kode penuh + bungkus dalam fence
   const codingExtra = useRunBios
-    ? ` Saat diminta membuat kode (HTML/CSS/JS/Python/dll), ikuti aturan ini:
-1) Tulis kode LENGKAP yang langsung bisa dijalankan (jangan terpotong).
-2) Untuk game HTML: SATU file lengkap (inline CSS+JS), ringkas (ideal di bawah 120 baris), tetap seru.
-3) Bungkus kode dengan markdown fence, contoh: \`\`\`html ... \`\`\` atau \`\`\`javascript ... \`\`\`.
-4) Jangan kirim HTML/JS mentah tanpa fence — selalu pakai fence agar tampil rapi di chat.
-5) Penjelasan cukup 1-2 kalimat sebelum kode.`
+    ? ` Saat diminta membuat kode (HTML/CSS/JS/Python/dll), ikuti aturan ini DENGAN KETAT:
+1) Tulis kode LENGKAP yang langsung bisa dijalankan (jangan terpotong di tengah).
+2) PENTING SPEED: untuk game/HTML, buat SATU file mini (inline CSS+JS), MAKSIMAL ~60-80 baris, tanpa komentar panjang. Tetap bisa dimainkan.
+3) Jangan buat canvas game kompleks / particle / banyak level — pilih mekanik sederhana (klik, tebak angka, snake mini, dll).
+4) Bungkus kode dengan markdown fence, contoh: \`\`\`html ... \`\`\` atau \`\`\`javascript ... \`\`\`.
+5) Jangan kirim HTML/JS mentah tanpa fence — selalu pakai fence.
+6) Penjelasan maksimal 1 kalimat sebelum kode. Jangan jelaskan lama.`
     : '';
 
   const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${codingExtra}${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
@@ -442,21 +443,62 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     }
 
     // Coding model butuh token lebih besar agar game HTML/JS tidak terpotong
-    const maxTokens = useRunBios ? 4096 : 2048; // 4096: cukup untuk game HTML, hindari timeout Vercel
-
-    const resp = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages, max_tokens: maxTokens }),
-    });
-
-    if (!resp.ok) {
-      const e = await resp.json().catch(() => ({}));
-      throw new Error(e.error?.message || e.detail || e.error || 'API error');
+    
+    // Percepat coding di Vercel Hobby: instruksikan model agar output mini
+    if (useRunBios && text) {
+      const lower = text.toLowerCase();
+      const wantsCode = /html|game|kode|code|css|javascript|python|script|buatkan|bikin/.test(lower);
+      if (wantsCode) {
+        const brevity = '\n\n[Sistem: Balas dengan kode MINI yang lengkap dalam 1 fence markdown. Maks ~70 baris. Tanpa basa-basi panjang.]';
+        const last = messages[messages.length - 1];
+        if (last && last.role === 'user' && typeof last.content === 'string') {
+          last.content = last.content + brevity;
+        }
+      }
     }
 
-    const data  = await resp.json();
-    const reply = data.choices[0].message.content;
+const maxTokens = useRunBios ? 1536 : 2048; // 1536: cukup game mini, tetap <10s di Vercel Hobby
+
+    async function callChat(url, key, mdl, tok) {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
+        body: JSON.stringify({ model: mdl, messages, max_tokens: tok }),
+      });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        throw new Error(e.error?.message || e.detail || e.error || ('API error ' + r.status));
+      }
+      const d = await r.json();
+      const content = d.choices?.[0]?.message?.content || '';
+      if (!content) throw new Error('Model mengembalikan balasan kosong');
+      return content;
+    }
+
+    let reply;
+    if (useRunBios) {
+      // Race: jika RunBios >7 dtk (mendekati batas Hobby 10 dtk), fallback Groq
+      const groqKey = process.env.GROQ_API_KEY;
+      const runBiosPromise = callChat(apiUrl, apiKey, model, maxTokens);
+      const timeoutPromise = new Promise((_, rej) =>
+        setTimeout(() => rej(new Error('RUNBIOS_TIMEOUT')), 7000)
+      );
+      try {
+        reply = await Promise.race([runBiosPromise, timeoutPromise]);
+      } catch (e) {
+        console.warn('RunBios lambat/gagal, fallback Groq:', e.message);
+        if (!groqKey) throw new Error('RunBios timeout/gagal dan GROQ_API_KEY belum diset');
+        // Tetap biarkan runBiosPromise jalan di background (tidak ditunggu)
+        reply = await callChat(
+          'https://api.groq.com/openai/v1/chat/completions',
+          groqKey,
+          'openai/gpt-oss-120b',
+          2048
+        );
+      }
+    } else {
+      reply = await callChat(apiUrl, apiKey, model, maxTokens);
+    }
     sessions[sessionId].push({ role:'assistant', content: reply });
     if (sessions[sessionId].length > 40) sessions[sessionId] = sessions[sessionId].slice(-40);
 
