@@ -231,6 +231,10 @@
     .user-chip .logout-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 3px 6px; border-radius: 6px; }
     .user-chip .logout-btn:hover { color: #f87171; background: rgba(220,38,38,0.15); }
     .sync-badge { font-size: 9px; font-family: 'DM Mono', monospace; padding: 2px 7px; border-radius: 5px; background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.2); margin-left: 6px; }
+    .auth-steps { list-style: none; margin: 0 0 16px; padding: 0; display: none; }
+    .auth-steps.show { display: block; }
+    .auth-steps li { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); line-height: 1.5; padding: 4px 0; }
+    .auth-steps li .step-num { flex-shrink: 0; width: 16px; height: 16px; border-radius: 50%; background: rgba(200,168,75,0.12); border: 1px solid rgba(200,168,75,0.35); color: var(--gold); font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
   </style>
 </head>
 <body>
@@ -249,6 +253,15 @@
     <button class="auth-close" onclick="closeAuthModal()">✕</button>
     <h3 id="authTitle">Masuk</h3>
     <div class="auth-sub" id="authSub">Masuk dengan email &amp; password (boleh email apa saja, tidak harus Gmail).</div>
+    <ul class="auth-steps" id="authSteps">
+      <li><span class="step-num">1</span><span>Masukkan email kamu</span></li>
+      <li><span class="step-num">2</span><span>Masukkan password kamu</span></li>
+      <li><span class="step-num">3</span><span>Tekan tombol Daftar</span></li>
+      <li><span class="step-num">4</span><span>Buka email kamu</span></li>
+      <li><span class="step-num">5</span><span>Tekan Confirm Email</span></li>
+      <li><span class="step-num">6</span><span>Kembali ke mindbot-genius-ai.vercel.app</span></li>
+      <li><span class="step-num">7</span><span>Tekan Masuk</span></li>
+    </ul>
     <div class="auth-field">
       <label>Email</label>
       <input type="email" id="authEmail" placeholder="email@apa-saja.com" autocomplete="email"/>
@@ -441,6 +454,7 @@
     document.getElementById('authSub').textContent = isLogin
       ? 'Masuk dengan email & password (boleh email apa saja, tidak harus Gmail).'
       : 'Daftar dengan email & password. Email boleh dari provider mana saja.';
+    document.getElementById('authSteps').classList.toggle('show', !isLogin);
     document.getElementById('authSwitch').innerHTML = isLogin
       ? 'Belum punya akun? <a onclick="toggleAuthMode()">Daftar</a>'
       : 'Sudah punya akun? <a onclick="toggleAuthMode()">Masuk</a>';
