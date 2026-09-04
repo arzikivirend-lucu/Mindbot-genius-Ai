@@ -1347,7 +1347,7 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
 
     appendMessage('user', text, imagePreview, fileName);
     const isCodingModel = currentModel === 'kimi-k2.7-code' || currentModel === 'kimi-k3';
-    showTyping(isCodingModel ? '⏳ Genius v3.0 sedang menulis kode (bisa 15–45 detik)...' : null);
+    showTyping(isCodingModel ? '⏳ Genius v3.0 sedang menulis kode...' : null);
 
     try {
       const formData = new FormData();
@@ -1359,7 +1359,8 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
 
       // Timeout: Vercel/hobby sering limit ~10–60 dtk; beri pesan jelas jika lewat
       const controller = new AbortController();
-      const timeoutMs = isCodingModel ? 55000 : 30000;
+      // Hobby Vercel ~10s; Pro bisa 60s. Abort client sedikit di atas itu.
+      const timeoutMs = isCodingModel ? 20000 : 30000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       let res;
@@ -1368,7 +1369,7 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       } catch (netErr) {
         clearTimeout(timeoutId);
         if (netErr && netErr.name === 'AbortError') {
-          throw new Error('Waktu tunggu habis. Model coding butuh paket Vercel Pro (maxDuration 60s) atau coba minta game yang lebih sederhana.');
+          throw new Error('Timeout: server Vercel memutus request (batas ~10 dtk di Hobby). Coba minta game lebih sederhana, atau naikkan maxDuration ke 60 di Vercel Pro.');
         }
         throw new Error('Gagal terhubung ke server. Cek koneksi lalu coba lagi.');
       }
