@@ -412,11 +412,12 @@ app.post('/api/chat', safeUpload, async (req, res) => {
 
   // Prompt: coding model (Genius v3.0) harus selesaikan kode penuh + bungkus dalam fence
   const codingExtra = useRunBios
-    ? ` Saat diminta membuat kode (HTML/CSS/JS/Python/dll), SELALU:
-1) Tulis kode LENGKAP yang bisa langsung dijalankan (jangan potong di tengah).
-2) Bungkus setiap blok kode dengan markdown fence, contoh: \`\`\`html ... \`\`\` atau \`\`\`javascript ... \`\`\`.
-3) Jangan kirim HTML/JS mentah tanpa fence — selalu pakai fence agar tampil rapi di chat.
-4) Boleh beri penjelasan singkat sebelum/sesudah kode.`
+    ? ` Saat diminta membuat kode (HTML/CSS/JS/Python/dll), ikuti aturan ini:
+1) Tulis kode LENGKAP yang langsung bisa dijalankan (jangan terpotong).
+2) Untuk game HTML: SATU file lengkap (inline CSS+JS), ringkas (ideal di bawah 120 baris), tetap seru.
+3) Bungkus kode dengan markdown fence, contoh: \`\`\`html ... \`\`\` atau \`\`\`javascript ... \`\`\`.
+4) Jangan kirim HTML/JS mentah tanpa fence — selalu pakai fence agar tampil rapi di chat.
+5) Penjelasan cukup 1-2 kalimat sebelum kode.`
     : '';
 
   const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${codingExtra}${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
@@ -441,7 +442,7 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     }
 
     // Coding model butuh token lebih besar agar game HTML/JS tidak terpotong
-    const maxTokens = useRunBios ? 8192 : 2048;
+    const maxTokens = useRunBios ? 4096 : 2048; // 4096: cukup untuk game HTML, hindari timeout Vercel
 
     const resp = await fetch(apiUrl, {
       method: 'POST',
@@ -478,4 +479,6 @@ app.use((err, req, res, next) => {
 });
 
 // JANGAN pakai app.listen() di Vercel — export app-nya saja
+// Vercel serverless: izinkan hingga 60 detik (butuh paket Pro untuk >10s)
 module.exports = app;
+module.exports.config = { maxDuration: 60 };
