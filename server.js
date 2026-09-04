@@ -433,33 +433,47 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     // Token lebih kecil = lebih cepat di Hobby
     const maxTokens = useRunBios ? 768 : 2048;
 
-    async function callChat(url, key, mdl, tok) {
-      const r = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
-        body: JSON.stringify({ model: mdl, messages, max_tokens: tok }),
-      });
-      if (!r.ok) {
-        const e = await r.json().catch(() => ({}));
-        throw new Error(e.error?.message || e.detail || e.error || ('API error ' + r.status));
+    // callChat menerima timeoutMs opsional: membatalkan fetch via AbortController
+    // supaya request yang menggantung tidak diam-diam memakan jatah waktu function.
+    async function callChat(url, key, mdl, tok, timeoutMs) {
+      const controller = new AbortController();
+      const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : null;
+      try {
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
+          body: JSON.stringify({ model: mdl, messages, max_tokens: tok }),
+          signal: controller.signal
+        });
+        if (!r.ok) {
+          const e = await r.json().catch(() => ({}));
+          throw new Error(e.error?.message || e.detail || e.error || ('API error ' + r.status));
+        }
+        const d = await r.json();
+        const content = d.choices?.[0]?.message?.content || '';
+        if (!content) throw new Error('Model mengembalikan balasan kosong');
+        return content;
+      } catch (err) {
+        if (err.name === 'AbortError') throw new Error(`Timeout setelah ${timeoutMs}ms`);
+        throw err;
+      } finally {
+        if (timer) clearTimeout(timer);
       }
-      const d = await r.json();
-      const content = d.choices?.[0]?.message?.content || '';
-      if (!content) throw new Error('Model mengembalikan balasan kosong');
-      return content;
     }
 
     let reply;
     if (useRunBios) {
       const groqKey = process.env.GROQ_API_KEY;
-      const runBiosPromise = callChat(apiUrl, apiKey, model, maxTokens);
-      // Race 5.5 detik — aman untuk Hobby 10s
-      const timeoutPromise = new Promise((_, rej) =>
-        setTimeout(() => rej(new Error('RUNBIOS_TIMEOUT')), 5500)
-      );
-
+      // Anggaran waktu KETAT agar total tetap di bawah batas 10 dtk Vercel Hobby
+      // (lihat vercel.json → maxDuration: 10):
+      //   - percobaan RunBios: maksimal 4.0 dtk (dipaksa berhenti via AbortController,
+      //     bukan cuma "diabaikan" seperti sebelumnya — sehingga tidak ada request
+      //     yang diam-diam masih berjalan dan membebani sisa waktu)
+      //   - fallback Groq: maksimal 3.5 dtk
+      // Total terburuk ≈ 7.5 dtk, masih menyisakan buffer ~2.5 dtk untuk overhead
+      // parsing/upload/response sebelum function di-kill.
       try {
-        reply = await Promise.race([runBiosPromise, timeoutPromise]);
+        reply = await callChat(apiUrl, apiKey, model, maxTokens, 4000);
       } catch (e) {
         console.warn('RunBios lambat/gagal, fallback Groq:', e.message);
         if (!groqKey) throw new Error('RunBios timeout/gagal dan GROQ_API_KEY belum diset');
@@ -467,7 +481,8 @@ app.post('/api/chat', safeUpload, async (req, res) => {
           'https://api.groq.com/openai/v1/chat/completions',
           groqKey,
           'openai/gpt-oss-120b',
-          1024
+          768,
+          3500
         );
       }
     } else {
