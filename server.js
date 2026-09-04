@@ -163,6 +163,13 @@ function deapiHeaders() {
   };
 }
 
+// ── RUN BIOS — model khusus coding (OpenAI-compatible) ──
+// Base URL & endpoint chat completions RunBios (https://platform.runbios.ai/docs/api-serverless)
+const RUNBIOS_BASE = 'https://api.runbios.ai/v1/chat/completions';
+// Slug model yang dianggap "model RunBios" — kalau reqModel cocok salah satu ini,
+// request akan dialihkan ke RunBios (bukan Groq).
+const RUNBIOS_CODING_MODELS = ['kimi-k2.7-code']; // model coding dari RunBios
+
 // 1. Submit job — balas cepat dengan requestId, TIDAK menunggu gambar jadi
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
@@ -409,12 +416,14 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     'openai/gpt-oss-120b',
     'openai/gpt-oss-20b',
     'qwen/qwen3.6-27b',
-    'openai/gpt-oss-120b',
-    'qwen/qwen3.6-27b'
+    'kimi-k2.7-code' // RunBios — khusus coding
   ];
   const model = isImage
     ? 'qwen/qwen3.6-27b'
     : (ALLOWED_MODELS.includes(reqModel) ? reqModel : 'openai/gpt-oss-120b');
+
+  // Model coding (RunBios) dipanggil lewat endpoint RunBios, sisanya tetap lewat Groq.
+  const useRunBios = RUNBIOS_CODING_MODELS.includes(model);
 
   const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dengan singkat dan dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
 
@@ -427,13 +436,20 @@ app.post('/api/chat', safeUpload, async (req, res) => {
       { role:'user', content: isImage ? groqContent : (webContext ? `${text}\n\n${webContext}` : (typeof groqContent === 'string' ? groqContent : groqContent)) }
     ];
 
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const apiUrl = useRunBios ? RUNBIOS_BASE : 'https://api.groq.com/openai/v1/chat/completions';
+    const apiKey = useRunBios ? process.env.RUNBIOS_API_KEY : process.env.GROQ_API_KEY;
+
+    if (useRunBios && !apiKey) {
+      throw new Error('RUNBIOS_API_KEY belum diset di server');
+    }
+
+    const resp = await fetch(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${process.env.GROQ_API_KEY}` },
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${apiKey}` },
       body: JSON.stringify({ model, messages, max_tokens: 1024 }),
     });
 
-    if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message||'API error'); }
+    if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message||e.detail||'API error'); }
     const data  = await resp.json();
     const reply = data.choices[0].message.content;
 
