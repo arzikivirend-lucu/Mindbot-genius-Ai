@@ -1133,12 +1133,15 @@
     a.href = url; a.download = 'mindbot_image.jpg'; a.target = '_blank'; a.click();
   }
 
-  function showTyping() {
+  function showTyping(label) {
     const chat=document.getElementById('chat');
     let wrap=chat.querySelector('.message-wrap');
     if(!wrap){wrap=document.createElement('div');wrap.className='message-wrap';chat.appendChild(wrap);}
     const t=document.createElement('div'); t.className='message ai'; t.id='typing';
-    t.innerHTML=`<div class="avatar ai"><img src="logo.png"/></div><div class="bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+    const hint = label
+      ? `<div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text-dim);margin-bottom:6px">${label}</div>`
+      : '';
+    t.innerHTML=`<div class="avatar ai"><img src="logo.png"/></div><div class="bubble">${hint}<div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
     wrap.appendChild(t); chat.scrollTop=chat.scrollHeight;
   }
   function removeTyping(){ const t=document.getElementById('typing'); if(t)t.remove(); }
@@ -1343,7 +1346,8 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
     }
 
     appendMessage('user', text, imagePreview, fileName);
-    showTyping();
+    const isCodingModel = currentModel === 'kimi-k2.7-code' || currentModel === 'kimi-k3';
+    showTyping(isCodingModel ? '⏳ Genius v3.0 sedang menulis kode (bisa 15–45 detik)...' : null);
 
     try {
       const formData = new FormData();
@@ -1353,9 +1357,25 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       formData.append('memory', JSON.stringify(await getMemory()));
       if(fileToSend) formData.append('file', fileToSend);
 
-      const res = await fetch('/api/chat', { method:'POST', body: formData });
+      // Timeout: Vercel/hobby sering limit ~10–60 dtk; beri pesan jelas jika lewat
+      const controller = new AbortController();
+      const timeoutMs = isCodingModel ? 55000 : 30000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      let res;
+      try {
+        res = await fetch('/api/chat', { method:'POST', body: formData, signal: controller.signal });
+      } catch (netErr) {
+        clearTimeout(timeoutId);
+        if (netErr && netErr.name === 'AbortError') {
+          throw new Error('Waktu tunggu habis. Model coding butuh paket Vercel Pro (maxDuration 60s) atau coba minta game yang lebih sederhana.');
+        }
+        throw new Error('Gagal terhubung ke server. Cek koneksi lalu coba lagi.');
+      }
+      clearTimeout(timeoutId);
+
       let data;
-      try { data = await res.json(); } catch(e) { removeTyping(); showError('Server error - coba lagi'); isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); return; }
+      try { data = await res.json(); } catch(e) { removeTyping(); showError('Server error / timeout — coba lagi atau singkat permintaanmu'); isLoading=false; document.getElementById('sendBtn').disabled=false; input.focus(); return; }
       removeTyping();
       if(!res.ok) throw new Error(data.error||'Terjadi kesalahan');
 
