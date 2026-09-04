@@ -410,7 +410,16 @@ app.post('/api/chat', safeUpload, async (req, res) => {
   // Model coding / Genius v3.0 (RunBios) dipanggil lewat endpoint RunBios, sisanya tetap lewat Groq.
   const useRunBios = RUNBIOS_CODING_MODELS.includes(model);
 
-  const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dengan singkat dan dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
+  // Prompt: coding model (Genius v3.0) harus selesaikan kode penuh + bungkus dalam fence
+  const codingExtra = useRunBios
+    ? ` Saat diminta membuat kode (HTML/CSS/JS/Python/dll), SELALU:
+1) Tulis kode LENGKAP yang bisa langsung dijalankan (jangan potong di tengah).
+2) Bungkus setiap blok kode dengan markdown fence, contoh: \`\`\`html ... \`\`\` atau \`\`\`javascript ... \`\`\`.
+3) Jangan kirim HTML/JS mentah tanpa fence — selalu pakai fence agar tampil rapi di chat.
+4) Boleh beri penjelasan singkat sebelum/sesudah kode.`
+    : '';
+
+  const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${codingExtra}${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
 
   try {
     const history = sessions[sessionId].slice(-20);
@@ -431,10 +440,13 @@ app.post('/api/chat', safeUpload, async (req, res) => {
       throw new Error('GROQ_API_KEY belum diset di server');
     }
 
+    // Coding model butuh token lebih besar agar game HTML/JS tidak terpotong
+    const maxTokens = useRunBios ? 8192 : 2048;
+
     const resp = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages, max_tokens: 1024 }),
+      body: JSON.stringify({ model, messages, max_tokens: maxTokens }),
     });
 
     if (!resp.ok) {
