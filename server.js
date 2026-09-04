@@ -3,19 +3,18 @@ const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
 
-// AdmZip bersifat opsional: kalau paket "adm-zip" belum ter-install,
-// jangan sampai seluruh server ikut crash — cukup nonaktifkan fitur baca ZIP.
+// AdmZip opsional
 let AdmZip = null;
 try {
-  AdmZip = require('adm-zip'); // npm install adm-zip
+  AdmZip = require('adm-zip');
 } catch (e) {
-  console.warn('⚠️  Paket "adm-zip" belum ter-install. Jalankan: npm install adm-zip — fitur baca isi ZIP dinonaktifkan sementara.');
+  console.warn('⚠️  Paket "adm-zip" belum ter-install. Fitur baca ZIP dinonaktifkan.');
 }
 
 const app = express();
 const sessions = {};
 
-// ── Ekstensi yang dianggap "teks" dan boleh dibaca langsung isinya ──
+// ── Ekstensi teks yang boleh dibaca ──
 const TEXT_EXTENSIONS = [
   '.js','.jsx','.mjs','.cjs','.ts','.tsx','.html','.htm','.css','.scss','.sass',
   '.json','.xml','.csv','.tsv','.md','.markdown','.py','.java','.c','.cpp','.h',
@@ -38,9 +37,8 @@ function isZipLike(mimetype, filename) {
   return ext === '.zip' || (mimetype && mimetype.includes('zip'));
 }
 
-// Baca ringkasan isi ZIP: struktur file + isi file-file teks di dalamnya (dibatasi)
 function readZipSummary(buffer, maxFiles = 25, maxCharsPerFile = 1500, maxTotalChars = 12000) {
-  if (!AdmZip) return null; // paket adm-zip belum ter-install di server
+  if (!AdmZip) return null;
   try {
     const zip = new AdmZip(buffer);
     const entries = zip.getEntries();
@@ -54,17 +52,15 @@ function readZipSummary(buffer, maxFiles = 25, maxCharsPerFile = 1500, maxTotalC
       if (shown >= maxFiles || totalChars >= maxTotalChars) break;
       const ext = path.extname(entry.entryName).toLowerCase();
       if (!TEXT_EXTENSIONS.includes(ext)) continue;
-      if (entry.header.size > 200 * 1024) continue; // lewati file teks yang terlalu besar
+      if (entry.header.size > 200 * 1024) continue;
       try {
         const content = entry.getData().toString('utf-8').slice(0, maxCharsPerFile);
         out += `--- ${entry.entryName} ---\n${content}\n\n`;
         totalChars += content.length + entry.entryName.length + 10;
         shown++;
-      } catch (e) {
-        // lewati file yang gagal dibaca (kemungkinan biner)
-      }
+      } catch (e) {}
     }
-    if (shown === 0) out += '(Tidak ada file teks yang bisa ditampilkan isinya, atau semua file terlalu besar/biner)\n';
+    if (shown === 0) out += '(Tidak ada file teks yang bisa ditampilkan isinya)\n';
     return out.slice(0, maxTotalChars + 3000);
   } catch (e) {
     console.error('Zip read error:', e.message);
@@ -98,7 +94,7 @@ app.get('/api/conversations', (req, res) => res.json([]));
 app.get('/api/conversations/:id', (req, res) => res.status(404).json({ error: 'Tidak ditemukan' }));
 app.delete('/api/conversations/:id', (req, res) => res.json({ ok: true }));
 
-// ── WEB SEARCH KEYWORDS ──
+// ── WEB SEARCH ──
 const NEWS_KEYWORDS = [
   'berita','terkini','terbaru','hari ini','sekarang','minggu ini','bulan ini',
   'update','breaking','news','today','latest','current','recently','happened',
@@ -144,9 +140,9 @@ async function searchWeb(query) {
   }
 }
 
-// ── MINDBOT v2.5 IMAGE GENERATION (deAPI.ai) — async job + polling ──
+// ── IMAGE GENERATION (deAPI) ──
 const DEAPI_BASE  = 'https://api.deapi.ai/api/v1/client';
-const DEAPI_MODEL = 'ZImageTurbo_INT8'; // model cepat, cocok untuk realtime chat
+const DEAPI_MODEL = 'ZImageTurbo_INT8';
 
 function deapiHeaders() {
   return {
@@ -156,18 +152,13 @@ function deapiHeaders() {
   };
 }
 
-// ── RUN BIOS — model coding / Genius v3.0 (OpenAI-compatible) ──
-// Base URL & endpoint chat completions RunBios (https://platform.runbios.ai/docs/api-serverless)
 const RUNBIOS_BASE = 'https://api.runbios.ai/v1/chat/completions';
-// Slug model yang dianggap "model RunBios" — kalau reqModel cocok salah satu ini,
-// request akan dialihkan ke RunBios (bukan Groq).
-// Genius v3.0 di frontend memakai 'kimi-k2.7-code'
 const RUNBIOS_CODING_MODELS = [
-  'kimi-k2.7-code', // Genius v3.0 — coding specialist
-  'kimi-k3'         // opsional: flagship RunBios 1M ctx (jika nanti dipakai)
+  'kimi-k2.7-code', // Genius v3.0
+  'kimi-k3'
 ];
 
-// 1. Submit job — balas cepat dengan requestId, TIDAK menunggu gambar jadi
+// 1. Submit image job
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
@@ -200,7 +191,7 @@ app.post('/api/imagine', async (req, res) => {
   }
 });
 
-// 2. Cek status job — dipanggil berulang (polling) oleh frontend tiap 1-2 detik
+// 2. Cek status image
 app.get('/api/imagine/status/:requestId', async (req, res) => {
   const DEAPI_KEY = process.env.DEAPI_API_KEY;
   if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset' });
@@ -213,12 +204,12 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
       throw new Error(`deAPI status error (${statusResp.status}): ${errText}`);
     }
     const statusData = await statusResp.json();
-    const d = statusData?.data || statusData; // fallback kalau nggak dibungkus "data"
+    const d = statusData?.data || statusData;
     const rawStatus = (d?.status || '').toLowerCase();
     const DONE_STATUSES   = ['done', 'completed', 'success', 'succeeded', 'finished'];
     const FAILED_STATUSES = ['failed', 'error', 'cancelled'];
+
     if (DONE_STATUSES.includes(rawStatus)) {
-      // Coba semua kemungkinan lokasi field URL gambar
       const imageUrl =
         d?.result_url ||
         d?.result?.url ||
@@ -234,7 +225,6 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
         d?.results_alt_formats?.webp ||
         null;
       if (!imageUrl) {
-        // Belum ketemu field yang cocok — kirim raw data supaya bisa dicek di Network tab
         return res.json({ status: 'done', imageUrl: null, debugRaw: statusData });
       }
       return res.json({ status: 'completed', imageUrl });
@@ -249,32 +239,25 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
   }
 });
 
-// ── INGATAN AI (memory) ──
-// AI tidak punya database sendiri untuk mengingat pengguna antar-percakapan,
-// jadi fakta penting diekstrak per-pertukaran pesan lalu disimpan di sisi klien
-// (localStorage, per deviceId) dan dikirim balik ke sini setiap chat baru supaya
-// bisa disisipkan ke system prompt.
+// ── MEMORY EXTRACT ──
 app.post('/api/memory/extract', async (req, res) => {
   const { userText, aiText, existingMemory } = req.body;
   if (!userText && !aiText) return res.json({ facts: [] });
   const GROQ_KEY = process.env.GROQ_API_KEY;
   if (!GROQ_KEY) return res.json({ facts: [] });
+
   const existing = Array.isArray(existingMemory) ? existingMemory.slice(0, 60) : [];
   const extractPrompt = `Kamu bertugas mengekstrak fakta PENTING dan TAHAN LAMA tentang pengguna dari potongan percakapan berikut, untuk disimpan sebagai memori jangka panjang asisten AI.
-
 Hanya ambil fakta seperti: nama pengguna, pekerjaan/proyek yang sedang dikerjakan, preferensi personal, informasi identitas yang relevan, tujuan jangka panjang, atau konteks penting lain yang kemungkinan berguna di percakapan mendatang.
-
 JANGAN ambil hal yang sifatnya sesaat (pertanyaan sekali pakai, small talk, permintaan teknis satu kali, atau hal yang sudah tercakup dalam memori yang sudah ada).
-
 Memori yang SUDAH ada (jangan ulangi jika sudah tercakup):
 ${existing.length ? existing.map(f => '- ' + f).join('\n') : '(belum ada)'}
-
 Percakapan baru:
 User: "${(userText || '').slice(0, 500)}"
 AI: "${(aiText || '').slice(0, 500)}"
-
 Balas HANYA dengan array JSON berisi string fakta baru yang layak diingat (maksimal 3 item, singkat dan jelas, dalam Bahasa Indonesia). Jika tidak ada fakta baru yang layak diingat, balas dengan array kosong [].
 Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikasi toko online"]`;
+
   try {
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -304,9 +287,7 @@ Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikas
   }
 });
 
-// Bungkus middleware upload supaya error (file kebesaran, dll) selalu
-// dibalas sebagai JSON, bukan halaman error HTML dari Express yang bikin
-// frontend gagal parsing (muncul "Server error - coba lagi").
+// ── SAFE UPLOAD ──
 function safeUpload(req, res, next) {
   upload.single('file')(req, res, (err) => {
     if (err) {
@@ -320,13 +301,15 @@ function safeUpload(req, res, next) {
   });
 }
 
-// ── CHAT ──
+// ── CHAT (OPTIMIZED FOR HOBBY) ──
 app.post('/api/chat', safeUpload, async (req, res) => {
   const { message, sessionId, model: reqModel, memory } = req.body;
   if (!sessionId) return res.status(400).json({ error: 'sessionId diperlukan' });
+
   const text = message || '';
   const file  = req.file;
   if (!text && !file) return res.status(400).json({ error: 'Pesan atau file diperlukan' });
+
   if (!sessions[sessionId]) sessions[sessionId] = [];
 
   const isImage = file && file.mimetype.startsWith('image/');
@@ -334,6 +317,7 @@ app.post('/api/chat', safeUpload, async (req, res) => {
   const isText  = file && !isImage && !isZip && isTextLike(file.mimetype, file.originalname);
 
   let groqContent, displayText = text;
+
   if (isImage) {
     const b64 = file.buffer.toString('base64');
     groqContent = [
@@ -349,8 +333,8 @@ app.post('/api/chat', safeUpload, async (req, res) => {
         : `Analisis isi file ZIP ini:\n\n${zipSummary}`;
     } else {
       groqContent = text
-        ? `${text}\n\n[File ZIP: "${file.originalname}" — gagal dibaca, mungkin rusak atau terenkripsi]`
-        : `File ZIP "${file.originalname}" gagal dibaca (mungkin rusak atau terenkripsi).`;
+        ? `${text}\n\n[File ZIP: "${file.originalname}" — gagal dibaca]`
+        : `File ZIP "${file.originalname}" gagal dibaca.`;
     }
     displayText = text || `🗜️ ${file.originalname}`;
   } else if (isText) {
@@ -359,14 +343,14 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     displayText = text||`📄 ${file.originalname}`;
   } else if (file) {
     groqContent = text
-      ? `${text}\n\n[File "${file.originalname}" diterima, namun tipe filenya tidak didukung untuk dibaca isinya.]`
-      : `File "${file.originalname}" diterima, namun tipe filenya tidak didukung untuk dibaca isinya.`;
+      ? `${text}\n\n[File "${file.originalname}" diterima, tipe tidak didukung untuk dibaca isinya.]`
+      : `File "${file.originalname}" diterima, tipe tidak didukung.`;
     displayText = text || `📎 ${file.originalname}`;
   } else {
     groqContent = text;
   }
 
-  // ── WEB SEARCH jika perlu ──
+  // Web search
   let webContext = '';
   if (text && needsWebSearch(text)) {
     console.log('🔍 Mencari:', text);
@@ -377,55 +361,50 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     }
   }
 
-  // ── INGATAN AI dari percakapan sebelumnya (dikirim dari klien) ──
+  // Memory
   let memoryContext = '';
   if (memory) {
     try {
       const memArr = JSON.parse(memory);
       if (Array.isArray(memArr) && memArr.length) {
-        memoryContext = '\n\nBerikut hal-hal yang kamu ingat tentang pengguna ini dari percakapan-percakapan sebelumnya:\n'
+        memoryContext = '\n\nBerikut hal-hal yang kamu ingat tentang pengguna ini dari percakapan sebelumnya:\n'
           + memArr.slice(0, 60).map(f => '- ' + f).join('\n')
-          + '\nGunakan informasi ini secara alami jika relevan dengan pertanyaan pengguna saat ini. Jika pengguna bertanya apa yang kamu ingat tentangnya, sebutkan poin-poin di atas secara ringkas.';
+          + '\nGunakan informasi ini secara alami jika relevan.';
       }
-    } catch (e) { /* abaikan jika format tidak valid */ }
+    } catch (e) {}
   }
 
   sessions[sessionId].push({ role:'user', content: displayText });
 
-  // Model yang diizinkan:
-  // - Groq: openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.6-27b
-  // - RunBios (Genius v3.0): kimi-k2.7-code, kimi-k3
   const ALLOWED_MODELS = [
     'openai/gpt-oss-120b',
     'openai/gpt-oss-20b',
     'qwen/qwen3.6-27b',
-    'kimi-k2.7-code', // Genius v3.0 (RunBios)
-    'kimi-k3'         // opsional RunBios flagship
+    'kimi-k2.7-code',
+    'kimi-k3'
   ];
 
   const model = isImage
     ? 'qwen/qwen3.6-27b'
     : (ALLOWED_MODELS.includes(reqModel) ? reqModel : 'openai/gpt-oss-120b');
 
-  // Model coding / Genius v3.0 (RunBios) dipanggil lewat endpoint RunBios, sisanya tetap lewat Groq.
   const useRunBios = RUNBIOS_CODING_MODELS.includes(model);
 
-  // Prompt: coding model (Genius v3.0) harus selesaikan kode penuh + bungkus dalam fence
+  // Prompt coding yang sangat ketat agar cepat selesai di Hobby
   const codingExtra = useRunBios
     ? ` Saat diminta membuat kode (HTML/CSS/JS/Python/dll), ikuti aturan ini DENGAN KETAT:
-1) Tulis kode LENGKAP yang langsung bisa dijalankan (jangan terpotong di tengah).
-2) PENTING SPEED: untuk game/HTML, buat SATU file mini (inline CSS+JS), MAKSIMAL ~60-80 baris, tanpa komentar panjang. Tetap bisa dimainkan.
-3) Jangan buat canvas game kompleks / particle / banyak level — pilih mekanik sederhana (klik, tebak angka, snake mini, dll).
-4) Bungkus kode dengan markdown fence, contoh: \`\`\`html ... \`\`\` atau \`\`\`javascript ... \`\`\`.
-5) Jangan kirim HTML/JS mentah tanpa fence — selalu pakai fence.
-6) Penjelasan maksimal 1 kalimat sebelum kode. Jangan jelaskan lama.`
+1) Tulis kode LENGKAP yang langsung bisa dijalankan.
+2) PENTING SPEED: untuk game/HTML, buat SATU file mini (inline CSS+JS), MAKSIMAL 40 baris, tanpa komentar panjang.
+3) Jangan buat canvas game kompleks / particle / banyak level — pilih mekanik sederhana (klik, tebak angka, counter, snake mini).
+4) Bungkus kode dengan markdown fence, contoh: \`\`\`html ... \`\`\`.
+5) Jangan kirim HTML/JS mentah tanpa fence.
+6) Penjelasan maksimal 1 kalimat sebelum kode.`
     : '';
 
   const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${codingExtra}${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
 
   try {
     const history = sessions[sessionId].slice(-20);
-    const lastMsg = history[history.length - 1];
     const messages = [
       { role:'system', content: systemPrompt },
       ...history.slice(0,-1).map(m => ({ role: m.role, content: m.content })),
@@ -435,21 +414,15 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     const apiUrl = useRunBios ? RUNBIOS_BASE : 'https://api.groq.com/openai/v1/chat/completions';
     const apiKey = useRunBios ? process.env.RUNBIOS_API_KEY : process.env.GROQ_API_KEY;
 
-    if (useRunBios && !apiKey) {
-      throw new Error('RUNBIOS_API_KEY belum diset di server');
-    }
-    if (!useRunBios && !apiKey) {
-      throw new Error('GROQ_API_KEY belum diset di server');
-    }
+    if (useRunBios && !apiKey) throw new Error('RUNBIOS_API_KEY belum diset di server');
+    if (!useRunBios && !apiKey) throw new Error('GROQ_API_KEY belum diset di server');
 
-    // Coding model butuh token lebih besar agar game HTML/JS tidak terpotong
-    
-    // Percepat coding di Vercel Hobby: instruksikan model agar output mini
+    // Tambahan instruksi brevity untuk coding
     if (useRunBios && text) {
       const lower = text.toLowerCase();
-      const wantsCode = /html|game|kode|code|css|javascript|python|script|buatkan|bikin/.test(lower);
+      const wantsCode = /html|game|kode|code|css|javascript|python|script|buatkan|bikin|make me|buat/.test(lower);
       if (wantsCode) {
-        const brevity = '\n\n[Sistem: Balas dengan kode MINI yang lengkap dalam 1 fence markdown. Maks ~70 baris. Tanpa basa-basi panjang.]';
+        const brevity = '\n\n[SISTEM STRICT]: Balas HANYA 1 fence markdown. File HTML lengkap (inline CSS+JS). MAKSIMAL 40 baris. Tanpa penjelasan panjang, tanpa komentar, tanpa particle/canvas kompleks. Mekanik paling sederhana saja.';
         const last = messages[messages.length - 1];
         if (last && last.role === 'user' && typeof last.content === 'string') {
           last.content = last.content + brevity;
@@ -457,7 +430,8 @@ app.post('/api/chat', safeUpload, async (req, res) => {
       }
     }
 
-const maxTokens = useRunBios ? 1536 : 2048; // 1536: cukup game mini, tetap <10s di Vercel Hobby
+    // Token lebih kecil = lebih cepat di Hobby
+    const maxTokens = useRunBios ? 768 : 2048;
 
     async function callChat(url, key, mdl, tok) {
       const r = await fetch(url, {
@@ -477,28 +451,29 @@ const maxTokens = useRunBios ? 1536 : 2048; // 1536: cukup game mini, tetap <10s
 
     let reply;
     if (useRunBios) {
-      // Race: jika RunBios >7 dtk (mendekati batas Hobby 10 dtk), fallback Groq
       const groqKey = process.env.GROQ_API_KEY;
       const runBiosPromise = callChat(apiUrl, apiKey, model, maxTokens);
+      // Race 5.5 detik — aman untuk Hobby 10s
       const timeoutPromise = new Promise((_, rej) =>
-        setTimeout(() => rej(new Error('RUNBIOS_TIMEOUT')), 7000)
+        setTimeout(() => rej(new Error('RUNBIOS_TIMEOUT')), 5500)
       );
+
       try {
         reply = await Promise.race([runBiosPromise, timeoutPromise]);
       } catch (e) {
         console.warn('RunBios lambat/gagal, fallback Groq:', e.message);
         if (!groqKey) throw new Error('RunBios timeout/gagal dan GROQ_API_KEY belum diset');
-        // Tetap biarkan runBiosPromise jalan di background (tidak ditunggu)
         reply = await callChat(
           'https://api.groq.com/openai/v1/chat/completions',
           groqKey,
           'openai/gpt-oss-120b',
-          2048
+          1024
         );
       }
     } else {
       reply = await callChat(apiUrl, apiKey, model, maxTokens);
     }
+
     sessions[sessionId].push({ role:'assistant', content: reply });
     if (sessions[sessionId].length > 40) sessions[sessionId] = sessions[sessionId].slice(-40);
 
@@ -510,15 +485,12 @@ const maxTokens = useRunBios ? 1536 : 2048; // 1536: cukup game mini, tetap <10s
   }
 });
 
-// ── Jaring pengaman terakhir ──
-// Kalau ada error tak terduga yang lolos dari try/catch di rute manapun,
-// pastikan tetap dibalas JSON (bukan halaman HTML Express) supaya frontend
-// tidak gagal parsing dan menampilkan "Server error - coba lagi" tanpa detail.
+// Error handler terakhir
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   if (res.headersSent) return next(err);
   res.status(500).json({ error: err.message || 'Terjadi kesalahan pada server' });
 });
 
-// JANGAN pakai app.listen() di Vercel — export app-nya saja
+// JANGAN app.listen() di Vercel
 module.exports = app;
