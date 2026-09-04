@@ -1,14 +1,8 @@
 
 {
   "functions": {
-    "api/**/*": {
-      "maxDuration": 60
-    },
-    "api/index.js": {
-      "maxDuration": 60
-    },
-    "api/chat.js": {
-      "maxDuration": 60
+    "api/**/*.js": {
+      "maxDuration": 10
     }
   }
 }
