@@ -1050,22 +1050,6 @@
     document.getElementById('memoryToggleIcon').classList.add('collapsed');
   }
 
-  // ── Buka percakapan baru saat tab ditinggalkan ──
-  // Begitu tab disembunyikan (pindah tab/aplikasi lain, minimize, dsb —
-  // website belum ditutup), sistem menandai bahwa tab sedang tidak aktif.
-  // Saat tab dilihat/aktif lagi, percakapan baru langsung dibuka.
-  (function setupLeaveTabNewChat() {
-    let tabWasHidden = false;
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') {
-        tabWasHidden = true;
-      } else if (document.visibilityState === 'visible' && tabWasHidden) {
-        tabWasHidden = false;
-        newChat();
-      }
-    });
-  })();
-
   function updateAppHeight() {
     const vv = window.visualViewport;
     if (!vv) return;
