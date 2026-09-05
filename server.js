@@ -414,7 +414,7 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     const messages = [
       { role:'system', content: systemPrompt },
       ...history.slice(0,-1).map(m => ({ role: m.role, content: m.content })),
-      { role:'user', content: isImage ? groqContent : (webContext ? `${text}\n\n${webContext}` : (typeof groqContent === 'string' ? groqContent : groqContent)) }
+      { role:'user', content: isImage ? groqContent : (webContext ? `${text}\n\n${webContext}` : groqContent) }
     ];
 
     // Hanya pakai endpoint & key RunBios kalau memang benar-benar mau di-route
@@ -423,7 +423,15 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     // Groq yang valid, jadi tidak bisa dipakai di jalur ini).
     const apiUrl = routeToRunBios ? RUNBIOS_BASE : 'https://api.groq.com/openai/v1/chat/completions';
     const apiKey = routeToRunBios ? process.env.RUNBIOS_API_KEY : process.env.GROQ_API_KEY;
-    const effectiveModel = routeToRunBios ? model : 'openai/gpt-oss-120b';
+    // PENTING: sebelumnya baris ini di-hardcode ke 'openai/gpt-oss-120b' saat
+    // TIDAK melalui RunBios, sehingga model vision ('qwen/qwen3.6-27b') yang
+    // sudah benar dipilih untuk gambar (lihat `model` di atas) malah dibuang
+    // dan diganti model teks biasa yang TIDAK menerima content berbentuk array
+    // (image_url). Itulah penyebab error Groq:
+    //   "messages[N].content must be a string"
+    // Sekarang effectiveModel SELALU memakai `model` yang sudah dihitung di atas
+    // (sudah otomatis menangani kasus isImage, model coding, maupun default).
+    const effectiveModel = model;
 
     if (routeToRunBios && !apiKey) throw new Error('RUNBIOS_API_KEY belum diset di server');
     if (!routeToRunBios && !apiKey) throw new Error('GROQ_API_KEY belum diset di server');
@@ -494,7 +502,9 @@ app.post('/api/chat', safeUpload, async (req, res) => {
       }
     } else {
       // Chat biasa (termasuk basa-basi saat model coding aktif tapi pesannya
-      // bukan permintaan kode): langsung ke Groq, tanpa mampir RunBios.
+      // bukan permintaan kode, dan termasuk permintaan bergambar): langsung ke
+      // Groq, tanpa mampir RunBios, dengan effectiveModel yang sudah benar
+      // (vision model otomatis dipakai kalau ada gambar).
       reply = await callChat(apiUrl, apiKey, effectiveModel, maxTokens, 8000);
     }
 
