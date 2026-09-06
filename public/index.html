@@ -422,8 +422,19 @@
     localStorage.setItem('mbg_device_id', deviceId);
   }
 
-  // SELALU mulai dengan percakapan baru saat refresh / buka browser
-  let sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
+  // Sesi disimpan di sessionStorage: bertahan saat pindah tab / reload di tab yang sama,
+  // tapi otomatis hilang begitu tab ini benar-benar ditutup (tab baru = percakapan baru).
+  function getPersistedSessionId() {
+    try { return sessionStorage.getItem('mbg_session_id'); } catch (e) { return null; }
+  }
+  function persistSessionId(id) {
+    try { sessionStorage.setItem('mbg_session_id', id); } catch (e) {}
+  }
+  function clearPersistedSessionId() {
+    try { sessionStorage.removeItem('mbg_session_id'); } catch (e) {}
+  }
+
+  let sessionId = getPersistedSessionId() || ('sess_' + Math.random().toString(36).substr(2, 9));
 
   let isLoading = false;
   let selectedFile = null;
@@ -515,19 +526,6 @@
     } else {
       el.innerHTML = `<button class="btn-icon" style="width:100%;padding:8px;margin-bottom:8px;" onclick="openAuthModal('login')">🔑 Masuk / Daftar untuk sinkron perangkat</button>`;
     }
-  }
-
-  // SELALU buka percakapan baru saat auth berubah / halaman dimuat
-  async function handleAuthChange(session) {
-    currentUser = session && session.user ? session.user : null;
-    renderAuthAreaSidebar();
-    newChat({ skipFocus: true });
-    await Promise.all([loadConversations(), renderMemoryList()]);
-  }
-
-  if (supabaseClient) {
-    supabaseClient.auth.onAuthStateChange((_event, session) => { handleAuthChange(session); });
-    supabaseClient.auth.getSession().then(({ data }) => { handleAuthChange(data.session); });
   }
 
   function getMemoryKey() { return 'mbg_memory_' + deviceId; }
@@ -890,6 +888,7 @@
       if (!conv) return showError('Percakapan tidak ditemukan');
     }
     sessionId = id;
+    persistSessionId(sessionId);
     document.getElementById('chat-title').textContent = conv.title;
     document.getElementById('chat-title').classList.remove('new');
     const chat = document.getElementById('chat');
@@ -913,19 +912,54 @@
     loadConversations();
   }
 
-  // INIT — selalu percakapan baru
-  updateDailyStreak();
-  requestNotificationPermission();
-  renderAuthAreaSidebar();
-  (async () => {
-    await loadConversations();
-    await renderMemoryList();
+  // Coba pulihkan percakapan yang sedang berjalan di tab ini (dari sessionStorage).
+  // Kalau tidak ada / sudah tidak ditemukan, baru buka percakapan baru.
+  async function restoreOrNewChat() {
+    const persisted = getPersistedSessionId();
+    if (persisted) {
+      const convs = await getAllConversations();
+      if (convs.find(c => c.id === persisted)) {
+        await loadConv(persisted);
+        return;
+      }
+    }
     newChat({ skipFocus: true });
-  })();
+  }
 
-  if (localStorage.getItem('memory_section_collapsed') !== 'false') {
-    document.getElementById('memory-section').style.display = 'none';
-    document.getElementById('memoryToggleIcon').classList.add('collapsed');
+  let appInitialized = false;
+
+  // handleAuthChange dipanggil oleh Supabase saat status auth berubah.
+  // Pada pemuatan pertama (belum appInitialized), kita pulihkan sesi lama di tab ini (jika ada).
+  // Setelah itu, kita HANYA reset ke percakapan baru bila akun benar-benar berganti
+  // (login/logout/ganti user) — bukan setiap kali event auth ditembakkan (mis. refresh token).
+  async function handleAuthChange(event, session) {
+    const prevUserId = currentUser ? currentUser.id : null;
+    currentUser = session && session.user ? session.user : null;
+    renderAuthAreaSidebar();
+    const newUserId = currentUser ? currentUser.id : null;
+
+    if (!appInitialized) {
+      appInitialized = true;
+      await loadConversations();
+      await renderMemoryList();
+      await restoreOrNewChat();
+      return;
+    }
+
+    if (newUserId !== prevUserId) {
+      clearPersistedSessionId();
+      await loadConversations();
+      await renderMemoryList();
+      newChat({ skipFocus: true });
+    } else {
+      await loadConversations();
+      await renderMemoryList();
+    }
+  }
+
+  if (supabaseClient) {
+    supabaseClient.auth.onAuthStateChange((event, session) => { handleAuthChange(event, session); });
+    supabaseClient.auth.getSession().then(({ data }) => { handleAuthChange('INITIAL_SESSION', data.session); });
   }
 
   function updateAppHeight() {
@@ -1238,6 +1272,7 @@
   function newChat(opts) {
     opts = opts || {};
     sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
+    persistSessionId(sessionId);
     document.getElementById('chat-title').textContent = 'Percakapan Baru';
     document.getElementById('chat-title').classList.add('new');
     document.getElementById('chat').innerHTML = `<div class="message-wrap"><div id="welcome">
@@ -1338,6 +1373,23 @@
     speechSynthesis.speak(utter);
   }
   speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+
+  // INIT
+  updateDailyStreak();
+  requestNotificationPermission();
+  renderAuthAreaSidebar();
+  if (localStorage.getItem('memory_section_collapsed') !== 'false') {
+    document.getElementById('memory-section').style.display = 'none';
+    document.getElementById('memoryToggleIcon').classList.add('collapsed');
+  }
+  if (!supabaseClient) {
+    (async () => {
+      appInitialized = true;
+      await loadConversations();
+      await renderMemoryList();
+      await restoreOrNewChat();
+    })();
+  }
 </script>
 </body>
 </html>
