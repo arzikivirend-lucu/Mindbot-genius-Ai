@@ -422,8 +422,11 @@
     localStorage.setItem('mbg_device_id', deviceId);
   }
 
-  // Sesi disimpan di sessionStorage: bertahan saat pindah tab / reload di tab yang sama,
-  // tapi otomatis hilang begitu tab ini benar-benar ditutup (tab baru = percakapan baru).
+  // Sesi disimpan di sessionStorage supaya BISA dipulihkan, tapi hanya dipulihkan
+  // pada satu kondisi spesifik: saat browser diam-diam "membuang" (discard) tab ini
+  // karena tidak aktif (umum terjadi di HP saat pindah tab) lalu memuat ulang ketika
+  // kamu kembali ke tab-nya. Refresh manual (F5/tombol reload) atau tab yang benar-benar
+  // ditutup lalu dibuka lagi TIDAK memulihkan sesi — keduanya selalu mulai percakapan baru.
   function getPersistedSessionId() {
     try { return sessionStorage.getItem('mbg_session_id'); } catch (e) { return null; }
   }
@@ -433,8 +436,13 @@
   function clearPersistedSessionId() {
     try { sessionStorage.removeItem('mbg_session_id'); } catch (e) {}
   }
+  // true HANYA jika halaman ini dimuat ulang karena tab-nya sempat "dibuang" oleh
+  // browser (bukan refresh manual, bukan navigasi/tab baru biasa).
+  function wasTabDiscardedReload() {
+    try { return document.wasDiscarded === true; } catch (e) { return false; }
+  }
 
-  let sessionId = getPersistedSessionId() || ('sess_' + Math.random().toString(36).substr(2, 9));
+  let sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
 
   let isLoading = false;
   let selectedFile = null;
@@ -912,17 +920,22 @@
     loadConversations();
   }
 
-  // Coba pulihkan percakapan yang sedang berjalan di tab ini (dari sessionStorage).
-  // Kalau tidak ada / sudah tidak ditemukan, baru buka percakapan baru.
+  // Pulihkan percakapan sebelumnya HANYA kalau reload ini akibat tab-discard
+  // (browser membuang tab saat tidak aktif, lalu memuat ulang saat kamu kembali).
+  // Untuk semua kasus lain — refresh manual, tab baru, atau tab yang ditutup lalu
+  // dibuka lagi — selalu mulai percakapan baru.
   async function restoreOrNewChat() {
-    const persisted = getPersistedSessionId();
-    if (persisted) {
-      const convs = await getAllConversations();
-      if (convs.find(c => c.id === persisted)) {
-        await loadConv(persisted);
-        return;
+    if (wasTabDiscardedReload()) {
+      const persisted = getPersistedSessionId();
+      if (persisted) {
+        const convs = await getAllConversations();
+        if (convs.find(c => c.id === persisted)) {
+          await loadConv(persisted);
+          return;
+        }
       }
     }
+    clearPersistedSessionId();
     newChat({ skipFocus: true });
   }
 
