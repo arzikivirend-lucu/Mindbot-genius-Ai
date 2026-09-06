@@ -140,6 +140,122 @@ async function searchWeb(query) {
   }
 }
 
+// ── URL OPEN / EXTRACT ──
+const URL_REGEX = /https?:\/\/[^\s<>"')\]]+/gi;
+
+function extractUrls(text) {
+  if (!text) return [];
+  const matches = text.match(URL_REGEX) || [];
+  return [...new Set(matches.map(u => u.replace(/[.,;:!?)]+$/, '')))].slice(0, 3);
+}
+
+function stripHtml(html) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<\/?(?:p|div|br|h[1-6]|li|tr)[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, ' ')
+    .replace(/\n\s*\n/g, '\n')
+    .trim();
+}
+
+async function fetchPageContentNative(url, maxChars = 12000) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const resp = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; MindbotGenius/1.0; +https://mindbot-genius-ai.vercel.app)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'id,en;q=0.9'
+      },
+      redirect: 'follow'
+    });
+    clearTimeout(timer);
+    if (!resp.ok) return null;
+    const ct = (resp.headers.get('content-type') || '').toLowerCase();
+    if (!ct.includes('text/') && !ct.includes('html') && !ct.includes('xml') && !ct.includes('json')) {
+      return `[URL: ${url}]\nTipe konten tidak didukung untuk dibaca teks (${ct || 'unknown'}).`;
+    }
+    const raw = await resp.text();
+    if (ct.includes('json')) {
+      return `[Isi JSON dari ${url}]\n${raw.slice(0, maxChars)}`;
+    }
+    const text = stripHtml(raw).slice(0, maxChars);
+    if (!text || text.length < 40) return null;
+    return `[Isi halaman: ${url}]\n${text}`;
+  } catch (e) {
+    console.warn('Native fetch gagal:', url, e.message);
+    return null;
+  }
+}
+
+async function fetchPageContentTavily(urls, query) {
+  const TAVILY_KEY = process.env.TAVILY_API_KEY;
+  if (!TAVILY_KEY || !urls.length) return null;
+  try {
+    const body = {
+      urls: urls.length === 1 ? urls[0] : urls,
+      extract_depth: 'basic'
+    };
+    if (query) body.query = query;
+    const resp = await fetch('https://api.tavily.com/extract', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TAVILY_KEY}`
+      },
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const results = data.results || [];
+    if (!results.length) return null;
+    let out = '';
+    for (const r of results) {
+      const content = (r.raw_content || r.content || '').trim();
+      if (!content) continue;
+      out += `[Isi halaman: ${r.url}]\n${content.slice(0, 10000)}\n\n`;
+    }
+    return out.trim() || null;
+  } catch (e) {
+    console.warn('Tavily extract error:', e.message);
+    return null;
+  }
+}
+
+async function openLinks(text) {
+  const urls = extractUrls(text);
+  if (!urls.length) return '';
+  console.log('🔗 Membuka link:', urls);
+
+  let content = await fetchPageContentTavily(urls, text.slice(0, 200));
+  if (content) {
+    console.log('✅ Konten berhasil diambil via Tavily');
+    return content;
+  }
+
+  const parts = [];
+  for (const url of urls) {
+    const part = await fetchPageContentNative(url);
+    if (part) parts.push(part);
+  }
+  if (parts.length) {
+    console.log('✅ Konten berhasil diambil via native fetch');
+    return parts.join('\n\n');
+  }
+  return `[Gagal membuka link: ${urls.join(', ')}. Mungkin situs memblokir bot atau butuh login.]`;
+}
+
 // ── IMAGE GENERATION (deAPI) ──
 const DEAPI_BASE  = 'https://api.deapi.ai/api/v1/client';
 const DEAPI_MODEL = 'ZImageTurbo_INT8';
@@ -208,7 +324,6 @@ app.get('/api/imagine/status/:requestId', async (req, res) => {
     const rawStatus = (d?.status || '').toLowerCase();
     const DONE_STATUSES   = ['done', 'completed', 'success', 'succeeded', 'finished'];
     const FAILED_STATUSES = ['failed', 'error', 'cancelled'];
-
     if (DONE_STATUSES.includes(rawStatus)) {
       const imageUrl =
         d?.result_url ||
@@ -245,7 +360,6 @@ app.post('/api/memory/extract', async (req, res) => {
   if (!userText && !aiText) return res.json({ facts: [] });
   const GROQ_KEY = process.env.GROQ_API_KEY;
   if (!GROQ_KEY) return res.json({ facts: [] });
-
   const existing = Array.isArray(existingMemory) ? existingMemory.slice(0, 60) : [];
   const extractPrompt = `Kamu bertugas mengekstrak fakta PENTING dan TAHAN LAMA tentang pengguna dari potongan percakapan berikut, untuk disimpan sebagai memori jangka panjang asisten AI.
 Hanya ambil fakta seperti: nama pengguna, pekerjaan/proyek yang sedang dikerjakan, preferensi personal, informasi identitas yang relevan, tujuan jangka panjang, atau konteks penting lain yang kemungkinan berguna di percakapan mendatang.
@@ -257,7 +371,6 @@ User: "${(userText || '').slice(0, 500)}"
 AI: "${(aiText || '').slice(0, 500)}"
 Balas HANYA dengan array JSON berisi string fakta baru yang layak diingat (maksimal 3 item, singkat dan jelas, dalam Bahasa Indonesia). Jika tidak ada fakta baru yang layak diingat, balas dengan array kosong [].
 Contoh format balasan: ["Nama pengguna adalah Budi", "Sedang mengerjakan aplikasi toko online"]`;
-
   try {
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -305,11 +418,9 @@ function safeUpload(req, res, next) {
 app.post('/api/chat', safeUpload, async (req, res) => {
   const { message, sessionId, model: reqModel, memory } = req.body;
   if (!sessionId) return res.status(400).json({ error: 'sessionId diperlukan' });
-
   const text = message || '';
   const file  = req.file;
   if (!text && !file) return res.status(400).json({ error: 'Pesan atau file diperlukan' });
-
   if (!sessions[sessionId]) sessions[sessionId] = [];
 
   const isImage = file && file.mimetype.startsWith('image/');
@@ -317,7 +428,6 @@ app.post('/api/chat', safeUpload, async (req, res) => {
   const isText  = file && !isImage && !isZip && isTextLike(file.mimetype, file.originalname);
 
   let groqContent, displayText = text;
-
   if (isImage) {
     const b64 = file.buffer.toString('base64');
     groqContent = [
@@ -361,6 +471,12 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     }
   }
 
+  // ── Buka link jika user mengirim URL ──
+  let linkContext = '';
+  if (text && extractUrls(text).length) {
+    linkContext = await openLinks(text);
+  }
+
   // Memory
   let memoryContext = '';
   if (memory) {
@@ -392,11 +508,10 @@ app.post('/api/chat', safeUpload, async (req, res) => {
 
   // Jangan asumsikan setiap pesan yang dikirim saat model coding aktif itu
   // permintaan kode — basa-basi seperti "Halo" tidak perlu (dan tidak boleh)
-  // menunggu RunBios sama sekali, itu cuma membuang jatah waktu 10 dtk Vercel.
+  // menunggu RunBios sama sekali.
   const looksLikeCodeRequest = !!text && /html|game|kode|code|css|javascript|python|script|buatkan|bikin|make me|buat|fungsi|function|program/i.test(text);
   const routeToRunBios = useRunBios && looksLikeCodeRequest;
 
-  // Prompt coding yang sangat ketat agar cepat selesai di Hobby
   const codingExtra = useRunBios
     ? ` Saat diminta membuat kode (HTML/CSS/JS/Python/dll), ikuti aturan ini DENGAN KETAT:
 1) Tulis kode LENGKAP yang langsung bisa dijalankan.
@@ -407,31 +522,34 @@ app.post('/api/chat', safeUpload, async (req, res) => {
 6) Penjelasan maksimal 1 kalimat sebelum kode.`
     : '';
 
-  const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${codingExtra}${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}`;
+  const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${codingExtra}${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}${linkContext ? '\n\nPengguna mengirim link. Berikut isi halaman yang berhasil dibuka (gunakan ini untuk menjawab):\n'+linkContext : ''}`;
 
   try {
     const history = sessions[sessionId].slice(-20);
     const messages = [
       { role:'system', content: systemPrompt },
       ...history.slice(0,-1).map(m => ({ role: m.role, content: m.content })),
-      { role:'user', content: isImage ? groqContent : (webContext ? `${text}\n\n${webContext}` : groqContent) }
+      { role:'user', content: isImage ? groqContent : (webContext || linkContext ? `${text}\n\n${webContext || ''}${linkContext ? '\n'+linkContext : ''}` : groqContent) }
     ];
 
-    // Hanya pakai endpoint & key RunBios kalau memang benar-benar mau di-route
-    // ke sana. Kalau model coding dipilih tapi pesannya bukan permintaan kode,
-    // pakai Groq langsung dengan model teks biasa (kimi-k2.7-code bukan model
-    // Groq yang valid, jadi tidak bisa dipakai di jalur ini).
-    const apiUrl = routeToRunBios ? RUNBIOS_BASE : 'https://api.groq.com/openai/v1/chat/completions';
-    const apiKey = routeToRunBios ? process.env.RUNBIOS_API_KEY : process.env.GROQ_API_KEY;
-    // PENTING: sebelumnya baris ini di-hardcode ke 'openai/gpt-oss-120b' saat
-    // TIDAK melalui RunBios, sehingga model vision ('qwen/qwen3.6-27b') yang
-    // sudah benar dipilih untuk gambar (lihat `model` di atas) malah dibuang
-    // dan diganti model teks biasa yang TIDAK menerima content berbentuk array
-    // (image_url). Itulah penyebab error Groq:
-    //   "messages[N].content must be a string"
-    // Sekarang effectiveModel SELALU memakai `model` yang sudah dihitung di atas
-    // (sudah otomatis menangani kasus isImage, model coding, maupun default).
-    const effectiveModel = model;
+    const apiUrl = routeToRunBios
+      ? RUNBIOS_BASE
+      : 'https://api.groq.com/openai/v1/chat/completions';
+
+    const apiKey = routeToRunBios
+      ? process.env.RUNBIOS_API_KEY
+      : process.env.GROQ_API_KEY;
+
+    // Model yang benar-benar dikirim ke API
+    // Kalau tidak ke RunBios, JANGAN pakai nama model RunBios (kimi-k2.7-code)
+    let effectiveModel;
+    if (routeToRunBios) {
+      effectiveModel = model;                 // kimi-k2.7-code / kimi-k3
+    } else if (isImage) {
+      effectiveModel = 'qwen/qwen3.6-27b';    // vision
+    } else {
+      effectiveModel = 'openai/gpt-oss-120b'; // fallback aman ke Groq
+    }
 
     if (routeToRunBios && !apiKey) throw new Error('RUNBIOS_API_KEY belum diset di server');
     if (!routeToRunBios && !apiKey) throw new Error('GROQ_API_KEY belum diset di server');
@@ -445,11 +563,8 @@ app.post('/api/chat', safeUpload, async (req, res) => {
       }
     }
 
-    // Token lebih kecil = lebih cepat di Hobby
     const maxTokens = routeToRunBios ? 768 : 2048;
 
-    // callChat menerima timeoutMs opsional: membatalkan fetch via AbortController
-    // supaya request yang menggantung tidak diam-diam memakan jatah waktu function.
     async function callChat(url, key, mdl, tok, timeoutMs) {
       const controller = new AbortController();
       const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : null;
@@ -479,14 +594,6 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     let reply;
     if (routeToRunBios) {
       const groqKey = process.env.GROQ_API_KEY;
-      // Anggaran waktu KETAT agar total tetap di bawah batas 10 dtk Vercel Hobby
-      // (lihat vercel.json → maxDuration: 10), plus sisa buffer untuk cold start:
-      //   - percobaan RunBios: maksimal 3.5 dtk (dipaksa berhenti via AbortController,
-      //     bukan cuma "diabaikan" seperti sebelumnya — sehingga tidak ada request
-      //     yang diam-diam masih berjalan dan membebani sisa waktu)
-      //   - fallback Groq: maksimal 3.0 dtk
-      // Total terburuk ≈ 6.5 dtk, menyisakan buffer ~3.5 dtk untuk cold start,
-      // parsing, dan overhead response sebelum function di-kill.
       try {
         reply = await callChat(apiUrl, apiKey, effectiveModel, maxTokens, 3500);
       } catch (e) {
@@ -501,10 +608,6 @@ app.post('/api/chat', safeUpload, async (req, res) => {
         );
       }
     } else {
-      // Chat biasa (termasuk basa-basi saat model coding aktif tapi pesannya
-      // bukan permintaan kode, dan termasuk permintaan bergambar): langsung ke
-      // Groq, tanpa mampir RunBios, dengan effectiveModel yang sudah benar
-      // (vision model otomatis dipakai kalau ada gambar).
       reply = await callChat(apiUrl, apiKey, effectiveModel, maxTokens, 8000);
     }
 
@@ -512,7 +615,7 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     if (sessions[sessionId].length > 40) sessions[sessionId] = sessions[sessionId].slice(-40);
 
     const title = text.slice(0,40) || (file ? `📎 ${file.originalname}` : 'Percakapan');
-    res.json({ reply, title, searched: !!webContext });
+    res.json({ reply, title, searched: !!webContext || !!linkContext });
   } catch(err) {
     console.error(err.message);
     res.status(500).json({ error: err.message });
