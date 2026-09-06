@@ -1,65 +1,1409 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Download Mindbot Genius Setup</title>
-<style>
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #0b0d12;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    margin: 0;
-  }
-  .card {
-    background: #16181f;
-    padding: 40px 48px;
-    border-radius: 16px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
-    border: 1px solid #2a2d37;
-    text-align: center;
-    max-width: 420px;
-  }
-  h1 {
-    font-size: 20px;
-    margin-bottom: 8px;
-    color: #f2f2f2;
-  }
-  p {
-    color: #9a9ea7;
-    font-size: 14px;
-    margin-bottom: 28px;
-  }
-  a.btn {
-    display: inline-block;
-    background: #3b82f6;
-    color: #fff;
-    text-decoration: none;
-    padding: 14px 32px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 15px;
-    transition: background 0.2s ease;
-  }
-  a.btn:hover {
-    background: #2563eb;
-  }
-  .filesize {
-    margin-top: 16px;
-    font-size: 12px;
-    color: #6b6f78;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+  <title>Mindbot Genius</title>
+  <link rel="icon" type="image/png" href="logo.png"/>
+  <link rel="shortcut icon" type="image/x-icon" href="logo.ico"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0c14; --surface: #0f1220; --surface2: #171b2e;
+      --border: #1e2540; --gold: #c8a84b; --text: #e8eaf0;
+      --text-dim: #5a6380; --user-bg: #101830; --sidebar-w: 260px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      height: 100dvh;
+      height: 100svh;
+      height: var(--app-height, 100dvh);
+    }
+    body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); display: flex; overflow: hidden; overscroll-behavior: none; }
+    #sidebar { width: var(--sidebar-w); background: #080a12; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; transition: transform 0.3s ease; z-index: 20; }
+    .sidebar-head { padding: 11px 12px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .sidebar-logo { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); flex-shrink: 0; }
+    .sidebar-brand .name { font-size: 12px; font-weight: 800; } .sidebar-brand .name span { color: var(--gold); }
+    .sidebar-brand .sub { font-size: 8px; font-family: 'DM Mono', monospace; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
+    .btn-new { width: calc(100% - 24px); margin: 10px 12px 0; padding: 8px 12px; background: linear-gradient(135deg, #1a4fc4, var(--gold)); border: none; border-radius: 10px; color: #fff; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: opacity 0.2s; }
+    .btn-new:hover { opacity: 0.85; } .btn-new { font-size: 12px; }
+    .sidebar-section { padding: 10px 12px 4px; font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
+    #conv-list { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
+    #conv-list::-webkit-scrollbar { width: 3px; } #conv-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .conv-item { padding: 8px 10px; border-radius: 10px; cursor: pointer; margin-bottom: 2px; transition: background 0.15s; position: relative; }
+    .conv-item:hover { background: var(--surface2); } .conv-item.active { background: var(--surface2); border: 1px solid var(--border); }
+    .conv-title { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 24px; }
+    .conv-preview { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .conv-date { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-top: 3px; }
+    .conv-del { position: absolute; top: 8px; right: 8px; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 2px 5px; border-radius: 5px; opacity: 0; transition: opacity 0.15s; }
+    .conv-item:hover .conv-del { opacity: 1; } .conv-del:hover { background: rgba(220,38,38,0.2); color: #f87171; }
+    .conv-empty { text-align: center; padding: 32px 16px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-dim); line-height: 1.8; }
+    .sidebar-footer { padding: 12px 14px; border-top: 1px solid var(--border); }
+    .sidebar-link { display: block; text-align: center; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); text-decoration: none; letter-spacing: 1px; padding: 6px; border-radius: 8px; transition: all 0.2s; }
+    .sidebar-link:hover { color: var(--gold); background: rgba(200,168,75,0.06); }
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; min-height: 0; height: 100%; }
+    #main::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 40% at 20% 10%, rgba(37,99,235,0.06) 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 80% 85%, rgba(200,168,75,0.04) 0%, transparent 60%); pointer-events: none; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 9px 20px; border-bottom: 1px solid var(--border); background: rgba(10,12,20,0.85); backdrop-filter: blur(20px); position: relative; z-index: 10; gap: 8px; min-width: 0; }
+    .header-title { font-size: 12px; font-weight: 700; color: var(--text-dim); font-family: 'DM Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; min-width: 0; flex: 1; }
+    .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .status-dot { display: flex; align-items: center; gap: 6px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px #4ade80; animation: pulse-dot 2s infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1}50%{opacity:.4} }
+    .btn-icon { padding: 5px 10px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); border-radius: 8px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 10px; transition: all 0.2s; }
+    .btn-icon:hover { border-color: var(--gold); color: var(--gold); }
+    #chat { flex: 1; overflow-y: auto; padding: 18px 0; position: relative; z-index: 1; scroll-behavior: smooth; min-height: 0; -webkit-overflow-scrolling: touch; }
+    #chat::-webkit-scrollbar { width: 4px; } #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .message-wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+    .message { display: flex; gap: 10px; margin-bottom: 16px; animation: msg-in 0.3s cubic-bezier(0.16,1,0.3,1) both; }
+    @keyframes msg-in { from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)} }
+    .message.user { flex-direction: row-reverse; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .avatar.ai { border: 2px solid var(--gold); } .avatar.ai img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar.user-av { background: var(--surface2); border: 1px solid var(--border); font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-dim); }
+    .bubble { max-width: 75%; padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.7; }
+    .message.ai .bubble { background: var(--surface); border: 1px solid var(--border); border-top-left-radius: 4px; }
+    .message.user .bubble { background: var(--user-bg); border: 1px solid rgba(37,99,235,0.25); border-top-right-radius: 4px; color: #c8d8ff; }
+    .bubble code { font-family: 'DM Mono', monospace; font-size: 12px; background: rgba(37,99,235,0.12); border: 1px solid rgba(37,99,235,0.2); padding: 1px 5px; border-radius: 4px; color: #93b4ff; }
+    .bubble-img { max-width: 100%; max-height: 280px; border-radius: 10px; margin-bottom: 8px; display: block; border: 1px solid var(--border); cursor: pointer; transition: opacity 0.2s; }
+    .bubble-img:hover { opacity: 0.9; }
+    .file-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(200,168,75,0.1); border: 1px solid rgba(200,168,75,0.3); border-radius: 8px; padding: 5px 10px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--gold); margin-bottom: 6px; }
+    .code-block { margin: 10px 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+    .code-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #060810; border-bottom: 1px solid var(--border); }
+    .code-lang { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--gold); letter-spacing: 1px; text-transform: uppercase; }
+    .code-actions { display: flex; gap: 5px; }
+    .code-btn { font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 9px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim); cursor: pointer; transition: all 0.2s; }
+    .code-btn:hover { border-color: var(--gold); color: var(--gold); } .code-btn.copied { border-color: #4ade80; color: #4ade80; }
+    .code-block pre { font-family: 'DM Mono', monospace; font-size: 12px; background: #060810; padding: 12px 14px; overflow-x: auto; overflow-y: auto; max-height: 480px; color: #a8d8a8; line-height: 1.7; margin: 0; max-width: 100%; white-space: pre; }
+    .typing-indicator { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+    .typing-indicator span { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; animation: bounce 1.2s infinite; }
+    .typing-indicator span:nth-child(2){animation-delay:.2s} .typing-indicator span:nth-child(3){animation-delay:.4s}
+    @keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
+    #welcome { max-width: 520px; margin: 28px auto 0; padding: 0 24px; text-align: center; }
+    .welcome-logo { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; margin: 0 auto 18px; display: block; border: 3px solid var(--gold); box-shadow: 0 0 36px rgba(200,168,75,0.2); }
+    #welcome h2 { font-size: 19px; font-weight: 800; margin-bottom: 6px; } #welcome h2 span { color: var(--gold); }
+    #welcome p { color: var(--text-dim); font-size: 11px; font-family: 'DM Mono', monospace; line-height: 1.6; margin-bottom: 24px; }
+    .suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .suggestion { padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; text-align: left; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-dim); transition: all 0.2s; line-height: 1.5; }
+    .suggestion:hover { border-color: var(--gold); color: var(--text); background: rgba(200,168,75,0.05); transform: translateY(-2px); }
+    footer { position: relative; z-index: 10; padding: 10px 24px 14px; background: rgba(10,12,20,0.92); backdrop-filter: blur(20px); border-top: 1px solid var(--border); flex-shrink: 0; }
+    .input-area { max-width: 720px; margin: 0 auto; }
+    #file-preview-bar { display: none; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
+    #file-preview-bar.show { display: flex; }
+    #preview-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border); display: none; }
+    #preview-icon { font-size: 28px; display: none; }
+    #preview-name { flex: 1; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #preview-size { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); flex-shrink: 0; }
+    #remove-file { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 5px; transition: all 0.2s; flex-shrink: 0; }
+    #remove-file:hover { background: rgba(220,38,38,0.2); color: #f87171; }
+    .input-row { display: flex; gap: 6px; align-items: flex-end; }
+    .input-box { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 13px; resize: none; outline: none; min-height: 44px; max-height: 150px; transition: border-color 0.2s, box-shadow 0.2s; line-height: 1.5; }
+    .input-box::placeholder { color: var(--text-dim); }
+    .input-box:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,168,75,0.08); }
+    .upload-btn { width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; font-size: 18px; position: relative; }
+    .upload-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(200,168,75,0.06); }
+    .upload-btn.has-file { border-color: var(--gold); color: var(--gold); background: rgba(200,168,75,0.1); }
+    .send-btn { width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; background: linear-gradient(135deg, #1a4fc4, var(--gold)); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform 0.15s; }
+    .send-btn:hover{transform:scale(1.05)} .send-btn:active{transform:scale(0.95)} .send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+    .send-btn svg { width: 16px; height: 16px; fill: white; }
+    #lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; cursor: pointer; }
+    #lightbox.show { display: flex; }
+    #lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 12px; }
+    .gen-img-wrap { margin-top: 10px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: var(--surface2); }
+    .gen-img { width: 100%; max-height: 360px; object-fit: cover; display: block; cursor: pointer; transition: opacity 0.2s; opacity: 0; }
+    .gen-img.loaded { opacity: 1; }
+    .gen-loading { padding: 44px 20px; text-align: center; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-dim); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .gen-spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .gen-actions { display: flex; gap: 6px; padding: 8px 10px; background: #060810; border-top: 1px solid var(--border); }
+    .model-selector { position: relative; }
+    .model-btn { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); border-radius: 8px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 10px; transition: all 0.2s; white-space: nowrap; }
+    .model-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .model-btn .dot-model { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
+    .model-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: #080a12; border: 1px solid var(--border); border-radius: 12px; padding: 6px; min-width: 260px; z-index: 100; box-shadow: 0 12px 40px rgba(0,0,0,0.5); display: none; }
+    .model-dropdown.open { display: block; animation: msg-in 0.15s ease; }
+    .model-group-label { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; padding: 6px 10px 4px; }
+    .model-option { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+    .model-option:hover { background: var(--surface2); }
+    .model-option.active { background: var(--surface2); border: 1px solid rgba(200,168,75,0.3); }
+    .model-icon { font-size: 16px; flex-shrink: 0; }
+    .model-info { flex: 1; min-width: 0; }
+    .model-name { font-size: 12px; font-weight: 700; }
+    .model-desc { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-top: 1px; }
+    .model-badge { font-size: 9px; font-family: 'DM Mono', monospace; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+    .badge-fast { background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.2); }
+    .badge-smart { background: rgba(200,168,75,0.1); color: var(--gold); border: 1px solid rgba(200,168,75,0.2); }
+    .badge-vision { background: rgba(37,99,235,0.15); color: #93b4ff; border: 1px solid rgba(37,99,235,0.25); }
+    .voice-btn { width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; transition: all 0.2s; }
+    .voice-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .voice-btn.listening { border-color: #f87171; color: #f87171; background: rgba(248,113,113,0.1); animation: pulse-rec 1s infinite; }
+    @keyframes pulse-rec { 0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0.4)} 50%{box-shadow:0 0 0 8px rgba(248,113,113,0)} }
+    .tts-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 13px; padding: 3px 7px; border-radius: 6px; transition: all 0.2s; margin-left: 4px; vertical-align: middle; }
+    .copy-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 3px 7px; border-radius: 6px; transition: all 0.2s; margin-left: 2px; font-family: 'DM Mono', monospace; }
+    .copy-btn:hover { color: var(--gold); background: rgba(200,168,75,0.1); }
+    .copy-btn.copied { color: #4ade80; }
+    .bubble-content { display: block; }
+    .msg-actions { display: flex; align-items: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.05); gap: 4px; }
+    .tts-btn:hover { color: var(--gold); background: rgba(200,168,75,0.1); }
+    .tts-btn.speaking { color: var(--gold); animation: pulse-dot 0.8s infinite; }
+    .voice-status { text-align: center; font-size: 11px; font-family: 'DM Mono', monospace; color: #f87171; margin-top: 6px; display: none; }
+    .voice-status.show { display: block; }
+    .error-toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #dc2626; color: white; padding: 9px 18px; border-radius: 9px; font-family: 'DM Mono', monospace; font-size: 12px; z-index: 100; animation: slide-up 0.3s ease; }
+    @keyframes slide-up{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+    .menu-toggle { display: none; background: none; border: none; color: var(--text); font-size: 18px; cursor: pointer; padding: 4px; }
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 15; }
+    .overlay.show { display: block; }
+    #drop-overlay { display: none; position: fixed; inset: 0; z-index: 500; background: rgba(10,12,20,0.85); backdrop-filter: blur(4px); align-items: center; justify-content: center; pointer-events: none; }
+    #drop-overlay.show { display: flex; }
+    .drop-card { border: 2px dashed var(--gold); border-radius: 18px; padding: 40px 56px; text-align: center; background: rgba(23,27,46,0.6); }
+    .drop-card .drop-icon { font-size: 34px; margin-bottom: 10px; }
+    .drop-card .drop-title { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+    .drop-card .drop-sub { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); }
+    .streak-badge { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); border-radius: 8px; font-family: 'DM Mono', monospace; font-size: 10px; white-space: nowrap; cursor: default; transition: all 0.2s; }
+    .streak-badge.active { border-color: var(--gold); color: var(--gold); background: rgba(200,168,75,0.06); }
+    .streak-flame { font-size: 12px; }
+    .streak-toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #1a4fc4, var(--gold)); color: #fff; padding: 10px 20px; border-radius: 10px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; z-index: 200; box-shadow: 0 8px 30px rgba(0,0,0,0.4); animation: streak-in 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+    @keyframes streak-in { from{opacity:0;transform:translate(-50%,-10px) scale(0.9)} to{opacity:1;transform:translate(-50%,0) scale(1)} }
+    .memory-section-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 4px; cursor: pointer; user-select: none; }
+    .memory-section-head .label { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
+    .memory-toggle-icon { font-size: 9px; color: var(--text-dim); transition: transform 0.2s; }
+    .memory-toggle-icon.collapsed { transform: rotate(-90deg); }
+    #memory-section { padding: 0 12px 10px; border-bottom: 1px solid var(--border); }
+    #memory-list-sidebar { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+    #memory-list-sidebar::-webkit-scrollbar { width: 3px; } #memory-list-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .memory-item { display: flex; align-items: flex-start; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; font-size: 11px; line-height: 1.5; }
+    .memory-item span { flex: 1; }
+    .memory-del { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 11px; padding: 2px 5px; border-radius: 5px; flex-shrink: 0; }
+    .memory-del:hover { background: rgba(220,38,38,0.2); color: #f87171; }
+    .memory-empty { text-align: center; padding: 14px 8px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); line-height: 1.6; }
+    @media (max-width: 768px) {
+      :root { --sidebar-w: 260px; }
+      .menu-toggle { display: block; }
+      #sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); }
+      header { padding: 10px 12px; }
+      .header-title { font-size: 12px; max-width: 120px; }
+      .status-dot { display: none; }
+      .header-right { gap: 6px; }
+      #newChatHeaderBtn { display: none; }
+      .btn-icon { padding: 5px 8px; font-size: 10px; }
+      .streak-badge { padding: 5px 7px; font-size: 10px; }
+      .model-btn { padding: 5px 8px; font-size: 10px; gap: 4px; }
+      #modelBtnLabel { max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .model-dropdown { min-width: 220px; right: 0; }
+      footer { padding: 8px 12px env(safe-area-inset-bottom, 12px); padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+      .input-box { font-size: 16px; padding: 10px 12px; }
+      .upload-btn, .voice-btn, .send-btn { width: 42px; height: 42px; }
+      .bubble { max-width: 90%; font-size: 13px; padding: 10px 13px; }
+      .message.user .bubble { max-width: 85%; }
+      .message-wrap { padding: 0 10px; }
+      .code-block { max-width: 100%; overflow: hidden; }
+      .code-block pre { font-size: 11px; }
+      .model-selector { position: static; }
+      .model-dropdown { position: fixed; top: 60px; right: 8px; left: 8px; min-width: unset; }
+    }
+    @media (max-width: 380px) {
+      .btn-label { display: none; }
+      .btn-icon { padding: 5px 7px; }
+      .header-title { max-width: 100px; }
+    }
+    .auth-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 600; align-items: center; justify-content: center; padding: 16px; }
+    .auth-modal-overlay.show { display: flex; }
+    .auth-modal { width: 100%; max-width: 340px; background: #0d0f1a; border: 1px solid var(--border); border-radius: 16px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); position: relative; }
+    .auth-modal h3 { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+    .auth-modal .auth-sub { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-bottom: 16px; }
+    .auth-field { margin-bottom: 10px; }
+    .auth-field label { display: block; font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-bottom: 5px; letter-spacing: 0.5px; }
+    .auth-field input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 9px 11px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; }
+    .auth-field input:focus { border-color: var(--gold); }
+    .auth-submit { width: 100%; padding: 10px; margin-top: 6px; background: linear-gradient(135deg, #1a4fc4, var(--gold)); border: none; border-radius: 9px; color: #fff; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
+    .auth-submit:hover { opacity: 0.85; } .auth-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+    .auth-switch { text-align: center; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-top: 14px; }
+    .auth-switch a { color: var(--gold); cursor: pointer; text-decoration: underline; }
+    .auth-error { font-size: 11px; font-family: 'DM Mono', monospace; color: #f87171; margin-top: 8px; min-height: 14px; }
+    .auth-close { position: absolute; top: 10px; right: 14px; background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; }
+    .user-chip { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin: 0 0 8px; }
+    .user-chip .avatar-letter { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg,#1a4fc4,var(--gold)); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; flex-shrink: 0; }
+    .user-chip .user-email { flex: 1; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-chip .logout-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 3px 6px; border-radius: 6px; }
+    .user-chip .logout-btn:hover { color: #f87171; background: rgba(220,38,38,0.15); }
+    .sync-badge { font-size: 9px; font-family: 'DM Mono', monospace; padding: 2px 7px; border-radius: 5px; background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.2); margin-left: 6px; }
+    .auth-steps { list-style: none; margin: 0 0 16px; padding: 0; display: none; }
+    .auth-steps.show { display: block; }
+    .auth-steps li { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); line-height: 1.5; padding: 4px 0; }
+    .auth-steps li .step-num { flex-shrink: 0; width: 16px; height: 16px; border-radius: 50%; background: rgba(200,168,75,0.12); border: 1px solid rgba(200,168,75,0.35); color: var(--gold); font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Mindbot Genius Setup</h1>
-    <p>Klik tombol di bawah untuk mengunduh installer.</p>
-    <a class="btn" href="Mindbot_Genius_Setup_1_0_0__1_.exe" download>Download Sekarang</a>
-    <div class="filesize">Versi 1.0.0 &middot; ~79 MB</div>
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+<div id="drop-overlay">
+  <div class="drop-card">
+    <div class="drop-icon">📎</div>
+    <div class="drop-title">Lepaskan file di sini</div>
+    <div class="drop-sub">Gambar, dokumen, kode, atau ZIP akan otomatis terlampir</div>
   </div>
+</div>
+<div id="lightbox" onclick="closeLightbox()"><img id="lb-img" src="" alt=""/></div>
+
+<div class="auth-modal-overlay" id="authModalOverlay">
+  <div class="auth-modal">
+    <button class="auth-close" onclick="closeAuthModal()">✕</button>
+    <h3 id="authTitle">Masuk</h3>
+    <div class="auth-sub" id="authSub">Masuk dengan email &amp; password (boleh email apa saja, tidak harus Gmail).</div>
+    <ul class="auth-steps" id="authSteps">
+      <li><span class="step-num">1</span><span>Masukkan email kamu</span></li>
+      <li><span class="step-num">2</span><span>Masukkan password kamu</span></li>
+      <li><span class="step-num">3</span><span>Tekan tombol Daftar</span></li>
+      <li><span class="step-num">4</span><span>Buka email kamu</span></li>
+      <li><span class="step-num">5</span><span>Tekan Confirm Email</span></li>
+      <li><span class="step-num">6</span><span>Kembali ke mindbot-genius-ai.vercel.app</span></li>
+      <li><span class="step-num">7</span><span>Tekan Masuk</span></li>
+    </ul>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="authEmail" placeholder="email@apa-saja.com" autocomplete="email"/>
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" id="authPassword" placeholder="Minimal 6 karakter" autocomplete="current-password"/>
+    </div>
+    <button class="auth-submit" id="authSubmitBtn" onclick="submitAuthForm()">Masuk</button>
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-switch" id="authSwitch">Belum punya akun? <a onclick="toggleAuthMode()">Daftar</a></div>
+  </div>
+</div>
+
+<div id="sidebar">
+  <div style="padding:14px;">
+    <div class="sidebar-head" style="padding:0 0 12px;">
+      <img class="sidebar-logo" src="logo.png" alt="Logo"/>
+      <div class="sidebar-brand">
+        <div class="name">Mindbot <span>Genius</span></div>
+        <div class="sub">Binary Global Network</div>
+      </div>
+    </div>
+    <button class="btn-new" onclick="newChat()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
+      Percakapan Baru
+    </button>
+  </div>
+  <div style="padding:0 12px;" id="authAreaSidebar">
+    <button class="btn-icon" style="width:100%;padding:8px;margin-bottom:8px;" id="loginBtnSidebar" onclick="openAuthModal('login')">🔑 Masuk / Daftar untuk sinkron perangkat</button>
+  </div>
+  <div class="memory-section-head" onclick="toggleMemorySection()">
+    <span class="label">🧠 Ingatan AI</span>
+    <span class="memory-toggle-icon" id="memoryToggleIcon">▾</span>
+  </div>
+  <div id="memory-section">
+    <div id="memory-list-sidebar"></div>
+    <button class="code-btn" style="width:100%;padding:6px;" onclick="confirmClearMemory()">🗑️ Hapus semua</button>
+  </div>
+  <div class="sidebar-section">Riwayat Percakapan</div>
+  <div id="conv-list"><div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div></div>
+  <div class="sidebar-footer">
+    <a class="sidebar-link" href="download-exe.html" target="_blank" rel="noopener noreferrer">⬇️ Download Setup</a>
+    <a class="sidebar-link" href="https://apimindbot-genius.vercel.app/signup.html" target="_blank" rel="noopener noreferrer">🔑 API Key</a>
+  </div>
+</div>
+<div id="main">
+  <header>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="header-title new" id="chat-title">Percakapan Baru</div>
+    </div>
+    <div class="header-right">
+      <div class="status-dot"><div class="dot"></div>online</div>
+      <div class="streak-badge" id="streakBadge" title="Streak harian">
+        <span class="streak-flame">🔥</span><span id="streakCount">0</span>
+      </div>
+      <button class="btn-icon" id="notifBtn" onclick="toggleNotification()" title="Notifikasi">🔔</button>
+      <button class="btn-icon" id="downloadBtn" onclick="window.open('download.html', '_blank')" title="Download">⬇️<span class="btn-label"> Download</span></button>
+      <div class="model-selector" id="modelSelector">
+        <button class="model-btn" onclick="toggleModelDropdown()" id="modelBtn">
+          <div class="dot-model"></div>
+          <span id="modelBtnLabel">Mindbot v1.0</span>
+          <span>▾</span>
+        </button>
+        <div class="model-dropdown" id="modelDropdown">
+          <div class="model-group-label">⚡ Cepat & Efisien</div>
+          <div class="model-option active" id="opt_llama33" onclick="selectModel('openai/gpt-oss-120b','Mindbot v1.0','opt_llama33')">
+            <span class="model-icon">🦙</span>
+            <div class="model-info"><div class="model-name">Mindbot v1.0</div><div class="model-desc">Model default, serba bisa</div></div>
+            <span class="model-badge badge-fast">Cepat</span>
+          </div>
+          <div class="model-option" id="opt_llama31" onclick="selectModel('openai/gpt-oss-20b','Mindbot v1.5','opt_llama31')">
+            <span class="model-icon">⚡</span>
+            <div class="model-info"><div class="model-name">Mindbot v1.5</div><div class="model-desc">Super cepat & ringan</div></div>
+            <span class="model-badge badge-fast">Tercepat</span>
+          </div>
+          <div class="model-group-label">🧠 Cerdas & Konteks Panjang</div>
+          <div class="model-option" id="opt_qwen" onclick="selectModel('qwen/qwen3.6-27b','Genius v1.5','opt_qwen')">
+            <span class="model-icon">🐉</span>
+            <div class="model-info"><div class="model-name">Genius v1.5</div><div class="model-desc">Reasoning &amp; vision</div></div>
+            <span class="model-badge badge-smart">Pintar</span>
+          </div>
+          <div class="model-option" id="opt_kimi" onclick="selectModel('openai/gpt-oss-120b','Genius v2.5','opt_kimi')">
+            <span class="model-icon">🤖</span>
+            <div class="model-info"><div class="model-name">Genius v2.5</div><div class="model-desc">Paling cerdas, konteks 131K</div></div>
+            <span class="model-badge badge-smart">131K ctx</span>
+          </div>
+          <div class="model-option" id="opt_genius30" onclick="selectModel('kimi-k2.7-code','Genius v3.0','opt_genius30')">
+            <span class="model-icon">🧬</span>
+            <div class="model-info"><div class="model-name">Genius v3.0</div><div class="model-desc">Coding specialist via RunBios · 256K ctx</div></div>
+            <span class="model-badge badge-smart">RunBios</span>
+          </div>
+          <div class="model-group-label">👁️ Vision & Gambar</div>
+          <div class="model-option" id="opt_llama4" onclick="selectModel('qwen/qwen3.6-27b','Mindbot v2.0','opt_llama4')">
+            <span class="model-icon">🦅</span>
+            <div class="model-info"><div class="model-name">Mindbot v2.0</div><div class="model-desc">Analisis gambar & teks</div></div>
+            <span class="model-badge badge-vision">Vision</span>
+          </div>
+          <div class="model-option" id="opt_grok_img" onclick="selectModel('grok-imagine','Mindbot v2.5','opt_grok_img')">
+            <span class="model-icon">🎨</span>
+            <div class="model-info"><div class="model-name">Mindbot v2.5</div><div class="model-desc">Generate gambar dari teks (deAPI)</div></div>
+            <span class="model-badge badge-smart">Image Gen</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn-icon" id="newChatHeaderBtn" onclick="newChat()">+ Baru</button>
+    </div>
+  </header>
+  <div id="chat">
+    <div class="message-wrap">
+      <div id="welcome">
+        <img class="welcome-logo" src="logo.png" alt="Mindbot Genius"/>
+        <h2>Halo! Saya <span>Mindbot Genius</span></h2>
+        <p>Asisten AI Cerdas Untuk membantu anda.<br/>Kirim pesan atau upload gambar/file!</p>
+        <div class="suggestions">
+          <div class="suggestion" onclick="sendSuggestion(this.textContent)">💡 Jelaskan machine learning</div>
+          <div class="suggestion" onclick="sendSuggestion(this.textContent)">🎮 Ide game Roblox seru</div>
+          <div class="suggestion" onclick="sendSuggestion(this.textContent)">📷 Upload gambar untuk dianalisis</div>
+          <div class="suggestion" onclick="sendSuggestion(this.textContent)">🔧 Contoh kode Python</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <div class="input-area">
+      <div id="file-preview-bar">
+        <img id="preview-thumb" src="" alt=""/>
+        <span id="preview-icon"></span>
+        <span id="preview-name"></span>
+        <span id="preview-size"></span>
+        <button id="remove-file" onclick="removeFile()" title="Hapus file">✕</button>
+      </div>
+      <div class="input-row">
+        <button class="upload-btn" id="upload-btn" onclick="document.getElementById('file-input').click()" title="Upload gambar/file">📎</button>
+        <input type="file" id="file-input" accept="image/*,.txt,.pdf,.html,.htm,.css,.js,.jsx,.mjs,.cjs,.ts,.tsx,.json,.xml,.csv,.tsv,.md,.markdown,.py,.java,.c,.cpp,.h,.hpp,.cs,.php,.rb,.go,.rs,.sh,.bash,.yml,.yaml,.sql,.svg,.vue,.svelte,.zip" style="display:none" onchange="handleFileSelect(event)"/>
+        <textarea id="input" class="input-box" placeholder="Ketik pesan atau upload file/gambar..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="Bicara ke AI">🎙️</button>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+      <div class="voice-status" id="voiceStatus">🎙️ Mendengarkan... bicara sekarang</div>
+    </div>
+  </footer>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = 'https://fdausfmrbalnwnpoespv.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYXVzZm1yYmFsbnducG9lc3B2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNDIxNzQsImV4cCI6MjEwMzkxODE3NH0.ln7MX0M4ZfvbSoYHLLAsVJAO3GGGm3KGmtN-T_sQBGE';
+
+  let supabaseClient = null;
+  let currentUser = null;
+
+  if (!SUPABASE_URL.includes('YOUR-PROJECT')) {
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  let deviceId = localStorage.getItem('mbg_device_id');
+  if (!deviceId) {
+    deviceId = 'dev_' + Math.random().toString(36).substr(2, 12);
+    localStorage.setItem('mbg_device_id', deviceId);
+  }
+
+  // Sesi disimpan di sessionStorage supaya BISA dipulihkan, tapi hanya dipulihkan
+  // pada satu kondisi spesifik: saat browser diam-diam "membuang" (discard) tab ini
+  // karena tidak aktif (umum terjadi di HP saat pindah tab) lalu memuat ulang ketika
+  // kamu kembali ke tab-nya. Refresh manual (F5/tombol reload) atau tab yang benar-benar
+  // ditutup lalu dibuka lagi TIDAK memulihkan sesi — keduanya selalu mulai percakapan baru.
+  function getPersistedSessionId() {
+    try { return sessionStorage.getItem('mbg_session_id'); } catch (e) { return null; }
+  }
+  function persistSessionId(id) {
+    try { sessionStorage.setItem('mbg_session_id', id); } catch (e) {}
+  }
+  function clearPersistedSessionId() {
+    try { sessionStorage.removeItem('mbg_session_id'); } catch (e) {}
+  }
+  // true HANYA jika halaman ini dimuat ulang karena tab-nya sempat "dibuang" oleh
+  // browser (bukan refresh manual, bukan navigasi/tab baru biasa).
+  function wasTabDiscardedReload() {
+    try { return document.wasDiscarded === true; } catch (e) { return false; }
+  }
+
+  let sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
+
+  let isLoading = false;
+  let selectedFile = null;
+  let notifEnabled = localStorage.getItem('notif_enabled') !== 'false';
+  let authMode = 'login';
+  let currentModel = 'openai/gpt-oss-120b';
+  let currentModelName = 'Mindbot v1.0';
+  let memoryCache = [];
+  let recognition = null;
+  let isListening = false;
+  let speakingBtnId = null;
+
+  function openAuthModal(mode) {
+    authMode = mode;
+    updateAuthModalUi();
+    document.getElementById('authEmail').value = '';
+    document.getElementById('authPassword').value = '';
+    document.getElementById('authError').textContent = '';
+    document.getElementById('authModalOverlay').classList.add('show');
+    closeSidebar();
+  }
+  function closeAuthModal() { document.getElementById('authModalOverlay').classList.remove('show'); }
+  function toggleAuthMode() { authMode = authMode === 'login' ? 'signup' : 'login'; updateAuthModalUi(); }
+  function updateAuthModalUi() {
+    const isLogin = authMode === 'login';
+    document.getElementById('authTitle').textContent = isLogin ? 'Masuk' : 'Buat Akun';
+    document.getElementById('authSubmitBtn').textContent = isLogin ? 'Masuk' : 'Daftar';
+    document.getElementById('authSub').textContent = isLogin
+      ? 'Masuk dengan email & password (boleh email apa saja, tidak harus Gmail).'
+      : 'Daftar dengan email & password. Email boleh dari provider mana saja.';
+    document.getElementById('authSteps').classList.toggle('show', !isLogin);
+    document.getElementById('authSwitch').innerHTML = isLogin
+      ? 'Belum punya akun? <a onclick="toggleAuthMode()">Daftar</a>'
+      : 'Sudah punya akun? <a onclick="toggleAuthMode()">Masuk</a>';
+  }
+
+  async function submitAuthForm() {
+    if (!supabaseClient) { showError('Supabase belum dikonfigurasi'); return; }
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const errEl = document.getElementById('authError');
+    errEl.textContent = '';
+    errEl.style.color = '#f87171';
+    if (!email || !password) { errEl.textContent = 'Isi email dan password.'; return; }
+    if (password.length < 6) { errEl.textContent = 'Password minimal 6 karakter.'; return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.textContent = 'Format email tidak valid.'; return; }
+    const btn = document.getElementById('authSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Memproses...';
+    try {
+      if (authMode === 'login') {
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        closeAuthModal();
+      } else {
+        const { data, error } = await supabaseClient.auth.signUp({ email, password });
+        if (error) throw error;
+        if (data.session) closeAuthModal();
+        else {
+          errEl.style.color = '#4ade80';
+          errEl.textContent = 'Akun dibuat! Jika Confirm email masih aktif, cek inbox dulu.';
+        }
+      }
+    } catch (e) {
+      errEl.style.color = '#f87171';
+      errEl.textContent = e.message || 'Gagal memproses.';
+    } finally {
+      btn.disabled = false;
+      updateAuthModalUi();
+    }
+  }
+
+  async function signOutUser() {
+    if (!supabaseClient) return;
+    await supabaseClient.auth.signOut();
+  }
+
+  function renderAuthAreaSidebar() {
+    const el = document.getElementById('authAreaSidebar');
+    if (!el) return;
+    if (currentUser) {
+      const letter = (currentUser.email || '?').charAt(0).toUpperCase();
+      el.innerHTML = `
+        <div class="user-chip">
+          <div class="avatar-letter">${letter}</div>
+          <div class="user-email">${escapeHtml(currentUser.email || '')}<span class="sync-badge">tersinkron</span></div>
+          <button class="logout-btn" onclick="signOutUser()" title="Keluar">⎋</button>
+        </div>`;
+    } else {
+      el.innerHTML = `<button class="btn-icon" style="width:100%;padding:8px;margin-bottom:8px;" onclick="openAuthModal('login')">🔑 Masuk / Daftar untuk sinkron perangkat</button>`;
+    }
+  }
+
+  function getMemoryKey() { return 'mbg_memory_' + deviceId; }
+  function getLocalMemory() {
+    try { return JSON.parse(localStorage.getItem(getMemoryKey()) || '[]'); }
+    catch(e) { return []; }
+  }
+  function setLocalMemory(arr) {
+    try { localStorage.setItem(getMemoryKey(), JSON.stringify(arr.slice(0, 60))); }
+    catch(e) {}
+  }
+
+  async function getMemory() {
+    if (currentUser && supabaseClient) {
+      const { data, error } = await supabaseClient.from('memory_facts').select('id, fact').eq('user_id', currentUser.id).order('created_at', { ascending: true });
+      if (error) return memoryCache.map(m => m.fact);
+      memoryCache = data || [];
+      return memoryCache.map(m => m.fact);
+    }
+    memoryCache = getLocalMemory().map(f => ({ id: null, fact: f }));
+    return memoryCache.map(m => m.fact);
+  }
+
+  async function addMemoryFacts(facts) {
+    if (!facts || !facts.length) return;
+    if (currentUser && supabaseClient) {
+      const existing = memoryCache.map(m => m.fact.toLowerCase());
+      const toInsert = facts.map(f => (f||'').trim()).filter(f => f && !existing.includes(f.toLowerCase()));
+      if (!toInsert.length) return;
+      await supabaseClient.from('memory_facts').insert(toInsert.map(fact => ({ user_id: currentUser.id, fact })));
+    } else {
+      const merged = getLocalMemory();
+      facts.forEach(f => {
+        const norm = (f || '').trim();
+        if (norm && !merged.some(m => m.toLowerCase() === norm.toLowerCase())) merged.push(norm);
+      });
+      while (merged.length > 60) merged.shift();
+      setLocalMemory(merged);
+    }
+    await renderMemoryList();
+  }
+
+  async function removeMemoryFact(idx) {
+    if (currentUser && supabaseClient) {
+      const item = memoryCache[idx];
+      if (item && item.id) await supabaseClient.from('memory_facts').delete().eq('id', item.id);
+    } else {
+      const current = getLocalMemory();
+      current.splice(idx, 1);
+      setLocalMemory(current);
+    }
+    await renderMemoryList();
+  }
+
+  async function clearMemory() {
+    if (currentUser && supabaseClient) {
+      await supabaseClient.from('memory_facts').delete().eq('user_id', currentUser.id);
+    } else {
+      setLocalMemory([]);
+    }
+    await renderMemoryList();
+  }
+
+  async function renderMemoryList() {
+    const el = document.getElementById('memory-list-sidebar');
+    if (!el) return;
+    const mem = await getMemory();
+    if (!mem.length) {
+      el.innerHTML = '<div class="memory-empty">Belum ada ingatan.<br/>AI akan mulai mengingat hal penting seiring percakapan berjalan.</div>';
+      return;
+    }
+    el.innerHTML = mem.map((f, i) => `
+      <div class="memory-item">
+        <span>${escapeHtml(f)}</span>
+        <button class="memory-del" onclick="removeMemoryFact(${i})" title="Hapus">✕</button>
+      </div>`).join('');
+  }
+
+  function toggleMemorySection() {
+    const section = document.getElementById('memory-section');
+    const icon = document.getElementById('memoryToggleIcon');
+    const collapsed = section.style.display === 'none';
+    section.style.display = collapsed ? 'block' : 'none';
+    icon.classList.toggle('collapsed', !collapsed);
+    localStorage.setItem('memory_section_collapsed', collapsed ? 'false' : 'true');
+  }
+
+  function confirmClearMemory() {
+    if (confirm('Hapus semua ingatan AI tentang kamu' + (currentUser ? ' (akun ini)' : ' di perangkat ini') + '?')) clearMemory();
+  }
+
+  async function extractAndSaveMemory(userText, aiText) {
+    if (!userText) return;
+    try {
+      const existingMemory = await getMemory();
+      const res = await fetch('/api/memory/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userText, aiText, existingMemory })
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.facts && data.facts.length) addMemoryFacts(data.facts);
+    } catch(e) {}
+  }
+
+  function todayKey(d = new Date()) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  function daysBetween(a, b) {
+    return Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00')) / 86400000);
+  }
+  function updateDailyStreak() {
+    const today = todayKey();
+    const lastVisit = localStorage.getItem('streak_last_visit');
+    let streak = parseInt(localStorage.getItem('streak_count') || '0', 10);
+    let isNewDay = false;
+    if (!lastVisit) { streak = 1; isNewDay = true; }
+    else if (lastVisit === today) isNewDay = false;
+    else {
+      streak = daysBetween(lastVisit, today) === 1 ? streak + 1 : 1;
+      isNewDay = true;
+    }
+    localStorage.setItem('streak_last_visit', today);
+    localStorage.setItem('streak_count', String(streak));
+    renderStreak(streak);
+    if (isNewDay && streak > 0) showStreakToast(streak);
+  }
+  function renderStreak(streak) {
+    const countEl = document.getElementById('streakCount');
+    const badgeEl = document.getElementById('streakBadge');
+    if (!countEl || !badgeEl) return;
+    countEl.textContent = streak;
+    badgeEl.classList.toggle('active', streak > 1);
+  }
+  function showStreakToast(streak) {
+    const t = document.createElement('div');
+    t.className = 'streak-toast';
+    t.textContent = streak === 1 ? '🔥 Streak dimulai! Hari 1' : `🔥 Streak ${streak} hari berturut-turut!`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  }
+
+  async function toggleNotification() {
+    const btn = document.getElementById('notifBtn');
+    if (!('Notification' in window)) { showError('Browser tidak support notifikasi'); return; }
+    if (Notification.permission === 'denied') { showError('Notifikasi diblokir.'); return; }
+    if (Notification.permission === 'default') {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { showError('Izin notifikasi ditolak'); return; }
+    }
+    notifEnabled = !notifEnabled;
+    localStorage.setItem('notif_enabled', notifEnabled);
+    btn.textContent = notifEnabled ? '🔔' : '🔕';
+    btn.style.color = notifEnabled ? 'var(--gold)' : '';
+    if (notifEnabled) new Notification('🔔 Mindbot Genius', { body: 'Notifikasi aktif!', icon: '/logo.png', tag: 'mindbot-test' });
+  }
+  function sendNotification(title, body) {
+    if (!notifEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+      const cleanBody = (body||'').replace(/[*_`#\[\]]/g,'').replace(/<[^>]+>/g,'').trim().slice(0,120);
+      const notif = new Notification(title, { body: cleanBody, icon: '/logo.png', tag: 'mindbot-reply' });
+      notif.onclick = () => { window.focus(); notif.close(); };
+      setTimeout(() => notif.close(), 6000);
+    } catch(e) {}
+  }
+  async function requestNotificationPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') await Notification.requestPermission();
+    const btn = document.getElementById('notifBtn');
+    if (btn) {
+      btn.textContent = notifEnabled ? '🔔' : '🔕';
+      if (notifEnabled && Notification.permission === 'granted') btn.style.color = 'var(--gold)';
+    }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+  }
+  function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+  function escapeHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function formatSize(b) { return b > 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(0)+' KB'; }
+  function formatDate(ts) {
+    const d = new Date(ts), now = new Date(), diff = now - d;
+    if (diff < 60000) return 'Baru saja';
+    if (diff < 3600000) return Math.floor(diff/60000) + ' menit lalu';
+    if (diff < 86400000) return Math.floor(diff/3600000) + ' jam lalu';
+    return d.toLocaleDateString('id-ID', { day:'numeric', month:'short' });
+  }
+
+  function formatMessage(text) {
+    if (!text) return '';
+    text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    const hasFence = /```/.test(text);
+    const looksLikeCode = !hasFence && (
+      /<!DOCTYPE\s+html/i.test(text) || /<html[\s>]/i.test(text) ||
+      (/^(const|let|var|function|class|import|export)\s/m.test(text) && (text.match(/\n/g)||[]).length >= 8) ||
+      (/\{[\s\S]*\}/.test(text) && /function\s*\(|=>\s*\{/.test(text) && (text.match(/\n/g)||[]).length >= 10)
+    );
+    if (looksLikeCode) {
+      let lang = 'txt';
+      if (/<!DOCTYPE\s+html|<html[\s>]/i.test(text)) lang = 'html';
+      else if (/\b(def |import |print\()/m.test(text)) lang = 'python';
+      else if (/\b(const |let |var |function |=>)/m.test(text)) lang = 'javascript';
+      text = '```' + lang + '\n' + text + '\n```';
+    }
+    const codeBlocks = [];
+    const makeBlock = (lang, code) => {
+      const id = 'c_' + Math.random().toString(36).substr(2, 6);
+      return `<div class="code-block"><div class="code-toolbar"><span class="code-lang">${lang||'code'}</span><div class="code-actions"><button class="code-btn" onclick="copyCode('${id}',this)">📋 Salin</button><button class="code-btn" onclick="dlCode('${id}','${lang||'txt'}')">💾 Unduh</button></div></div><pre id="${id}">${escapeHtml(code.trim())}</pre></div>`;
+    };
+    text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+      const ph = '%%CODEBLOCK' + codeBlocks.length + '%%';
+      codeBlocks.push(makeBlock(lang, code));
+      return ph;
+    });
+    text = text.replace(/```(\w*)\n?([\s\S]+)$/g, (_, lang, code) => {
+      const ph = '%%CODEBLOCK' + codeBlocks.length + '%%';
+      codeBlocks.push(makeBlock(lang, code));
+      return ph;
+    });
+    text = escapeHtml(text);
+    text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/\n/g, '<br/>');
+    codeBlocks.forEach((block, i) => { text = text.split('%%CODEBLOCK' + i + '%%').join(block); });
+    return text;
+  }
+
+  function copyCode(id, btn) {
+    navigator.clipboard.writeText(document.getElementById(id).innerText).then(() => {
+      btn.textContent = '✅ Tersalin!'; btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '📋 Salin'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+  function dlCode(id, lang) {
+    const ext = { javascript:'js', python:'py', html:'html', css:'css', java:'java', cpp:'cpp', c:'c', typescript:'ts', json:'json', bash:'sh', shell:'sh' };
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([document.getElementById(id).innerText], { type:'text/plain' }));
+    a.download = 'mindbot_code.' + (ext[lang.toLowerCase()] || 'txt');
+    a.click();
+  }
+
+  function openLightbox(src) { document.getElementById('lb-img').src = src; document.getElementById('lightbox').classList.add('show'); }
+  function closeLightbox() { document.getElementById('lightbox').classList.remove('show'); }
+
+  function processFile(file) {
+    if (!file) return;
+    selectedFile = file;
+    const bar = document.getElementById('file-preview-bar');
+    const thumb = document.getElementById('preview-thumb');
+    const icon = document.getElementById('preview-icon');
+    document.getElementById('preview-name').textContent = file.name;
+    document.getElementById('preview-size').textContent = formatSize(file.size);
+    bar.classList.add('show');
+    document.getElementById('upload-btn').classList.add('has-file');
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = ev => { thumb.src = ev.target.result; thumb.style.display = 'block'; icon.style.display = 'none'; };
+      reader.readAsDataURL(file);
+    } else {
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      if (file.type === 'application/pdf') icon.textContent = '📄';
+      else if (ext === 'zip') icon.textContent = '🗜️';
+      else if (['js','jsx','ts','tsx','html','css','py','java','c','cpp','json','md'].includes(ext)) icon.textContent = '💻';
+      else icon.textContent = '📝';
+      icon.style.display = 'block'; thumb.style.display = 'none';
+    }
+  }
+  function handleFileSelect(e) { const file = e.target.files[0]; if (!file) return; processFile(file); e.target.value = ''; }
+  function removeFile() {
+    selectedFile = null;
+    document.getElementById('file-preview-bar').classList.remove('show');
+    document.getElementById('upload-btn').classList.remove('has-file');
+    document.getElementById('preview-thumb').style.display = 'none';
+    document.getElementById('preview-icon').style.display = 'none';
+  }
+
+  let dragCounter = 0;
+  const dropOverlay = document.getElementById('drop-overlay');
+  function isFileDrag(e) { return e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files'); }
+  window.addEventListener('dragenter', e => { if (!isFileDrag(e)) return; e.preventDefault(); dragCounter++; dropOverlay.classList.add('show'); });
+  window.addEventListener('dragover', e => { if (!isFileDrag(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+  window.addEventListener('dragleave', e => { if (!isFileDrag(e)) return; dragCounter--; if (dragCounter <= 0) { dragCounter = 0; dropOverlay.classList.remove('show'); } });
+  window.addEventListener('drop', e => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault(); dragCounter = 0; dropOverlay.classList.remove('show');
+    const files = e.dataTransfer.files;
+    if (!files || !files.length) return;
+    const file = files[0];
+    const ok = file.type.startsWith('image/') || file.type === 'application/pdf' || /\.(txt|pdf|png|jpe?g|gif|webp|html?|css|js|ts|json|xml|csv|md|py|java|c|cpp|zip)$/i.test(file.name);
+    if (!ok) { showError('Tipe file tidak didukung.'); return; }
+    processFile(file);
+    document.getElementById('input').focus();
+  });
+
+  function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); }
+  function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
+
+  function getLocalConversations() {
+    return Object.keys(localStorage).filter(k => k.startsWith('conv_'))
+      .map(k => { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } })
+      .filter(Boolean).sort((a,b) => b.updatedAt - a.updatedAt);
+  }
+
+  async function getAllConversations() {
+    if (currentUser && supabaseClient) {
+      const { data, error } = await supabaseClient.from('conversations').select('id, title, messages, created_at, updated_at, preview').eq('user_id', currentUser.id).order('updated_at', { ascending: false });
+      if (error) return [];
+      return (data || []).map(c => ({ id: c.id, title: c.title, messages: c.messages || [], createdAt: new Date(c.created_at).getTime(), updatedAt: new Date(c.updated_at).getTime(), preview: c.preview }));
+    }
+    return getLocalConversations();
+  }
+
+  async function saveConversation(conv) {
+    if (currentUser && supabaseClient) {
+      await supabaseClient.from('conversations').upsert({
+        id: conv.id, user_id: currentUser.id, title: conv.title,
+        messages: conv.messages, preview: conv.preview || '',
+        updated_at: new Date(conv.updatedAt || Date.now()).toISOString()
+      });
+      return;
+    }
+    try { localStorage.setItem('conv_' + conv.id, JSON.stringify(conv)); }
+    catch(e) {
+      const all = getLocalConversations().filter(c => c.id !== conv.id);
+      for (let i = all.length - 1; i >= 0; i--) {
+        localStorage.removeItem('conv_' + all[i].id);
+        try { localStorage.setItem('conv_' + conv.id, JSON.stringify(conv)); break; } catch(e2) {}
+      }
+    }
+  }
+
+  async function loadConversations() {
+    const list = await getAllConversations();
+    const el = document.getElementById('conv-list');
+    if (!list.length) { el.innerHTML = '<div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div>'; return; }
+    el.innerHTML = list.map(c => `
+      <div class="conv-item ${c.id===sessionId?'active':''}" onclick="loadConv('${c.id}')" id="ci_${c.id}">
+        <div class="conv-title">${escapeHtml(c.title)}</div>
+        <div class="conv-preview">${escapeHtml(c.preview||'')}</div>
+        <div class="conv-date">${formatDate(c.updatedAt)}</div>
+        <button class="conv-del" data-id="${c.id}" title="Hapus">✕</button>
+      </div>`).join('');
+    el.querySelectorAll('.conv-del').forEach(btn => {
+      btn.addEventListener('click', function(e) { e.stopPropagation(); e.preventDefault(); deleteConv(this.getAttribute('data-id')); });
+    });
+  }
+
+  async function loadConv(id) {
+    if (id === sessionId && document.getElementById('chat').querySelector('.message')) return;
+    let conv;
+    if (currentUser && supabaseClient) {
+      const { data, error } = await supabaseClient.from('conversations').select('*').eq('id', id).single();
+      if (error || !data) return showError('Percakapan tidak ditemukan');
+      conv = { id: data.id, title: data.title, messages: data.messages || [] };
+    } else {
+      conv = JSON.parse(localStorage.getItem('conv_' + id));
+      if (!conv) return showError('Percakapan tidak ditemukan');
+    }
+    sessionId = id;
+    persistSessionId(sessionId);
+    document.getElementById('chat-title').textContent = conv.title;
+    document.getElementById('chat-title').classList.remove('new');
+    const chat = document.getElementById('chat');
+    chat.innerHTML = '<div class="message-wrap"></div>';
+    const wrap = chat.querySelector('.message-wrap');
+    conv.messages.forEach(m => appendMessageTo(wrap, m.role === 'user' ? 'user' : 'ai', m.textContent || '', m.imageData, m.fileName, false, m.generatedImageUrl || null));
+    chat.scrollTop = chat.scrollHeight;
+    document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
+    const item = document.getElementById('ci_' + id);
+    if (item) item.classList.add('active');
+    closeSidebar();
+  }
+
+  async function deleteConv(id) {
+    if (currentUser && supabaseClient) {
+      await supabaseClient.from('conversations').delete().eq('id', id);
+    } else {
+      localStorage.removeItem('conv_' + id);
+    }
+    if (id === sessionId) newChat();
+    loadConversations();
+  }
+
+  // Pulihkan percakapan sebelumnya HANYA kalau reload ini akibat tab-discard
+  // (browser membuang tab saat tidak aktif, lalu memuat ulang saat kamu kembali).
+  // Untuk semua kasus lain — refresh manual, tab baru, atau tab yang ditutup lalu
+  // dibuka lagi — selalu mulai percakapan baru.
+  async function restoreOrNewChat() {
+    if (wasTabDiscardedReload()) {
+      const persisted = getPersistedSessionId();
+      if (persisted) {
+        const convs = await getAllConversations();
+        if (convs.find(c => c.id === persisted)) {
+          await loadConv(persisted);
+          return;
+        }
+      }
+    }
+    clearPersistedSessionId();
+    newChat({ skipFocus: true });
+  }
+
+  let appInitialized = false;
+
+  // handleAuthChange dipanggil oleh Supabase saat status auth berubah.
+  // Pada pemuatan pertama (belum appInitialized), kita pulihkan sesi lama di tab ini (jika ada).
+  // Setelah itu, kita HANYA reset ke percakapan baru bila akun benar-benar berganti
+  // (login/logout/ganti user) — bukan setiap kali event auth ditembakkan (mis. refresh token).
+  async function handleAuthChange(event, session) {
+    const prevUserId = currentUser ? currentUser.id : null;
+    currentUser = session && session.user ? session.user : null;
+    renderAuthAreaSidebar();
+    const newUserId = currentUser ? currentUser.id : null;
+
+    if (!appInitialized) {
+      appInitialized = true;
+      await loadConversations();
+      await renderMemoryList();
+      await restoreOrNewChat();
+      return;
+    }
+
+    if (newUserId !== prevUserId) {
+      clearPersistedSessionId();
+      await loadConversations();
+      await renderMemoryList();
+      newChat({ skipFocus: true });
+    } else {
+      await loadConversations();
+      await renderMemoryList();
+    }
+  }
+
+  if (supabaseClient) {
+    supabaseClient.auth.onAuthStateChange((event, session) => { handleAuthChange(event, session); });
+    supabaseClient.auth.getSession().then(({ data }) => { handleAuthChange('INITIAL_SESSION', data.session); });
+  }
+
+  function updateAppHeight() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    document.documentElement.style.setProperty('--app-height', vv.height + 'px');
+    const chat = document.getElementById('chat');
+    if (chat) requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; });
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateAppHeight);
+    window.visualViewport.addEventListener('scroll', updateAppHeight);
+    updateAppHeight();
+  }
+  window.addEventListener('resize', updateAppHeight);
+
+  function appendMessageTo(wrap, role, text, imageData, fileName, animate = true, generatedImageUrl = null) {
+    const div = document.createElement('div');
+    div.className = 'message ' + role;
+    let content = '';
+    if (imageData) content += `<img class="bubble-img" src="${imageData}" alt="gambar" onclick="openLightbox('${imageData}')"/>`;
+    else if (fileName) content += `<div class="file-chip">📄 ${escapeHtml(fileName)}</div>`;
+    if (text) content += role === 'ai' ? formatMessage(text) : escapeHtml(text).replace(/\n/g, '<br/>');
+    if (generatedImageUrl) {
+      const gid = 'g_' + Math.random().toString(36).substr(2, 6);
+      content += `<div class="gen-img-wrap" id="wrap_${gid}">
+        <div class="gen-loading" id="load_${gid}"><div class="gen-spinner"></div><span>Sedang membuat gambar...</span></div>
+        <img class="gen-img" src="${generatedImageUrl}" alt="generated"
+          onload="this.classList.add('loaded');document.getElementById('load_${gid}').style.display='none';document.getElementById('act_${gid}').style.display='flex'"
+          onerror="document.getElementById('load_${gid}').innerHTML='<span style=\\'color:#f87171\\'>❌ Gagal memuat</span>'"
+          onclick="openLightbox('${generatedImageUrl}')"/>
+        <div class="gen-actions" id="act_${gid}" style="display:none">
+          <button class="code-btn" onclick="window.open('${generatedImageUrl}','_blank')">🔗 Buka</button>
+          <button class="code-btn" onclick="openLightbox('${generatedImageUrl}')">🔍 Perbesar</button>
+        </div>
+      </div>`;
+    }
+    if (role === 'ai') {
+      const modelLabel = (animate && currentModel) ? `<div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text-dim);margin-bottom:6px;display:flex;align-items:center;gap:4px;"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80;display:inline-block;"></span>${currentModelName}</div>` : '';
+      const ttsId = 'tts_' + Math.random().toString(36).substr(2, 6);
+      const cpyId = 'cpy_' + Math.random().toString(36).substr(2, 6);
+      const ttsBtn = text ? `<button class="tts-btn" id="${ttsId}" onclick="speakText(this,'${ttsId}')" title="Dengarkan">🔊</button>` : '';
+      const cpyBtn = text ? `<button class="copy-btn" id="${cpyId}" onclick="copyMessage(this,'${cpyId}')" title="Salin">📋</button>` : '';
+      div.innerHTML = `<div class="avatar ai"><img src="logo.png"/></div><div class="bubble"><div class="bubble-content">${modelLabel}${content}</div><div class="msg-actions">${cpyBtn}${ttsBtn}</div></div>`;
+    } else {
+      div.innerHTML = `<div class="avatar user-av">U</div><div class="bubble">${content}</div>`;
+    }
+    wrap.appendChild(div);
+  }
+
+  function appendMessage(role, text, imageData, fileName, generatedImageUrl = null) {
+    const welcome = document.getElementById('welcome');
+    if (welcome) welcome.remove();
+    const chat = document.getElementById('chat');
+    let wrap = chat.querySelector('.message-wrap');
+    if (!wrap) { wrap = document.createElement('div'); wrap.className = 'message-wrap'; chat.appendChild(wrap); }
+    appendMessageTo(wrap, role, text, imageData, fileName, true, generatedImageUrl);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function showTyping(label) {
+    const chat = document.getElementById('chat');
+    let wrap = chat.querySelector('.message-wrap');
+    if (!wrap) { wrap = document.createElement('div'); wrap.className = 'message-wrap'; chat.appendChild(wrap); }
+    const t = document.createElement('div');
+    t.className = 'message ai'; t.id = 'typing';
+    const hint = label ? `<div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text-dim);margin-bottom:6px">${label}</div>` : '';
+    t.innerHTML = `<div class="avatar ai"><img src="logo.png"/></div><div class="bubble">${hint}<div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+    wrap.appendChild(t);
+    chat.scrollTop = chat.scrollHeight;
+  }
+  function removeTyping() { const t = document.getElementById('typing'); if (t) t.remove(); }
+  function showError(msg) {
+    const t = document.createElement('div');
+    t.className = 'error-toast';
+    t.textContent = '⚠ ' + msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+  }
+
+  function toggleModelDropdown() { document.getElementById('modelDropdown').classList.toggle('open'); }
+  function selectModel(modelId, modelName, optId) {
+    currentModel = modelId;
+    currentModelName = modelName;
+    document.getElementById('modelBtnLabel').textContent = modelName;
+    document.querySelectorAll('.model-option').forEach(el => el.classList.remove('active'));
+    document.getElementById(optId).classList.add('active');
+    document.getElementById('modelDropdown').classList.remove('open');
+  }
+  document.addEventListener('click', e => {
+    if (!document.getElementById('modelSelector').contains(e.target)) {
+      document.getElementById('modelDropdown').classList.remove('open');
+    }
+  });
+
+  async function pollImageStatus(requestId, { intervalMs = 1500, maxAttempts = 30 } = {}) {
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, intervalMs));
+      try {
+        const statusRes = await fetch(`/api/imagine/status/${requestId}`);
+        const statusData = await statusRes.json();
+        if (statusData.status === 'completed' && statusData.imageUrl) return statusData.imageUrl;
+        if (statusData.status === 'failed') throw new Error(statusData.error || 'Gagal generate gambar');
+      } catch (e) { if (e.message.includes('Gagal')) throw e; }
+    }
+    throw new Error('Waktu tunggu habis');
+  }
+
+  async function fetchImageAsDataUrl(url, maxDim = 1000, quality = 0.8) {
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error('fetch gagal');
+      const blob = await res.blob();
+      const raw = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+      return await compressImageDataUrl(raw, maxDim, quality);
+    } catch (e) { return null; }
+  }
+
+  async function generateAiTitle(userText, aiText) {
+    try {
+      const formData = new FormData();
+      formData.append('message', `Buatkan SATU judul singkat (maksimal 6 kata) untuk percakapan berikut, dalam Bahasa Indonesia. Jawab HANYA dengan judulnya saja.\n\nPesan: "${(userText||'').slice(0,300)}"\nBalasan: "${(aiText||'').slice(0,300)}"`);
+      formData.append('sessionId', 'title_' + Math.random().toString(36).substr(2, 9));
+      formData.append('model', currentModel);
+      const res = await fetch('/api/chat', { method: 'POST', body: formData });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data?.reply) return null;
+      let title = data.reply.replace(/<think>[\s\S]*?<\/think>/gi, '').split('\n')[0].trim().replace(/^["'“”‘’]+|["'“”‘’.]+$/g, '').trim();
+      if (!title) return null;
+      if (title.length > 60) title = title.slice(0, 57).trim() + '…';
+      return title;
+    } catch (e) { return null; }
+  }
+
+  async function sendMessage() {
+    if (isLoading) return;
+    const input = document.getElementById('input');
+    const text = input.value.trim();
+    if (!text && !selectedFile) return;
+
+    const fileToSend = selectedFile;
+    let imagePreview = null;
+    if (fileToSend && fileToSend.type.startsWith('image/')) {
+      imagePreview = await compressImageDataUrl(await readFileAsDataURL(fileToSend));
+    }
+    const fileName = fileToSend?.name;
+
+    input.value = ''; input.style.height = 'auto';
+    removeFile();
+    isLoading = true;
+    document.getElementById('sendBtn').disabled = true;
+
+    if (!fileToSend && currentModel === 'grok-imagine') {
+      if (text.length < 3) {
+        showError('💡 Ketik deskripsi gambar yang ingin dibuat!');
+        isLoading = false; document.getElementById('sendBtn').disabled = false;
+        return;
+      }
+      appendMessage('user', text);
+      showTyping();
+      try {
+        const res = await fetch('/api/imagine', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: text }) });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.requestId) throw new Error(data?.error || 'Gagal generate gambar');
+        const imgUrl = await pollImageStatus(data.requestId);
+        const imgToUse = (await fetchImageAsDataUrl(imgUrl)) || imgUrl;
+        removeTyping();
+        appendMessage('ai', `🎨 **"${text}"**`, null, null, imgToUse);
+        sendNotification('🎨 Mindbot v2.5', 'Gambar selesai dibuat!');
+
+        const titleEl = document.getElementById('chat-title');
+        const isNewConv = titleEl.classList.contains('new');
+        let interimTitle = isNewConv ? ('🎨 ' + text.slice(0, 35)) : titleEl.textContent;
+        if (isNewConv) { titleEl.textContent = interimTitle; titleEl.classList.remove('new'); }
+
+        const allConvs = await getAllConversations();
+        const ec = allConvs.find(c => c.id === sessionId) || null;
+        const msgs = ec ? ec.messages : [];
+        msgs.push({ role: 'user', textContent: text });
+        msgs.push({ role: 'assistant', textContent: `🎨 Gambar: "${text}"`, generatedImageUrl: imgToUse });
+        await saveConversation({ id: sessionId, title: interimTitle, messages: msgs, createdAt: ec?.createdAt || Date.now(), updatedAt: Date.now() });
+        loadConversations();
+      } catch (err) {
+        removeTyping();
+        showError(err.message || 'Gagal generate gambar');
+      } finally {
+        isLoading = false; document.getElementById('sendBtn').disabled = false; input.focus();
+      }
+      return;
+    }
+
+    appendMessage('user', text, imagePreview, fileName);
+    const isCodingModel = currentModel === 'kimi-k2.7-code' || currentModel === 'kimi-k3';
+    showTyping(isCodingModel ? '⏳ Genius v3.0 sedang menulis kode...' : null);
+
+    try {
+      const formData = new FormData();
+      if (text) formData.append('message', text);
+      formData.append('sessionId', sessionId);
+      formData.append('model', currentModel);
+      formData.append('memory', JSON.stringify(await getMemory()));
+      if (fileToSend) formData.append('file', fileToSend);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), isCodingModel ? 20000 : 30000);
+      let res;
+      try {
+        res = await fetch('/api/chat', { method: 'POST', body: formData, signal: controller.signal });
+      } catch (netErr) {
+        clearTimeout(timeoutId);
+        throw new Error(netErr.name === 'AbortError' ? 'Timeout. Coba singkat permintaanmu.' : 'Gagal terhubung ke server.');
+      }
+      clearTimeout(timeoutId);
+
+      const data = await res.json().catch(() => null);
+      removeTyping();
+      if (!res.ok || !data) throw new Error(data?.error || 'Terjadi kesalahan');
+
+      let permanentGenImg = data.generatedImageUrl || null;
+      if (permanentGenImg) {
+        const saved = await fetchImageAsDataUrl(permanentGenImg);
+        if (saved) permanentGenImg = saved;
+      }
+
+      if (data.searched) {
+        appendMessage('ai', '🔍 *[Mencari informasi terkini...]*\n\n' + data.reply, null, null, permanentGenImg);
+      } else {
+        appendMessage('ai', data.reply.replace(/<think>[\s\S]*?<\/think>/gi, '').trim(), null, null, permanentGenImg);
+        sendNotification('🤖 Mindbot Genius', data.reply);
+      }
+
+      if (text) extractAndSaveMemory(text, data.reply);
+
+      const titleEl = document.getElementById('chat-title');
+      const isNewConv = titleEl.classList.contains('new');
+      let interimTitle = titleEl.textContent;
+      if (isNewConv) {
+        interimTitle = data.title || (text ? text.slice(0, 35) : (fileName || 'Percakapan Baru'));
+        titleEl.textContent = interimTitle;
+        titleEl.classList.remove('new');
+      }
+
+      const allConvs = await getAllConversations();
+      const existingConv = allConvs.find(c => c.id === sessionId) || null;
+      const msgs = existingConv ? existingConv.messages : [];
+      msgs.push({ role: 'user', textContent: text, imageData: imagePreview || null, fileName: fileName || null });
+      msgs.push({ role: 'assistant', textContent: data.reply, generatedImageUrl: permanentGenImg });
+      await saveConversation({
+        id: sessionId, title: interimTitle, messages: msgs,
+        createdAt: existingConv?.createdAt || Date.now(), updatedAt: Date.now(),
+        preview: data.reply.slice(0, 80)
+      });
+      loadConversations();
+
+      if (isNewConv) {
+        const thisSession = sessionId;
+        generateAiTitle(text, data.reply).then(async aiTitle => {
+          if (!aiTitle || thisSession !== sessionId) return;
+          titleEl.textContent = aiTitle;
+          const convs = await getAllConversations();
+          const conv = convs.find(c => c.id === thisSession);
+          if (conv) { conv.title = aiTitle; await saveConversation(conv); loadConversations(); }
+        });
+      }
+    } catch (err) {
+      removeTyping();
+      showError(err.message);
+    } finally {
+      isLoading = false;
+      document.getElementById('sendBtn').disabled = false;
+      input.focus();
+    }
+  }
+
+  function readFileAsDataURL(file) {
+    return new Promise(res => { const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(file); });
+  }
+  function compressImageDataUrl(dataUrl, maxDim = 900, quality = 0.7) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        try { resolve(canvas.toDataURL('image/jpeg', quality)); }
+        catch(e) { resolve(dataUrl); }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
+  function sendSuggestion(text) {
+    if (text.includes('Upload')) { document.getElementById('file-input').click(); return; }
+    document.getElementById('input').value = text;
+    sendMessage();
+  }
+
+  function newChat(opts) {
+    opts = opts || {};
+    sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
+    persistSessionId(sessionId);
+    document.getElementById('chat-title').textContent = 'Percakapan Baru';
+    document.getElementById('chat-title').classList.add('new');
+    document.getElementById('chat').innerHTML = `<div class="message-wrap"><div id="welcome">
+      <img class="welcome-logo" src="logo.png" alt="Mindbot Genius"/>
+      <h2>Halo! Saya <span>Mindbot Genius</span></h2>
+      <p>Asisten AI dari Binary Global Network.<br/>Kirim pesan atau upload gambar/file!</p>
+      <div class="suggestions">
+        <div class="suggestion" onclick="sendSuggestion(this.textContent)">💡 Jelaskan machine learning</div>
+        <div class="suggestion" onclick="sendSuggestion(this.textContent)">🎮 Ide game Roblox seru</div>
+        <div class="suggestion" onclick="sendSuggestion(this.textContent)">📷 Upload gambar untuk dianalisis</div>
+        <div class="suggestion" onclick="sendSuggestion(this.textContent)">🔧 Contoh kode Python</div>
+      </div></div></div>`;
+    document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
+    removeFile();
+    if (!opts.skipFocus) document.getElementById('input').focus();
+    closeSidebar();
+  }
+
+  function initSpeechRecognition() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return null;
+    const rec = new SR();
+    rec.lang = 'id-ID';
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.onstart = () => {
+      isListening = true;
+      document.getElementById('voiceBtn').classList.add('listening');
+      document.getElementById('voiceBtn').textContent = '⏹️';
+      document.getElementById('voiceStatus').classList.add('show');
+    };
+    rec.onresult = (e) => {
+      document.getElementById('input').value = Array.from(e.results).map(r => r[0].transcript).join('');
+      autoResize(document.getElementById('input'));
+      if (e.results[e.results.length - 1].isFinal) { stopVoice(); setTimeout(() => sendMessage(), 400); }
+    };
+    rec.onerror = (e) => {
+      stopVoice();
+      if (e.error === 'not-allowed') showError('Izin mikrofon ditolak.');
+      else if (e.error === 'no-speech') showError('Tidak ada suara terdeteksi.');
+    };
+    rec.onend = () => stopVoice();
+    return rec;
+  }
+  function toggleVoice() {
+    if (isListening) { stopVoice(); return; }
+    if (!recognition) recognition = initSpeechRecognition();
+    if (!recognition) { showError('Browser tidak mendukung voice recognition.'); return; }
+    try { recognition.start(); } catch(e) { showError('Gagal memulai mikrofon.'); }
+  }
+  function stopVoice() {
+    isListening = false;
+    document.getElementById('voiceBtn').classList.remove('listening');
+    document.getElementById('voiceBtn').textContent = '🎙️';
+    document.getElementById('voiceStatus').classList.remove('show');
+    try { if (recognition) recognition.stop(); } catch(e) {}
+  }
+
+  function detectLang(text) {
+    const idWords = ['yang','dan','atau','adalah','dengan','untuk','ini','itu','dari','ke','di','pada','saya','kamu','anda'];
+    return text.toLowerCase().split(/\s+/).filter(w => idWords.includes(w)).length >= 2 ? 'id' : 'en';
+  }
+  function copyMessage(btn) {
+    const contentEl = btn.closest('.bubble').querySelector('.bubble-content');
+    if (!contentEl) return;
+    const clone = contentEl.cloneNode(true);
+    clone.querySelectorAll('.model-tag, .code-toolbar').forEach(el => el.remove());
+    clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+    navigator.clipboard.writeText(clone.textContent.replace(/\n{3,}/g, '\n\n').trim()).then(() => {
+      btn.textContent = '✅'; btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 2000);
+    }).catch(() => showError('Gagal menyalin'));
+  }
+  function speakText(btn, btnId) {
+    if (speakingBtnId === btnId && speechSynthesis.speaking) {
+      speechSynthesis.cancel();
+      btn.textContent = '🔊'; btn.classList.remove('speaking');
+      speakingBtnId = null;
+      return;
+    }
+    speechSynthesis.cancel();
+    if (speakingBtnId) {
+      const prev = document.getElementById(speakingBtnId);
+      if (prev) { prev.textContent = '🔊'; prev.classList.remove('speaking'); }
+    }
+    const contentEl = btn.closest('.bubble').querySelector('.bubble-content');
+    if (!contentEl) return;
+    const clone = contentEl.cloneNode(true);
+    clone.querySelectorAll('.model-tag, .code-toolbar').forEach(el => el.remove());
+    clone.querySelectorAll('br').forEach(br => br.replaceWith(' '));
+    const rawText = clone.textContent.trim();
+    if (!rawText) return;
+    const lang = detectLang(rawText);
+    const utter = new SpeechSynthesisUtterance(rawText);
+    utter.lang = lang === 'id' ? 'id-ID' : 'en-US';
+    utter.onstart = () => { btn.textContent = '⏸️'; btn.classList.add('speaking'); speakingBtnId = btnId; };
+    utter.onend = utter.onerror = () => { btn.textContent = '🔊'; btn.classList.remove('speaking'); speakingBtnId = null; };
+    speechSynthesis.speak(utter);
+  }
+  speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+
+  // INIT
+  updateDailyStreak();
+  requestNotificationPermission();
+  renderAuthAreaSidebar();
+  if (localStorage.getItem('memory_section_collapsed') !== 'false') {
+    document.getElementById('memory-section').style.display = 'none';
+    document.getElementById('memoryToggleIcon').classList.add('collapsed');
+  }
+  if (!supabaseClient) {
+    (async () => {
+      appInitialized = true;
+      await loadConversations();
+      await renderMemoryList();
+      await restoreOrNewChat();
+    })();
+  }
+</script>
 </body>
 </html>
