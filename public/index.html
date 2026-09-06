@@ -413,9 +413,6 @@
 <script>
   // ══════════════════════════════════════════════════════════════
   // AUTH LINTAS PERANGKAT (Supabase) — EMAIL + PASSWORD SAJA
-  // Tidak memakai Google / Gmail OAuth.
-  // Di Supabase Dashboard → Authentication → Providers → Email
-  // matikan "Confirm email" agar user tidak perlu cek inbox.
   // ══════════════════════════════════════════════════════════════
   const SUPABASE_URL = 'https://fdausfmrbalnwnpoespv.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYXVzZm1yYmFsbnducG9lc3B2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNDIxNzQsImV4cCI6MjEwMzkxODE3NH0.ln7MX0M4ZfvbSoYHLLAsVJAO3GGGm3KGmtN-T_sQBGE';
@@ -424,7 +421,7 @@
   let currentUser = null;
 
   if (SUPABASE_URL.includes('YOUR-PROJECT')) {
-    console.warn('⚠️ Supabase belum dikonfigurasi. Isi SUPABASE_URL & SUPABASE_ANON_KEY di index.html agar login lintas perangkat aktif. Mode tamu (localStorage) tetap berjalan seperti biasa.');
+    console.warn('⚠️ Supabase belum dikonfigurasi.');
   } else {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
@@ -434,11 +431,14 @@
     deviceId = 'dev_' + Math.random().toString(36).substr(2, 12);
     localStorage.setItem('mbg_device_id', deviceId);
   }
-  let sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
+
+  // ── RESTORE SESSION TERAKHIR (jangan selalu bikin baru) ──
+  let sessionId = localStorage.getItem('mbg_last_session') || ('sess_' + Math.random().toString(36).substr(2, 9));
+  localStorage.setItem('mbg_last_session', sessionId);
+
   let isLoading = false;
   let selectedFile = null;
   let notifEnabled = localStorage.getItem('notif_enabled') !== 'false';
-
   let authMode = 'login';
 
   function openAuthModal(mode) {
@@ -495,7 +495,7 @@
           closeAuthModal();
         } else {
           errEl.style.color = '#4ade80';
-          errEl.textContent = 'Akun dibuat! Jika Confirm email masih aktif di Supabase, cek inbox dulu. Disarankan matikan Confirm email agar langsung masuk.';
+          errEl.textContent = 'Akun dibuat! Jika Confirm email masih aktif di Supabase, cek inbox dulu.';
         }
       }
     } catch (e) {
@@ -528,11 +528,24 @@
     }
   }
 
+  // ── RESTORE PERCAKAPAN SAAT AUTH CHANGE ──
   async function handleAuthChange(session) {
     currentUser = session && session.user ? session.user : null;
     renderAuthAreaSidebar();
-    newChat({ skipFocus: true });
-    await Promise.all([loadConversations(), renderMemoryList()]);
+
+    await loadConversations();
+    await renderMemoryList();
+
+    const lastId = localStorage.getItem('mbg_last_session');
+    if (lastId) {
+      try {
+        await loadConv(lastId);
+        return;
+      } catch (e) {
+        console.warn('Gagal restore percakapan terakhir');
+      }
+    }
+    // Kalau belum ada / gagal → biarkan welcome screen (jangan paksa newChat)
   }
 
   if (supabaseClient) {
@@ -769,11 +782,8 @@
 
   function formatMessage(text) {
     if (!text) return '';
-    // Buang reasoning internal model
     text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
-    // Jika model mengirim kode panjang TANPA fence markdown, bungkus otomatis
-    // supaya tetap tampil di code-block (bukan di-render browser / teks polos acak).
     const hasFence = /```/.test(text);
     const looksLikeCode = !hasFence && (
       /<!DOCTYPE\s+html/i.test(text) ||
@@ -790,7 +800,6 @@
       text = '```' + lang + '\n' + text + '\n```';
     }
 
-    // 1) Ambil semua code fence (termasuk yang belum ditutup di akhir balasan)
     const codeBlocks = [];
     const makeBlock = (lang, code) => {
       const id = 'c_' + Math.random().toString(36).substr(2, 6);
@@ -807,28 +816,22 @@
       );
     };
 
-    // Closed fences: ```lang\n...\n```
     text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
       const ph = '%%CODEBLOCK' + codeBlocks.length + '%%';
       codeBlocks.push(makeBlock(lang, code));
       return ph;
     });
-    // Unclosed trailing fence: ```lang\n...EOF
     text = text.replace(/```(\w*)\n?([\s\S]+)$/g, (_, lang, code) => {
       const ph = '%%CODEBLOCK' + codeBlocks.length + '%%';
       codeBlocks.push(makeBlock(lang, code));
       return ph;
     });
 
-    // 2) Escape HTML di sisa teks
     text = escapeHtml(text);
-
-    // 3) Markdown sederhana
     text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
     text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     text = text.replace(/\n/g, '<br/>');
 
-    // 4) Kembalikan code block
     codeBlocks.forEach((block, i) => {
       text = text.split('%%CODEBLOCK' + i + '%%').join(block);
     });
@@ -1005,7 +1008,7 @@
   }
 
   async function loadConv(id) {
-    if (id===sessionId) return;
+    if (id === sessionId && document.getElementById('chat').querySelector('.message')) return;
     let conv;
     if (currentUser && supabaseClient) {
       const { data, error } = await supabaseClient.from('conversations').select('*').eq('id', id).single();
@@ -1016,6 +1019,8 @@
       if (!conv) return showError('Percakapan tidak ditemukan');
     }
     sessionId = id;
+    localStorage.setItem('mbg_last_session', sessionId);   // ← simpan session aktif
+
     document.getElementById('chat-title').textContent = conv.title;
     document.getElementById('chat-title').classList.remove('new');
     const chat = document.getElementById('chat');
@@ -1040,11 +1045,30 @@
     loadConversations();
   }
 
+  // ── INIT ──
   updateDailyStreak();
   requestNotificationPermission();
-  loadConversations();
-  renderMemoryList();
   renderAuthAreaSidebar();
+
+  // Restore percakapan terakhir saat pertama kali buka
+  (async () => {
+    await loadConversations();
+    await renderMemoryList();
+
+    const lastId = localStorage.getItem('mbg_last_session');
+    if (lastId) {
+      try {
+        // Cek apakah percakapan masih ada
+        const all = await getAllConversations();
+        if (all.some(c => c.id === lastId)) {
+          await loadConv(lastId);
+          return;
+        }
+      } catch (e) {}
+    }
+    // Kalau belum ada riwayat, biarkan welcome screen
+  })();
+
   if (localStorage.getItem('memory_section_collapsed') !== 'false') {
     document.getElementById('memory-section').style.display = 'none';
     document.getElementById('memoryToggleIcon').classList.add('collapsed');
@@ -1297,7 +1321,6 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
         }
 
         const imgUrl = await pollImageStatus(data.requestId);
-
         const savedImg = await fetchImageAsDataUrl(imgUrl);
         const imgToUse = savedImg || imgUrl;
 
@@ -1357,9 +1380,7 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       formData.append('memory', JSON.stringify(await getMemory()));
       if(fileToSend) formData.append('file', fileToSend);
 
-      // Timeout: Vercel/hobby sering limit ~10–60 dtk; beri pesan jelas jika lewat
       const controller = new AbortController();
-      // Hobby Vercel ~10s; Pro bisa 60s. Abort client sedikit di atas itu.
       const timeoutMs = isCodingModel ? 20000 : 30000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -1369,7 +1390,7 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       } catch (netErr) {
         clearTimeout(timeoutId);
         if (netErr && netErr.name === 'AbortError') {
-          throw new Error('Timeout: server Vercel memutus request (batas ~10 dtk di Hobby). Coba minta game lebih sederhana, atau naikkan maxDuration ke 60 di Vercel Pro.');
+          throw new Error('Timeout: server Vercel memutus request. Coba singkat permintaanmu.');
         }
         throw new Error('Gagal terhubung ke server. Cek koneksi lalu coba lagi.');
       }
@@ -1420,6 +1441,9 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
       };
       await saveConversation(convData);
       loadConversations();
+
+      // Pastikan session terakhir selalu tersimpan
+      localStorage.setItem('mbg_last_session', sessionId);
 
       if (isNewConv) {
         const thisSession = sessionId;
@@ -1473,10 +1497,12 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
 
   function newChat(opts) {
     opts = opts || {};
-    sessionId='sess_'+Math.random().toString(36).substr(2,9);
-    document.getElementById('chat-title').textContent='Percakapan Baru';
+    sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('mbg_last_session', sessionId);   // simpan session baru
+
+    document.getElementById('chat-title').textContent = 'Percakapan Baru';
     document.getElementById('chat-title').classList.add('new');
-    document.getElementById('chat').innerHTML=`<div class="message-wrap"><div id="welcome">
+    document.getElementById('chat').innerHTML = `<div class="message-wrap"><div id="welcome">
       <img class="welcome-logo" src="logo.png" alt="Mindbot Genius"/>
       <h2>Halo! Saya <span>Mindbot Genius</span></h2>
       <p>Asisten AI dari Binary Global Network.<br/>Kirim pesan atau upload gambar/file!</p>
@@ -1486,7 +1512,7 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
         <div class="suggestion" onclick="sendSuggestion(this.textContent)">📷 Upload gambar untuk dianalisis</div>
         <div class="suggestion" onclick="sendSuggestion(this.textContent)">🔧 Contoh kode Python</div>
       </div></div></div>`;
-    document.querySelectorAll('.conv-item').forEach(el=>el.classList.remove('active'));
+    document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
     removeFile();
     if (!opts.skipFocus) document.getElementById('input').focus();
     closeSidebar();
@@ -1566,7 +1592,6 @@ Balasan AI: "${(aiText||'').slice(0,300)}"`;
     if (!contentEl) return;
 
     const clone = contentEl.cloneNode(true);
-
     clone.querySelectorAll('.model-tag, .code-toolbar').forEach(el => el.remove());
     clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
     clone.querySelectorAll('.code-block').forEach(cb => {
