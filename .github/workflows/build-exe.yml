@@ -24,6 +24,10 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Bump version for auto-update
+        shell: bash
+        run: npm pkg set version=1.0.${{ github.run_number }}
+
       - name: Build Windows installer
         run: npx electron-builder --win --x64
         env:
@@ -43,6 +47,10 @@ jobs:
           body: |
             Auto-built from commit ${{ github.sha }} (run #${{ github.run_number }}).
             This release is always overwritten with the newest Windows build.
-          files: dist/Mindbot-Genius-Setup.exe
+            Existing installs will auto-update to this version on next launch.
+          files: |
+            dist/Mindbot-Genius-Setup.exe
+            dist/latest.yml
+            dist/Mindbot-Genius-Setup.exe.blockmap
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
