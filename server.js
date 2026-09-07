@@ -87,7 +87,7 @@ const upload = multer({
 });
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..', 'public')));
+   app.use(express.static(path.join(__dirname, 'public')));
 
 // Dummy endpoints
 app.get('/api/conversations', (req, res) => res.json([]));
