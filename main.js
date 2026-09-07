@@ -4,7 +4,8 @@
 // into the Windows .exe via "npm run build:win".
 
 const path = require('path');
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 
 // When packaged, extraResources copies .env next to the app; make sure
 // dotenv (loaded inside server.js) can find it in both dev and packaged mode.
@@ -60,9 +61,43 @@ function createWindow() {
   });
 }
 
+// --- Auto-update ---
+// Checks the same GitHub release ("latest-exe") the installer came from.
+// If a newer version is published there, it downloads silently in the
+// background and installs itself the next time the app restarts.
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = true;
+
+function initAutoUpdater() {
+  autoUpdater.on('error', (err) => {
+    console.error('Auto-update error:', err == null ? 'unknown' : (err.stack || err.message));
+  });
+
+  autoUpdater.on('update-downloaded', () => {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      buttons: ['Restart Now', 'Later'],
+      defaultId: 0,
+      title: 'Update Ready',
+      message: 'Versi baru Mindbot Genius sudah siap dipasang.',
+      detail: 'Restart sekarang untuk menggunakan versi terbaru, atau nanti saat kamu menutup aplikasi.',
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.quitAndInstall();
+    });
+  });
+
+  // Only meaningful in the packaged app (skips in `npm run electron` dev mode).
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('checkForUpdates failed:', err);
+    });
+  }
+}
+
 app.whenReady().then(async () => {
   await startServer();
   createWindow();
+  initAutoUpdater();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
