@@ -35,11 +35,14 @@ jobs:
           name: Mindbot-Genius-EXE
           path: dist/*.exe
 
-      - name: Create Release
+      - name: Publish to latest-exe release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: exe-build-${{ github.run_number }}
-          name: Mindbot Genius EXE Build ${{ github.run_number }}
-          files: dist/*.exe
+          tag_name: latest-exe
+          name: Mindbot Genius EXE (latest)
+          body: |
+            Auto-built from commit ${{ github.sha }} (run #${{ github.run_number }}).
+            This release is always overwritten with the newest Windows build.
+          files: dist/Mindbot-Genius-Setup.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
