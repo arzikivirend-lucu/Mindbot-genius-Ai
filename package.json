@@ -24,6 +24,7 @@
     "productName": "Mindbot Genius",
     "copyright": "\u00a9 2026 Binary Global Network",
     "icon": "public/logo.ico",
+    "artifactName": "Mindbot-Genius-Setup.exe",
     "files": [
       "main.js",
       "server.js",
