@@ -1,33 +1,16 @@
 // main.js — Electron entry point for Mindbot Genius desktop build
-// Boots the existing Express app (server.js) on a local port, then opens
-// a native window pointing at it. This is what electron-builder packages
-// into the Windows .exe via "npm run build:win".
+// Loads the live production site (which already has every API key configured
+// on Vercel) inside a native window, instead of running a local server with
+// no keys. This is what electron-builder packages into the Windows .exe via
+// "npm run build:win".
 
 const path = require('path');
 const { app, BrowserWindow, shell, dialog } = require('electron');
 const { autoUpdater } = require('electron-updater');
 
-// When packaged, extraResources copies .env next to the app; make sure
-// dotenv (loaded inside server.js) can find it in both dev and packaged mode.
-process.env.NODE_ENV = process.env.NODE_ENV || 'production';
-if (app.isPackaged) {
-  process.chdir(path.join(process.resourcesPath));
-}
+const APP_URL = 'https://mindbot-genius-ai.vercel.app/';
 
-const PORT = process.env.PORT || 5177;
-const expressApp = require('./server.js');
-
-let server;
 let mainWindow;
-
-function startServer() {
-  return new Promise((resolve) => {
-    server = expressApp.listen(PORT, '127.0.0.1', () => {
-      console.log(`Mindbot Genius server listening on http://127.0.0.1:${PORT}`);
-      resolve();
-    });
-  });
-}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -44,12 +27,12 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadURL(`http://127.0.0.1:${PORT}/`);
+  mainWindow.loadURL(APP_URL);
 
   // Open external links (http/https) in the user's default browser
   // instead of inside the app window.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http')) {
+    if (url.startsWith('http') && !url.startsWith(APP_URL)) {
       shell.openExternal(url);
       return { action: 'deny' };
     }
@@ -94,8 +77,7 @@ function initAutoUpdater() {
   }
 }
 
-app.whenReady().then(async () => {
-  await startServer();
+app.whenReady().then(() => {
   createWindow();
   initAutoUpdater();
 
@@ -105,10 +87,5 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  if (server) server.close();
   if (process.platform !== 'darwin') app.quit();
-});
-
-app.on('before-quit', () => {
-  if (server) server.close();
 });
