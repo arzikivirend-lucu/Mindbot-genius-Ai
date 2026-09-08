@@ -32,19 +32,10 @@
     },
     "files": [
       "main.js",
-      "server.js",
       "package.json",
-      "public/**/*",
+      "public/logo.ico",
+      "public/logo.png",
       "node_modules/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": ".env",
-        "to": ".env",
-        "filter": [
-          "**/*"
-        ]
-      }
     ],
     "win": {
       "target": [
