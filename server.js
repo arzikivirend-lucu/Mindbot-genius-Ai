@@ -280,14 +280,25 @@ const PRO_EMAILS = ['arzikivirend@gmail.com', 'arzikireng@gmail.com'];
 function isProEmail(email) {
   return !!email && PRO_EMAILS.includes(String(email).trim().toLowerCase());
 }
-// Model "premium" — hanya bisa dipakai user Pro (kecuali otomatis dipakai untuk baca gambar)
-const PRO_ONLY_MODELS = ['kimi-k2.7-code', 'kimi-k3', 'qwen/qwen3.6-27b'];
-const FREE_DAILY_LIMIT = 30;                 // batas pesan/hari untuk user gratis
-const FREE_MAX_FILE_SIZE = 5 * 1024 * 1024;  // 5MB untuk user gratis (Pro tetap 20MB)
+// Model "premium" — user gratis tetap bisa pakai, tapi dibatasi jumlah pemakaian/hari
+const PREMIUM_MODELS = ['kimi-k2.7-code', 'kimi-k3', 'qwen/qwen3.6-27b'];
+const FREE_DAILY_LIMIT = 30;                    // batas pesan/hari untuk user gratis
+const FREE_PREMIUM_DAILY_LIMIT = 5;             // batas pakai model premium/hari untuk user gratis
+const FREE_MAX_FILE_SIZE = 5 * 1024 * 1024;     // 5MB untuk user gratis (Pro tetap 20MB)
 
 // Pelacak pemakaian harian in-memory, key = email atau deviceId
 const usageTracker = {};
+const premiumUsageTracker = {};
 function getTodayKey() { return new Date().toISOString().slice(0, 10); }
+function consumeQuota(tracker, key, limit) {
+  const today = getTodayKey();
+  if (!tracker[key] || tracker[key].date !== today) {
+    tracker[key] = { date: today, count: 0 };
+  }
+  if (tracker[key].count >= limit) return null; // sudah habis, tidak dikonsumsi
+  tracker[key].count += 1;
+  return limit - tracker[key].count;
+}
 function consumeDailyQuota(key) {
   const today = getTodayKey();
   if (!usageTracker[key] || usageTracker[key].date !== today) {
@@ -300,6 +311,11 @@ function remainingQuota(key) {
   const today = getTodayKey();
   if (!usageTracker[key] || usageTracker[key].date !== today) return FREE_DAILY_LIMIT;
   return Math.max(0, FREE_DAILY_LIMIT - usageTracker[key].count);
+}
+function remainingPremiumQuota(key) {
+  const today = getTodayKey();
+  if (!premiumUsageTracker[key] || premiumUsageTracker[key].date !== today) return FREE_PREMIUM_DAILY_LIMIT;
+  return Math.max(0, FREE_PREMIUM_DAILY_LIMIT - premiumUsageTracker[key].count);
 }
 
 // 1. Submit image job
@@ -554,9 +570,18 @@ app.post('/api/chat', safeUpload, async (req, res) => {
   ];
 
   const requestedModel = ALLOWED_MODELS.includes(reqModel) ? reqModel : 'openai/gpt-oss-120b';
-  // Model premium (Genius v1.5/v2.0 & Genius v3.0 RunBios) dikunci untuk user gratis,
-  // kecuali dipakai otomatis untuk membaca gambar.
-  const modelDowngraded = !isPro && !isImage && PRO_ONLY_MODELS.includes(requestedModel);
+  const wantsPremium = !isImage && !isTitleRequest && PREMIUM_MODELS.includes(requestedModel);
+  let modelDowngraded = false;
+  let premiumRemaining = null;
+  if (wantsPremium && !isPro) {
+    const left = consumeQuota(premiumUsageTracker, quotaKey, FREE_PREMIUM_DAILY_LIMIT);
+    if (left === null) {
+      modelDowngraded = true; // jatah premium hari ini habis, pakai model standar
+      premiumRemaining = 0;
+    } else {
+      premiumRemaining = left;
+    }
+  }
   const model = isImage
     ? 'qwen/qwen3.6-27b'
     : (modelDowngraded ? 'openai/gpt-oss-120b' : requestedModel);
@@ -680,7 +705,8 @@ app.post('/api/chat', safeUpload, async (req, res) => {
       searched: !!webContext || !!linkContext,
       isPro,
       dailyRemaining: (isPro || isTitleRequest) ? null : remainingQuota(quotaKey),
-      modelDowngraded
+      modelDowngraded,
+      premiumRemaining
     });
   } catch(err) {
     console.error(err.message);
