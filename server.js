@@ -87,7 +87,7 @@ const upload = multer({
 });
 
 app.use(express.json());
-   app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Dummy endpoints
 app.get('/api/conversations', (req, res) => res.json([]));
@@ -237,13 +237,11 @@ async function openLinks(text) {
   const urls = extractUrls(text);
   if (!urls.length) return '';
   console.log('🔗 Membuka link:', urls);
-
   let content = await fetchPageContentTavily(urls, text.slice(0, 200));
   if (content) {
     console.log('✅ Konten berhasil diambil via Tavily');
     return content;
   }
-
   const parts = [];
   for (const url of urls) {
     const part = await fetchPageContentNative(url);
@@ -273,50 +271,6 @@ const RUNBIOS_CODING_MODELS = [
   'kimi-k2.7-code', // Genius v3.0
   'kimi-k3'
 ];
-
-// ── MINDBOT PRO ──
-// Email yang otomatis Pro (tanpa perlu pembayaran)
-const PRO_EMAILS = ['arzikivirend@gmail.com', 'arzikireng@gmail.com'];
-function isProEmail(email) {
-  return !!email && PRO_EMAILS.includes(String(email).trim().toLowerCase());
-}
-// Model "premium" — user gratis tetap bisa pakai, tapi dibatasi jumlah pemakaian/hari
-const PREMIUM_MODELS = ['kimi-k2.7-code', 'kimi-k3', 'qwen/qwen3.6-27b'];
-const FREE_DAILY_LIMIT = 30;                    // batas pesan/hari untuk user gratis
-const FREE_PREMIUM_DAILY_LIMIT = 5;             // batas pakai model premium/hari untuk user gratis
-const FREE_MAX_FILE_SIZE = 5 * 1024 * 1024;     // 5MB untuk user gratis (Pro tetap 20MB)
-
-// Pelacak pemakaian harian in-memory, key = email atau deviceId
-const usageTracker = {};
-const premiumUsageTracker = {};
-function getTodayKey() { return new Date().toISOString().slice(0, 10); }
-function consumeQuota(tracker, key, limit) {
-  const today = getTodayKey();
-  if (!tracker[key] || tracker[key].date !== today) {
-    tracker[key] = { date: today, count: 0 };
-  }
-  if (tracker[key].count >= limit) return null; // sudah habis, tidak dikonsumsi
-  tracker[key].count += 1;
-  return limit - tracker[key].count;
-}
-function consumeDailyQuota(key) {
-  const today = getTodayKey();
-  if (!usageTracker[key] || usageTracker[key].date !== today) {
-    usageTracker[key] = { date: today, count: 0 };
-  }
-  usageTracker[key].count += 1;
-  return usageTracker[key].count;
-}
-function remainingQuota(key) {
-  const today = getTodayKey();
-  if (!usageTracker[key] || usageTracker[key].date !== today) return FREE_DAILY_LIMIT;
-  return Math.max(0, FREE_DAILY_LIMIT - usageTracker[key].count);
-}
-function remainingPremiumQuota(key) {
-  const today = getTodayKey();
-  if (!premiumUsageTracker[key] || premiumUsageTracker[key].date !== today) return FREE_PREMIUM_DAILY_LIMIT;
-  return Math.max(0, FREE_PREMIUM_DAILY_LIMIT - premiumUsageTracker[key].count);
-}
 
 // 1. Submit image job
 app.post('/api/imagine', async (req, res) => {
@@ -458,39 +412,14 @@ function safeUpload(req, res, next) {
   });
 }
 
-// ── CHAT (OPTIMIZED FOR HOBBY) ──
+// ── CHAT ──
 app.post('/api/chat', safeUpload, async (req, res) => {
-  const { message, sessionId, model: reqModel, memory, email, deviceId } = req.body;
+  const { message, sessionId, model: reqModel, memory } = req.body;
   if (!sessionId) return res.status(400).json({ error: 'sessionId diperlukan' });
   const text = message || '';
   const file  = req.file;
   if (!text && !file) return res.status(400).json({ error: 'Pesan atau file diperlukan' });
   if (!sessions[sessionId]) sessions[sessionId] = [];
-
-  const isPro = isProEmail(email);
-  const isTitleRequest = typeof sessionId === 'string' && sessionId.startsWith('title_');
-  const quotaKey = email && String(email).trim()
-    ? `email:${String(email).trim().toLowerCase()}`
-    : `device:${deviceId || sessionId}`;
-
-  // ── Batas harian untuk user gratis ──
-  if (!isPro && !isTitleRequest) {
-    const used = consumeDailyQuota(quotaKey);
-    if (used > FREE_DAILY_LIMIT) {
-      return res.status(403).json({
-        error: `Batas ${FREE_DAILY_LIMIT} pesan gratis hari ini sudah tercapai. Upgrade ke Mindbot Pro untuk chat tanpa batas.`,
-        needsPro: true
-      });
-    }
-  }
-
-  // ── Batas ukuran file untuk user gratis ──
-  if (file && !isPro && file.size > FREE_MAX_FILE_SIZE) {
-    return res.status(403).json({
-      error: 'Upload file di atas 5MB khusus Mindbot Pro. Upgrade untuk upload hingga 20MB.',
-      needsPro: true
-    });
-  }
 
   const isImage = file && file.mimetype.startsWith('image/');
   const isZip   = file && !isImage && isZipLike(file.mimetype, file.originalname);
@@ -568,23 +497,11 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     'kimi-k2.7-code',
     'kimi-k3'
   ];
-
   const requestedModel = ALLOWED_MODELS.includes(reqModel) ? reqModel : 'openai/gpt-oss-120b';
-  const wantsPremium = !isImage && !isTitleRequest && PREMIUM_MODELS.includes(requestedModel);
-  let modelDowngraded = false;
-  let premiumRemaining = null;
-  if (wantsPremium && !isPro) {
-    const left = consumeQuota(premiumUsageTracker, quotaKey, FREE_PREMIUM_DAILY_LIMIT);
-    if (left === null) {
-      modelDowngraded = true; // jatah premium hari ini habis, pakai model standar
-      premiumRemaining = 0;
-    } else {
-      premiumRemaining = left;
-    }
-  }
+
   const model = isImage
     ? 'qwen/qwen3.6-27b'
-    : (modelDowngraded ? 'openai/gpt-oss-120b' : requestedModel);
+    : requestedModel;
 
   const useRunBios = RUNBIOS_CODING_MODELS.includes(model);
 
@@ -617,13 +534,11 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     const apiUrl = routeToRunBios
       ? RUNBIOS_BASE
       : 'https://api.groq.com/openai/v1/chat/completions';
-
     const apiKey = routeToRunBios
       ? process.env.RUNBIOS_API_KEY
       : process.env.GROQ_API_KEY;
 
     // Model yang benar-benar dikirim ke API
-    // Kalau tidak ke RunBios, JANGAN pakai nama model RunBios (kimi-k2.7-code)
     let effectiveModel;
     if (routeToRunBios) {
       effectiveModel = model;                 // kimi-k2.7-code / kimi-k3
@@ -645,9 +560,7 @@ app.post('/api/chat', safeUpload, async (req, res) => {
       }
     }
 
-    const maxTokens = routeToRunBios
-      ? (isPro ? 1024 : 768)
-      : (isPro ? 3072 : 2048);
+    const maxTokens = routeToRunBios ? 1024 : 3072;
 
     async function callChat(url, key, mdl, tok, timeoutMs) {
       const controller = new AbortController();
@@ -679,7 +592,7 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     if (routeToRunBios) {
       const groqKey = process.env.GROQ_API_KEY;
       try {
-        reply = await callChat(apiUrl, apiKey, effectiveModel, maxTokens, isPro ? 6000 : 3500);
+        reply = await callChat(apiUrl, apiKey, effectiveModel, maxTokens, 6000);
       } catch (e) {
         console.warn('RunBios lambat/gagal, fallback Groq:', e.message);
         if (!groqKey) throw new Error('RunBios timeout/gagal dan GROQ_API_KEY belum diset');
@@ -692,7 +605,7 @@ app.post('/api/chat', safeUpload, async (req, res) => {
         );
       }
     } else {
-      reply = await callChat(apiUrl, apiKey, effectiveModel, maxTokens, isPro ? 12000 : 8000);
+      reply = await callChat(apiUrl, apiKey, effectiveModel, maxTokens, 12000);
     }
 
     sessions[sessionId].push({ role:'assistant', content: reply });
@@ -702,11 +615,7 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     res.json({
       reply,
       title,
-      searched: !!webContext || !!linkContext,
-      isPro,
-      dailyRemaining: (isPro || isTitleRequest) ? null : remainingQuota(quotaKey),
-      modelDowngraded,
-      premiumRemaining
+      searched: !!webContext || !!linkContext
     });
   } catch(err) {
     console.error(err.message);
