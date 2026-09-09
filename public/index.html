@@ -228,6 +228,11 @@
     .user-chip .logout-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 3px 6px; border-radius: 6px; }
     .user-chip .logout-btn:hover { color: #f87171; background: rgba(220,38,38,0.15); }
     .sync-badge { font-size: 9px; font-family: 'DM Mono', monospace; padding: 2px 7px; border-radius: 5px; background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.2); margin-left: 6px; }
+    .pro-badge { font-size: 9px; font-family: 'DM Mono', monospace; font-weight: 800; padding: 2px 7px; border-radius: 5px; background: linear-gradient(135deg,#1a4fc4,var(--gold)); color: #fff; margin-left: 6px; letter-spacing: 0.5px; }
+    .free-badge { font-size: 9px; font-family: 'DM Mono', monospace; padding: 2px 7px; border-radius: 5px; background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); margin-left: 6px; white-space: nowrap; }
+    .model-option.locked { opacity: 0.55; cursor: pointer; }
+    .model-option.locked .model-badge.badge-pro { background: linear-gradient(135deg,#1a4fc4,var(--gold)); color: #fff; }
+    .model-badge.badge-pro { background: linear-gradient(135deg,#1a4fc4,var(--gold)); color: #fff; }
     .auth-steps { list-style: none; margin: 0 0 16px; padding: 0; display: none; }
     .auth-steps.show { display: block; }
     .auth-steps li { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); line-height: 1.5; padding: 4px 0; }
@@ -336,26 +341,26 @@
             <span class="model-badge badge-fast">Tercepat</span>
           </div>
           <div class="model-group-label">🧠 Cerdas & Konteks Panjang</div>
-          <div class="model-option" id="opt_qwen" onclick="selectModel('qwen/qwen3.6-27b','Genius v1.5','opt_qwen')">
+          <div class="model-option" id="opt_qwen" onclick="selectModel('qwen/qwen3.6-27b','Genius v1.5','opt_qwen',true)">
             <span class="model-icon">🐉</span>
             <div class="model-info"><div class="model-name">Genius v1.5</div><div class="model-desc">Reasoning &amp; vision</div></div>
-            <span class="model-badge badge-smart">Pintar</span>
+            <span class="model-badge badge-pro">🔒 Pro</span>
           </div>
           <div class="model-option" id="opt_kimi" onclick="selectModel('openai/gpt-oss-120b','Genius v2.5','opt_kimi')">
             <span class="model-icon">🤖</span>
             <div class="model-info"><div class="model-name">Genius v2.5</div><div class="model-desc">Paling cerdas, konteks 131K</div></div>
             <span class="model-badge badge-smart">131K ctx</span>
           </div>
-          <div class="model-option" id="opt_genius30" onclick="selectModel('kimi-k2.7-code','Genius v3.0','opt_genius30')">
+          <div class="model-option" id="opt_genius30" onclick="selectModel('kimi-k2.7-code','Genius v3.0','opt_genius30',true)">
             <span class="model-icon">🧬</span>
             <div class="model-info"><div class="model-name">Genius v3.0</div><div class="model-desc">Coding specialist via RunBios · 256K ctx</div></div>
-            <span class="model-badge badge-smart">RunBios</span>
+            <span class="model-badge badge-pro">🔒 Pro</span>
           </div>
           <div class="model-group-label">👁️ Vision & Gambar</div>
-          <div class="model-option" id="opt_llama4" onclick="selectModel('qwen/qwen3.6-27b','Mindbot v2.0','opt_llama4')">
+          <div class="model-option" id="opt_llama4" onclick="selectModel('qwen/qwen3.6-27b','Mindbot v2.0','opt_llama4',true)">
             <span class="model-icon">🦅</span>
             <div class="model-info"><div class="model-name">Mindbot v2.0</div><div class="model-desc">Analisis gambar & teks</div></div>
-            <span class="model-badge badge-vision">Vision</span>
+            <span class="model-badge badge-pro">🔒 Pro</span>
           </div>
           <div class="model-option" id="opt_grok_img" onclick="selectModel('grok-imagine','Mindbot v2.5','opt_grok_img')">
             <span class="model-icon">🎨</span>
@@ -411,6 +416,12 @@
 
   let supabaseClient = null;
   let currentUser = null;
+
+  // ── MINDBOT PRO (UI only — batas asli dicek ulang di server) ──
+  const PRO_EMAILS = ['arzikivirend@gmail.com', 'arzikireng@gmail.com'];
+  function isProUser() {
+    return !!(currentUser && currentUser.email && PRO_EMAILS.includes(currentUser.email.trim().toLowerCase()));
+  }
 
   if (!SUPABASE_URL.includes('YOUR-PROJECT')) {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -525,10 +536,11 @@
     if (!el) return;
     if (currentUser) {
       const letter = (currentUser.email || '?').charAt(0).toUpperCase();
+      const badge = isProUser() ? '<span class="pro-badge">⭐ PRO</span>' : '<span class="sync-badge">tersinkron</span>';
       el.innerHTML = `
         <div class="user-chip">
           <div class="avatar-letter">${letter}</div>
-          <div class="user-email">${escapeHtml(currentUser.email || '')}<span class="sync-badge">tersinkron</span></div>
+          <div class="user-email">${escapeHtml(currentUser.email || '')}${badge}</div>
           <button class="logout-btn" onclick="signOutUser()" title="Keluar">⎋</button>
         </div>`;
     } else {
@@ -1054,7 +1066,12 @@
   }
 
   function toggleModelDropdown() { document.getElementById('modelDropdown').classList.toggle('open'); }
-  function selectModel(modelId, modelName, optId) {
+  function selectModel(modelId, modelName, optId, isPremium) {
+    if (isPremium && !isProUser()) {
+      showError(`🔒 ${modelName} khusus Mindbot Pro.`);
+      document.getElementById('modelDropdown').classList.remove('open');
+      return;
+    }
     currentModel = modelId;
     currentModelName = modelName;
     document.getElementById('modelBtnLabel').textContent = modelName;
@@ -1120,6 +1137,10 @@
     if (!text && !selectedFile) return;
 
     const fileToSend = selectedFile;
+    if (fileToSend && !isProUser() && fileToSend.size > 5 * 1024 * 1024) {
+      showError('🔒 Upload file di atas 5MB khusus Mindbot Pro.');
+      return;
+    }
     let imagePreview = null;
     if (fileToSend && fileToSend.type.startsWith('image/')) {
       imagePreview = await compressImageDataUrl(await readFileAsDataURL(fileToSend));
@@ -1180,6 +1201,8 @@
       formData.append('sessionId', sessionId);
       formData.append('model', currentModel);
       formData.append('memory', JSON.stringify(await getMemory()));
+      formData.append('deviceId', deviceId);
+      if (currentUser && currentUser.email) formData.append('email', currentUser.email);
       if (fileToSend) formData.append('file', fileToSend);
 
       const controller = new AbortController();
@@ -1201,6 +1224,12 @@
       if (permanentGenImg) {
         const saved = await fetchImageAsDataUrl(permanentGenImg);
         if (saved) permanentGenImg = saved;
+      }
+
+      if (data.modelDowngraded) {
+        showError(`🔒 ${currentModelName} khusus Mindbot Pro — dijawab pakai model standar.`);
+      } else if (typeof data.dailyRemaining === 'number' && data.dailyRemaining <= 5) {
+        showError(`⏳ Sisa ${data.dailyRemaining} pesan gratis hari ini. Upgrade ke Pro untuk chat tanpa batas.`);
       }
 
       if (data.searched) {
