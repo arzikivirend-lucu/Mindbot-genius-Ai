@@ -344,7 +344,7 @@
           <div class="model-option" id="opt_qwen" onclick="selectModel('qwen/qwen3.6-27b','Genius v1.5','opt_qwen',true)">
             <span class="model-icon">🐉</span>
             <div class="model-info"><div class="model-name">Genius v1.5</div><div class="model-desc">Reasoning &amp; vision</div></div>
-            <span class="model-badge badge-pro">🔒 Pro</span>
+            <span class="model-badge badge-pro">✨ 5x/hari</span>
           </div>
           <div class="model-option" id="opt_kimi" onclick="selectModel('openai/gpt-oss-120b','Genius v2.5','opt_kimi')">
             <span class="model-icon">🤖</span>
@@ -354,13 +354,13 @@
           <div class="model-option" id="opt_genius30" onclick="selectModel('kimi-k2.7-code','Genius v3.0','opt_genius30',true)">
             <span class="model-icon">🧬</span>
             <div class="model-info"><div class="model-name">Genius v3.0</div><div class="model-desc">Coding specialist via RunBios · 256K ctx</div></div>
-            <span class="model-badge badge-pro">🔒 Pro</span>
+            <span class="model-badge badge-pro">✨ 5x/hari</span>
           </div>
           <div class="model-group-label">👁️ Vision & Gambar</div>
           <div class="model-option" id="opt_llama4" onclick="selectModel('qwen/qwen3.6-27b','Mindbot v2.0','opt_llama4',true)">
             <span class="model-icon">🦅</span>
             <div class="model-info"><div class="model-name">Mindbot v2.0</div><div class="model-desc">Analisis gambar & teks</div></div>
-            <span class="model-badge badge-pro">🔒 Pro</span>
+            <span class="model-badge badge-pro">✨ 5x/hari</span>
           </div>
           <div class="model-option" id="opt_grok_img" onclick="selectModel('grok-imagine','Mindbot v2.5','opt_grok_img')">
             <span class="model-icon">🎨</span>
@@ -1067,11 +1067,6 @@
 
   function toggleModelDropdown() { document.getElementById('modelDropdown').classList.toggle('open'); }
   function selectModel(modelId, modelName, optId, isPremium) {
-    if (isPremium && !isProUser()) {
-      showError(`🔒 ${modelName} khusus Mindbot Pro.`);
-      document.getElementById('modelDropdown').classList.remove('open');
-      return;
-    }
     currentModel = modelId;
     currentModelName = modelName;
     document.getElementById('modelBtnLabel').textContent = modelName;
@@ -1227,7 +1222,9 @@
       }
 
       if (data.modelDowngraded) {
-        showError(`🔒 ${currentModelName} khusus Mindbot Pro — dijawab pakai model standar.`);
+        showError(`✨ Jatah gratis ${currentModelName} hari ini sudah habis — dijawab pakai model standar. Upgrade ke Pro untuk pakai tanpa batas.`);
+      } else if (typeof data.premiumRemaining === 'number' && data.premiumRemaining <= 2) {
+        showError(`✨ Sisa ${data.premiumRemaining}x pakai ${currentModelName} gratis hari ini.`);
       } else if (typeof data.dailyRemaining === 'number' && data.dailyRemaining <= 5) {
         showError(`⏳ Sisa ${data.dailyRemaining} pesan gratis hari ini. Upgrade ke Pro untuk chat tanpa batas.`);
       }
