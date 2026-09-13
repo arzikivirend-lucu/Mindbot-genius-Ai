@@ -11,10 +11,12 @@
     "build:linux": "electron-builder --linux"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
     "dotenv": "^17.4.2",
     "electron-updater": "^6.3.9",
     "express": "^4.18.2",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.13"
   },
   "devDependencies": {
     "electron": "^31.0.0",
@@ -23,7 +25,7 @@
   "build": {
     "appId": "com.binaryglobalnetwork.mindbotgenius",
     "productName": "Mindbot Genius",
-    "copyright": "© 2026 Binary Global Network",
+    "copyright": "\u00a9 2026 Binary Global Network",
     "icon": "public/logo.ico",
     "artifactName": "Mindbot-Genius-Setup.exe",
     "publish": {
