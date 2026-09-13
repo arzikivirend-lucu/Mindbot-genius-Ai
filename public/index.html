@@ -499,24 +499,11 @@
       } else {
         const { data, error } = await supabaseClient.auth.signUp({ email, password });
         if (error) throw error;
-        const newUser = data.user || (data.session && data.session.user);
-        if (newUser) {
-          try {
-            const vres = await fetch('/api/send-verification', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId: newUser.id, email })
-            });
-            const vdata = await vres.json();
-            if (!vres.ok) throw new Error(vdata.error || 'Gagal mengirim email verifikasi.');
-            errEl.style.color = '#4ade80';
-            errEl.textContent = 'Akun dibuat! Cek email kamu untuk link verifikasi.';
-          } catch (mailErr) {
-            errEl.style.color = '#f87171';
-            errEl.textContent = 'Akun dibuat, tapi gagal kirim email verifikasi: ' + mailErr.message;
-          }
-        }
         if (data.session) closeAuthModal();
+        else {
+          errEl.style.color = '#4ade80';
+          errEl.textContent = 'Akun dibuat! Jika Confirm email masih aktif, cek inbox dulu.';
+        }
       }
     } catch (e) {
       errEl.style.color = '#f87171';
@@ -986,22 +973,6 @@
     supabaseClient.auth.onAuthStateChange((event, session) => { handleAuthChange(event, session); });
     supabaseClient.auth.getSession().then(({ data }) => { handleAuthChange('INITIAL_SESSION', data.session); });
   }
-
-  // ── Tampilkan hasil verifikasi email (redirect dari /api/verify-email) ──
-  (function showVerificationResult() {
-    const params = new URLSearchParams(window.location.search);
-    if (!params.has('verified')) return;
-    const ok = params.get('verified') === '1';
-    const reason = params.get('reason');
-    const msg = ok
-      ? '✅ Email berhasil diverifikasi!'
-      : '❌ Verifikasi gagal' + (reason === 'expired' ? ' (link kadaluarsa, minta kirim ulang).' : '.');
-    setTimeout(() => alert(msg), 300);
-    params.delete('verified');
-    params.delete('reason');
-    const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
-    window.history.replaceState({}, '', newUrl);
-  })();
 
   function updateAppHeight() {
     const vv = window.visualViewport;
