@@ -2,6 +2,62 @@ require('dotenv').config();
 const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
+const crypto  = require('crypto');
+
+// ── Supabase admin client (server-side, pakai service_role key) ──
+let supabaseAdmin = null;
+try {
+  const { createClient } = require('@supabase/supabase-js');
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  } else {
+    console.warn('⚠️  SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY belum diset. Verifikasi email dinonaktifkan.');
+  }
+} catch (e) {
+  console.warn('⚠️  Paket "@supabase/supabase-js" belum ter-install. Jalankan: npm install @supabase/supabase-js');
+}
+
+// ── SMTP transporter (Gmail / Resend / SMTP lain) ──
+let mailTransporter = null;
+try {
+  const nodemailer = require('nodemailer');
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    mailTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 465),
+      secure: Number(process.env.SMTP_PORT || 465) === 465,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    });
+  } else {
+    console.warn('⚠️  SMTP_HOST / SMTP_USER / SMTP_PASS belum diset. Email verifikasi tidak akan terkirim.');
+  }
+} catch (e) {
+  console.warn('⚠️  Paket "nodemailer" belum ter-install. Jalankan: npm install nodemailer');
+}
+
+const APP_URL = process.env.APP_URL || 'https://mindbot-genius-ai.vercel.app';
+const VERIFY_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 jam
+
+async function sendVerificationEmail(email, token) {
+  if (!mailTransporter) throw new Error('SMTP belum dikonfigurasi di server.');
+  const link = `${APP_URL}/api/verify-email?token=${token}`;
+  await mailTransporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: email,
+    subject: 'Verifikasi akun Mindbot Genius',
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto;">
+        <h2>Verifikasi akun kamu</h2>
+        <p>Terima kasih sudah daftar di Mindbot Genius. Klik tombol di bawah untuk memverifikasi email kamu:</p>
+        <p style="margin:24px 0;">
+          <a href="${link}" style="background:#1a4fc4;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;">Verifikasi Email</a>
+        </p>
+        <p>Atau salin link ini ke browser: <br/>${link}</p>
+        <p style="color:#888;font-size:12px;">Link berlaku 1 jam. Kalau kamu tidak merasa mendaftar, abaikan email ini.</p>
+      </div>
+    `
+  });
+}
 
 // AdmZip opsional
 let AdmZip = null;
@@ -88,6 +144,75 @@ const upload = multer({
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ── Kirim / kirim-ulang email verifikasi ──
+app.post('/api/send-verification', async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(500).json({ error: 'Supabase admin belum dikonfigurasi di server.' });
+    const { userId, email } = req.body || {};
+    if (!userId || !email) return res.status(400).json({ error: 'userId dan email wajib diisi.' });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + VERIFY_TOKEN_TTL_MS).toISOString();
+
+    const { error: upsertError } = await supabaseAdmin
+      .from('email_verifications')
+      .upsert({ user_id: userId, email, token, expires_at: expiresAt, verified: false }, { onConflict: 'user_id' });
+    if (upsertError) throw upsertError;
+
+    await sendVerificationEmail(email, token);
+    res.json({ ok: true, message: 'Email verifikasi terkirim. Cek inbox (atau folder spam).' });
+  } catch (e) {
+    console.error('send-verification error:', e.message);
+    res.status(500).json({ error: e.message || 'Gagal mengirim email verifikasi.' });
+  }
+});
+
+// ── Klik link di email -> verifikasi token ──
+app.get('/api/verify-email', async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.redirect(`${APP_URL}/?verified=0&reason=server`);
+    const { token } = req.query;
+    if (!token) return res.redirect(`${APP_URL}/?verified=0&reason=missing`);
+
+    const { data: row, error } = await supabaseAdmin
+      .from('email_verifications')
+      .select('user_id, expires_at, verified')
+      .eq('token', token)
+      .maybeSingle();
+    if (error) throw error;
+    if (!row) return res.redirect(`${APP_URL}/?verified=0&reason=invalid`);
+    if (new Date(row.expires_at).getTime() < Date.now()) return res.redirect(`${APP_URL}/?verified=0&reason=expired`);
+
+    if (!row.verified) {
+      const { error: updateError } = await supabaseAdmin
+        .from('email_verifications')
+        .update({ verified: true })
+        .eq('token', token);
+      if (updateError) throw updateError;
+    }
+    res.redirect(`${APP_URL}/?verified=1`);
+  } catch (e) {
+    console.error('verify-email error:', e.message);
+    res.redirect(`${APP_URL}/?verified=0&reason=error`);
+  }
+});
+
+// ── Cek status verifikasi (dipanggil dari frontend) ──
+app.get('/api/verification-status/:userId', async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.json({ verified: false });
+    const { data, error } = await supabaseAdmin
+      .from('email_verifications')
+      .select('verified')
+      .eq('user_id', req.params.userId)
+      .maybeSingle();
+    if (error) throw error;
+    res.json({ verified: !!(data && data.verified) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // Dummy endpoints
 app.get('/api/conversations', (req, res) => res.json([]));
