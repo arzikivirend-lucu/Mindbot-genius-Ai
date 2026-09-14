@@ -258,6 +258,10 @@
       <li><span class="step-num">5</span><span>Tekan Confirm Email</span></li>
       <li><span class="step-num">6</span><span>selesai</span></li>
     </ul>
+    <div class="auth-field" id="authDisplayNameField" style="display:none;">
+      <label>Nama Tampilan</label>
+      <input type="text" id="authDisplayName" placeholder="Nama kamu" autocomplete="nickname" maxlength="50"/>
+    </div>
     <div class="auth-field">
       <label>Email</label>
       <input type="email" id="authEmail" placeholder="email@apa-saja.com" autocomplete="email"/>
@@ -457,6 +461,7 @@
   function openAuthModal(mode) {
     authMode = mode;
     updateAuthModalUi();
+    document.getElementById('authDisplayName').value = '';
     document.getElementById('authEmail').value = '';
     document.getElementById('authPassword').value = '';
     document.getElementById('authError').textContent = '';
@@ -473,6 +478,7 @@
       ? 'Masuk dengan email & password (boleh email apa saja, tidak harus Gmail).'
       : 'Daftar dengan email & password. Email boleh dari provider mana saja.';
     document.getElementById('authSteps').classList.toggle('show', !isLogin);
+    document.getElementById('authDisplayNameField').style.display = isLogin ? 'none' : 'block';
     document.getElementById('authSwitch').innerHTML = isLogin
       ? 'Belum punya akun? <a onclick="toggleAuthMode()">Daftar</a>'
       : 'Sudah punya akun? <a onclick="toggleAuthMode()">Masuk</a>';
@@ -480,6 +486,7 @@
 
   async function submitAuthForm() {
     if (!supabaseClient) { showError('Supabase belum dikonfigurasi'); return; }
+    const displayName = document.getElementById('authDisplayName').value.trim();
     const email = document.getElementById('authEmail').value.trim();
     const password = document.getElementById('authPassword').value;
     const errEl = document.getElementById('authError');
@@ -488,6 +495,7 @@
     if (!email || !password) { errEl.textContent = 'Isi email dan password.'; return; }
     if (password.length < 6) { errEl.textContent = 'Password minimal 6 karakter.'; return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.textContent = 'Format email tidak valid.'; return; }
+    if (authMode === 'signup' && !displayName) { errEl.textContent = 'Isi nama tampilan.'; return; }
     const btn = document.getElementById('authSubmitBtn');
     btn.disabled = true;
     btn.textContent = 'Memproses...';
@@ -497,7 +505,10 @@
         if (error) throw error;
         closeAuthModal();
       } else {
-        const { data, error } = await supabaseClient.auth.signUp({ email, password });
+        const { data, error } = await supabaseClient.auth.signUp({
+          email, password,
+          options: { data: { display_name: displayName } }
+        });
         if (error) throw error;
         if (data.session) closeAuthModal();
         else {
@@ -523,11 +534,12 @@
     const el = document.getElementById('authAreaSidebar');
     if (!el) return;
     if (currentUser) {
-      const letter = (currentUser.email || '?').charAt(0).toUpperCase();
+      const displayName = (currentUser.user_metadata && currentUser.user_metadata.display_name) || currentUser.email || '?';
+      const letter = displayName.charAt(0).toUpperCase();
       el.innerHTML = `
         <div class="user-chip">
           <div class="avatar-letter">${letter}</div>
-          <div class="user-email">${escapeHtml(currentUser.email || '')}<span class="sync-badge">tersinkron</span></div>
+          <div class="user-email">${escapeHtml(displayName)}<span class="sync-badge">tersinkron</span></div>
           <button class="logout-btn" onclick="signOutUser()" title="Keluar">⎋</button>
         </div>`;
     } else {
