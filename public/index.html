@@ -232,6 +232,66 @@
     .auth-steps.show { display: block; }
     .auth-steps li { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); line-height: 1.5; padding: 4px 0; }
     .auth-steps li .step-num { flex-shrink: 0; width: 16px; height: 16px; border-radius: 50%; background: rgba(200,168,75,0.12); border: 1px solid rgba(200,168,75,0.35); color: var(--gold); font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+
+    /* === HTML Live Preview Modal === */
+    #html-preview-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(6px);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #html-preview-modal.show { display: flex; }
+    .html-preview-box {
+      width: min(960px, 95vw);
+      height: min(700px, 85vh);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .html-preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: #060810;
+      border-bottom: 1px solid var(--border);
+    }
+    .html-preview-header span {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--gold);
+      letter-spacing: 1px;
+    }
+    .html-preview-close {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: 'DM Mono', monospace;
+      transition: all 0.2s;
+    }
+    .html-preview-close:hover {
+      border-color: #f87171;
+      color: #f87171;
+    }
+    #html-preview-frame {
+      flex: 1;
+      width: 100%;
+      border: none;
+      background: #fff;
+    }
   </style>
 </head>
 <body>
@@ -755,7 +815,12 @@
     const codeBlocks = [];
     const makeBlock = (lang, code) => {
       const id = 'c_' + Math.random().toString(36).substr(2, 6);
-      return `<div class="code-block"><div class="code-toolbar"><span class="code-lang">${lang||'code'}</span><div class="code-actions"><button class="code-btn" onclick="copyCode('${id}',this)">📋 Salin</button><button class="code-btn" onclick="dlCode('${id}','${lang||'txt'}')">💾 Unduh</button></div></div><pre id="${id}">${escapeHtml(code.trim())}</pre></div>`;
+      const isHtml = (lang || '').toLowerCase() === 'html' || /<!DOCTYPE\s+html|<html[\s>]/i.test(code);
+      let actions = `<button class="code-btn" onclick="copyCode('${id}',this)">📋 Salin</button><button class="code-btn" onclick="dlCode('${id}','${lang||'txt'}')">💾 Unduh</button>`;
+      if (isHtml) {
+        actions += `<button class="code-btn" onclick="previewHtml('${id}')">👁️ Preview</button>`;
+      }
+      return `<div class="code-block"><div class="code-toolbar"><span class="code-lang">${lang || (isHtml ? 'html' : 'code')}</span><div class="code-actions">${actions}</div></div><pre id="${id}">${escapeHtml(code.trim())}</pre></div>`;
     };
     text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
       const ph = '%%CODEBLOCK' + codeBlocks.length + '%%';
@@ -788,6 +853,30 @@
     a.download = 'mindbot_code.' + (ext[lang.toLowerCase()] || 'txt');
     a.click();
   }
+
+  function previewHtml(id) {
+    const code = document.getElementById(id).innerText;
+    const modal = document.getElementById('html-preview-modal');
+    const frame = document.getElementById('html-preview-frame');
+    frame.srcdoc = code;
+    modal.classList.add('show');
+  }
+
+  function closeHtmlPreview() {
+    const modal = document.getElementById('html-preview-modal');
+    const frame = document.getElementById('html-preview-frame');
+    modal.classList.remove('show');
+    frame.srcdoc = '';
+  }
+
+  // Tutup modal jika klik di luar box
+  document.addEventListener('click', function(e) {
+    if (e.target && e.target.id === 'html-preview-modal') closeHtmlPreview();
+  });
+  // Tutup dengan tombol Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeHtmlPreview();
+  });
 
   function openLightbox(src) { document.getElementById('lb-img').src = src; document.getElementById('lightbox').classList.add('show'); }
   function closeLightbox() { document.getElementById('lightbox').classList.remove('show'); }
@@ -1415,5 +1504,17 @@
     })();
   }
 </script>
+
+<!-- HTML Live Preview Modal -->
+<div id="html-preview-modal">
+  <div class="html-preview-box">
+    <div class="html-preview-header">
+      <span>🖥️ PREVIEW HTML</span>
+      <button class="html-preview-close" onclick="closeHtmlPreview()">✕ Tutup</button>
+    </div>
+    <iframe id="html-preview-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+  </div>
+</div>
+
 </body>
 </html>
