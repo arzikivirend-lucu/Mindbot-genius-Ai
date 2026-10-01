@@ -397,32 +397,100 @@ const RUNBIOS_CODING_MODELS = [
   'kimi-k3'
 ];
 
+// ── Kirim job gambar ke deAPI (dipakai /api/imagine dan Genius V5.0) ──
+async function submitImageJob(prompt) {
+  const DEAPI_KEY = process.env.DEAPI_API_KEY;
+  if (!DEAPI_KEY) throw new Error('DEAPI_API_KEY belum diset');
+  const submitResp = await fetch(`${DEAPI_BASE}/txt2img`, {
+    method: 'POST',
+    headers: deapiHeaders(),
+    body: JSON.stringify({
+      prompt: prompt + ', high quality, detailed, beautiful',
+      model: DEAPI_MODEL,
+      width: 768,
+      height: 512,
+      steps: 4,
+      seed: -1
+    })
+  });
+  if (!submitResp.ok) {
+    const errText = await submitResp.text();
+    throw new Error(`deAPI submit error (${submitResp.status}): ${errText}`);
+  }
+  const submitData = await submitResp.json();
+  const requestId = submitData?.data?.request_id;
+  if (!requestId) throw new Error('deAPI tidak mengembalikan request_id');
+  return requestId;
+}
+
+// ── MINDBOT GENIUS V5.0 ──
+// Model gabungan: memilih model terbaik per pesan (vision, coding, cepat, cerdas)
+// dan otomatis membuat gambar saat pengguna memintanya.
+const V5_MODEL = 'mindbot-genius-v5';
+
+const IMG_VERBS = '(?:di)?(?:buat(?:kan|in)?|bikin(?:kan|in)?|ciptakan|hasilkan|desain(?:kan)?|lukis(?:kan|in)?|generate|create|make|draw|paint|render|design|produce)';
+const IMG_NOUNS = '(?:gambar|foto|ilustrasi|lukisan|logo|poster|wallpaper|banner|sketsa|karakter|avatar|ikon|icon|stiker|sticker|image|picture|photo|illustration|artwork|drawing|sketch|painting|portrait|potret)';
+const IMG_GAP   = '(?:(?!tentang|mengenai|soal|about|untuk membuat)[^.!?\\n]){0,30}?';
+const IMAGE_REQUEST_RE = new RegExp(`\\b${IMG_VERBS}\\b${IMG_GAP}\\b${IMG_NOUNS}\\b`, 'i');
+const IMAGE_QUICK_RE   = /\b(gambarin|draw (?:me|a|an)|imagine:)\b/i;
+const NOT_IMAGE_CONTEXT_RE = /\b(html|css|javascript|js|kode|code|coding|script|python|react|canvas|svg|github|readme|deskripsi|caption|keterangan|alt text|analisis|jelaskan)\b/i;
+
+function isImageRequest(text) {
+  if (!text || text.length > 600) return false;
+  if (NOT_IMAGE_CONTEXT_RE.test(text)) return false;
+  return IMAGE_REQUEST_RE.test(text) || IMAGE_QUICK_RE.test(text);
+}
+
+// Ubah permintaan pengguna jadi prompt gambar bahasa Inggris (fallback: teks asli)
+async function buildImagePrompt(text) {
+  const GROQ_KEY = process.env.GROQ_API_KEY;
+  if (!GROQ_KEY) return text;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+  try {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-20b',
+        messages: [
+          { role: 'system', content: 'Ubah permintaan pengguna menjadi SATU prompt pembuat gambar dalam bahasa Inggris, deskriptif (subjek, suasana, gaya, pencahayaan), maksimal 60 kata. Balas HANYA prompt-nya, tanpa tanda kutip atau penjelasan.' },
+          { role: 'user', content: text }
+        ],
+        max_tokens: 200,
+        temperature: 0.4,
+        reasoning_effort: 'low'
+      }),
+      signal: controller.signal
+    });
+    if (!resp.ok) return text;
+    const data = await resp.json();
+    let out = (data.choices?.[0]?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    out = out.replace(/^["'“”]+|["'“”]+$/g, '').trim();
+    return out && out.length >= 5 ? out.slice(0, 500) : text;
+  } catch (e) {
+    return text;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Pilih model terbaik untuk pesan ini (hanya model yang sudah ada di server)
+function pickV5Model({ text, isImage, hasWebContext }) {
+  if (isImage) return 'qwen/qwen3.6-27b';
+  const codeLike = /\b(html|css|javascript|js|kode|code|coding|script|python|java|php|react|node|sql|fungsi|function|program|bug|error|debug|game)\b/i.test(text || '');
+  if (codeLike && process.env.RUNBIOS_API_KEY) return 'kimi-k2.7-code';
+  const simple = (text || '').length < 60 && !hasWebContext && !/[?]\s*.{40,}/.test(text || '');
+  if (simple && !codeLike) return 'openai/gpt-oss-20b';
+  return 'openai/gpt-oss-120b';
+}
+
 // 1. Submit image job
 app.post('/api/imagine', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt diperlukan' });
-  const DEAPI_KEY = process.env.DEAPI_API_KEY;
-  if (!DEAPI_KEY) return res.status(500).json({ error: 'DEAPI_API_KEY belum diset' });
   try {
-    const submitResp = await fetch(`${DEAPI_BASE}/txt2img`, {
-      method: 'POST',
-      headers: deapiHeaders(),
-      body: JSON.stringify({
-        prompt: prompt + ', high quality, detailed, beautiful',
-        model: DEAPI_MODEL,
-        width: 768,
-        height: 512,
-        steps: 4,
-        seed: -1
-      })
-    });
-    if (!submitResp.ok) {
-      const errText = await submitResp.text();
-      throw new Error(`deAPI submit error (${submitResp.status}): ${errText}`);
-    }
-    const submitData = await submitResp.json();
-    const requestId = submitData?.data?.request_id;
-    if (!requestId) throw new Error('deAPI tidak mengembalikan request_id');
+    const requestId = await submitImageJob(prompt);
     res.json({ requestId, status: 'pending' });
   } catch (err) {
     console.error('Imagine submit error:', err.message);
@@ -546,6 +614,26 @@ app.post('/api/chat', safeUpload, async (req, res) => {
   if (!text && !file) return res.status(400).json({ error: 'Pesan atau file diperlukan' });
   if (!sessions[sessionId]) sessions[sessionId] = [];
 
+  // ── Genius V5.0: permintaan membuat gambar -> kirim job ke deAPI, frontend yang polling ──
+  const isV5 = reqModel === V5_MODEL;
+  if (isV5 && !file && isImageRequest(text)) {
+    try {
+      const imagePrompt = await buildImagePrompt(text);
+      const imageRequestId = await submitImageJob(imagePrompt);
+      sessions[sessionId].push({ role: 'user', content: text });
+      sessions[sessionId].push({ role: 'assistant', content: `[Gambar dibuat untuk permintaan: "${text.slice(0, 120)}"]` });
+      return res.json({
+        reply: `🎨 **"${text.slice(0, 120)}"**`,
+        title: text.slice(0, 40),
+        imageRequestId,
+        route: 'image'
+      });
+    } catch (err) {
+      console.error('V5 image error:', err.message);
+      return res.status(500).json({ error: 'Gagal membuat gambar: ' + err.message });
+    }
+  }
+
   const isImage = file && file.mimetype.startsWith('image/');
   const isZip   = file && !isImage && isZipLike(file.mimetype, file.originalname);
   const isText  = file && !isImage && !isZip && isTextLike(file.mimetype, file.originalname);
@@ -622,7 +710,9 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     'kimi-k2.7-code',
     'kimi-k3'
   ];
-  const requestedModel = ALLOWED_MODELS.includes(reqModel) ? reqModel : 'openai/gpt-oss-120b';
+  const requestedModel = isV5
+    ? pickV5Model({ text, isImage: !!isImage, hasWebContext: !!(webContext || linkContext) })
+    : (ALLOWED_MODELS.includes(reqModel) ? reqModel : 'openai/gpt-oss-120b');
 
   const model = isImage
     ? 'qwen/qwen3.6-27b'
@@ -646,7 +736,11 @@ app.post('/api/chat', safeUpload, async (req, res) => {
 6) Penjelasan maksimal 1 kalimat sebelum kode.`
     : '';
 
-  const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${codingExtra}${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}${linkContext ? '\n\nPengguna mengirim link. Berikut isi halaman yang berhasil dibuka (gunakan ini untuk menjawab):\n'+linkContext : ''}`;
+  const v5Extra = isV5
+    ? ' Kamu adalah Mindbot Genius V5.0, gabungan seluruh kemampuan Mindbot Genius: percakapan, coding, analisis gambar, pencarian web, dan pembuatan gambar. Jika pengguna meminta dibuatkan gambar, sistem membuatnya otomatis.'
+    : '';
+
+  const systemPrompt = `Kamu adalah Mindbot Genius (MBG AI) asisten AI cerdas buatan Arziki. Jangan sebut model AI lain. Jawab dalam bahasa yang sama dengan pengguna. Tanggal hari ini: ${new Date().toLocaleDateString('id-ID', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}.${codingExtra}${v5Extra}${memoryContext}${webContext ? '\n\nGunakan informasi berikut untuk menjawab pertanyaan user:\n'+webContext : ''}${linkContext ? '\n\nPengguna mengirim link. Berikut isi halaman yang berhasil dibuka (gunakan ini untuk menjawab):\n'+linkContext : ''}`;
 
   try {
     const history = sessions[sessionId].slice(-20);
@@ -670,7 +764,7 @@ app.post('/api/chat', safeUpload, async (req, res) => {
     } else if (isImage) {
       effectiveModel = 'qwen/qwen3.6-27b';    // vision
     } else {
-      effectiveModel = 'openai/gpt-oss-120b'; // fallback aman ke Groq
+      effectiveModel = (isV5 && model === 'openai/gpt-oss-20b') ? 'openai/gpt-oss-20b' : 'openai/gpt-oss-120b'; // fallback aman ke Groq
     }
 
     if (routeToRunBios && !apiKey) throw new Error('RUNBIOS_API_KEY belum diset di server');
@@ -730,7 +824,14 @@ app.post('/api/chat', safeUpload, async (req, res) => {
         );
       }
     } else {
-      reply = await callChat(apiUrl, apiKey, effectiveModel, maxTokens, 12000);
+      try {
+        reply = await callChat(apiUrl, apiKey, effectiveModel, maxTokens, effectiveModel === 'openai/gpt-oss-20b' ? 5000 : 12000);
+      } catch (e) {
+        // Genius V5.0: kalau model cepat gagal, naik ke model utama
+        if (!(isV5 && effectiveModel === 'openai/gpt-oss-20b')) throw e;
+        console.warn('Model cepat gagal, fallback ke gpt-oss-120b:', e.message);
+        reply = await callChat(apiUrl, apiKey, 'openai/gpt-oss-120b', maxTokens, 8000);
+      }
     }
 
     sessions[sessionId].push({ role:'assistant', content: reply });
