@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+  <meta name="theme-color" content="#0a0c14" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="format-detection" content="telephone=no" />
   <title>Mindbot Genius</title>
   <link rel="icon" type="image/png" href="logo.png"/>
   <link rel="shortcut icon" type="image/x-icon" href="logo.ico"/>
@@ -306,6 +310,26 @@
       border: none;
       background: #fff;
     }
+
+    /* === Penyesuaian perangkat (V5.0) === */
+    html { -webkit-text-size-adjust: 100%; }
+    button, .suggestion, .model-option, .conv-item { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    .bubble { overflow-wrap: anywhere; min-width: 0; }
+    .model-dropdown { max-height: min(70vh, 560px); overflow-y: auto; overscroll-behavior: contain; }
+    .auth-modal { max-height: 90vh; max-height: 90dvh; overflow-y: auto; }
+    @media (hover: none) { .conv-del { opacity: .7; padding: 6px 9px; } }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+    }
+    @media (max-width: 768px) {
+      :root { --sidebar-w: min(85vw, 300px); }
+      header { padding-top: max(10px, env(safe-area-inset-top)); padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+      #sidebar { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+      .model-dropdown { max-height: calc(var(--app-height, 100dvh) - 90px); }
+      #html-preview-modal { padding: 8px; }
+      .html-preview-box { width: 100%; height: 92vh; height: 92dvh; }
+    }
+    @media (max-width: 480px) { #notifBtn { display: none; } .suggestions { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -420,18 +444,18 @@
       <div class="model-selector" id="modelSelector">
         <button class="model-btn" onclick="toggleModelDropdown()" id="modelBtn">
           <div class="dot-model"></div>
-          <span id="modelBtnLabel">Mindbot v1.0</span>
+          <span id="modelBtnLabel">Genius v5.0</span>
           <span>▾</span>
         </button>
         <div class="model-dropdown" id="modelDropdown">
           <div class="model-group-label">✨ Terbaru</div>
-          <div class="model-option" id="opt_genius50" onclick="selectModel('mindbot-genius-v5','Genius v5.0','opt_genius50')">
+          <div class="model-option active" id="opt_genius50" onclick="selectModel('mindbot-genius-v5','Genius v5.0','opt_genius50')">
             <span class="model-icon">🌟</span>
             <div class="model-info"><div class="model-name">Genius v5.0</div><div class="model-desc">Gabungan semua model · otomatis buat gambar</div></div>
             <span class="model-badge badge-smart">All-in-one</span>
           </div>
           <div class="model-group-label">⚡ Cepat & Efisien</div>
-          <div class="model-option active" id="opt_llama33" onclick="selectModel('openai/gpt-oss-120b','Mindbot v1.0','opt_llama33')">
+          <div class="model-option" id="opt_llama33" onclick="selectModel('openai/gpt-oss-120b','Mindbot v1.0','opt_llama33')">
             <span class="model-icon">🦙</span>
             <div class="model-info"><div class="model-name">Mindbot v1.0</div><div class="model-desc">Model default, serba bisa</div></div>
             <span class="model-badge badge-fast">Cepat</span>
@@ -554,8 +578,8 @@
   let selectedFile = null;
   let notifEnabled = localStorage.getItem('notif_enabled') !== 'false';
   let authMode = 'login';
-  let currentModel = 'openai/gpt-oss-120b';
-  let currentModelName = 'Mindbot v1.0';
+  let currentModel = 'mindbot-genius-v5';
+  let currentModelName = 'Genius v5.0';
   let memoryCache = [];
   let recognition = null;
   let isListening = false;
@@ -1284,13 +1308,24 @@
   }
 
   function toggleModelDropdown() { document.getElementById('modelDropdown').classList.toggle('open'); }
-  function selectModel(modelId, modelName, optId) {
+  function selectModel(modelId, modelName, optId, silent) {
     currentModel = modelId;
     currentModelName = modelName;
     document.getElementById('modelBtnLabel').textContent = modelName;
     document.querySelectorAll('.model-option').forEach(el => el.classList.remove('active'));
     document.getElementById(optId).classList.add('active');
     document.getElementById('modelDropdown').classList.remove('open');
+    if (!silent) {
+      try { localStorage.setItem('mbg_model_pref_v5', JSON.stringify({ id: modelId, name: modelName, optId: optId })); } catch (e) {}
+    }
+  }
+  // Pulihkan pilihan model terakhir. Kunci "_v5" baru, jadi pengguna lama
+  // otomatis mulai dari Genius v5.0 sampai mereka memilih model lain.
+  function restoreModelPref() {
+    try {
+      const p = JSON.parse(localStorage.getItem('mbg_model_pref_v5') || 'null');
+      if (p && p.optId && document.getElementById(p.optId)) selectModel(p.id, p.name, p.optId, true);
+    } catch (e) {}
   }
   document.addEventListener('click', e => {
     if (!document.getElementById('modelSelector').contains(e.target)) {
@@ -1424,7 +1459,8 @@
       if (fileToSend) formData.append('file', fileToSend);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), isCodingModel ? 20000 : 30000);
+      const timeoutMs = currentModel === 'mindbot-genius-v5' ? 60000 : (isCodingModel ? 20000 : 30000);
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       let res;
       try {
         res = await fetch('/api/chat', { method: 'POST', body: formData, signal: controller.signal });
@@ -1638,6 +1674,7 @@
   speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
 
   // INIT
+  restoreModelPref();
   updateDailyStreak();
   requestNotificationPermission();
   renderAuthAreaSidebar();
