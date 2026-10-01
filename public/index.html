@@ -424,6 +424,12 @@
           <span>▾</span>
         </button>
         <div class="model-dropdown" id="modelDropdown">
+          <div class="model-group-label">✨ Terbaru</div>
+          <div class="model-option" id="opt_genius50" onclick="selectModel('mindbot-genius-v5','Genius v5.0','opt_genius50')">
+            <span class="model-icon">🌟</span>
+            <div class="model-info"><div class="model-name">Genius v5.0</div><div class="model-desc">Gabungan semua model · otomatis buat gambar</div></div>
+            <span class="model-badge badge-smart">All-in-one</span>
+          </div>
           <div class="model-group-label">⚡ Cepat & Efisien</div>
           <div class="model-option active" id="opt_llama33" onclick="selectModel('openai/gpt-oss-120b','Mindbot v1.0','opt_llama33')">
             <span class="model-icon">🦙</span>
@@ -1325,7 +1331,7 @@
       const formData = new FormData();
       formData.append('message', `Buatkan SATU judul singkat (maksimal 6 kata) untuk percakapan berikut, dalam Bahasa Indonesia. Jawab HANYA dengan judulnya saja.\n\nPesan: "${(userText||'').slice(0,300)}"\nBalasan: "${(aiText||'').slice(0,300)}"`);
       formData.append('sessionId', 'title_' + Math.random().toString(36).substr(2, 9));
-      formData.append('model', currentModel);
+      formData.append('model', 'openai/gpt-oss-20b');
       const res = await fetch('/api/chat', { method: 'POST', body: formData });
       if (!res.ok) return null;
       const data = await res.json();
@@ -1432,7 +1438,16 @@
       removeTyping();
       if (!res.ok || !data) throw new Error(data?.error || 'Terjadi kesalahan');
 
-      let permanentGenImg = data.generatedImageUrl || null;
+      let generatedUrl = data.generatedImageUrl || null;
+      if (data.imageRequestId) {
+        showTyping('🎨 Genius v5.0 sedang melukis gambarmu...');
+        try {
+          generatedUrl = await pollImageStatus(data.imageRequestId);
+        } finally {
+          removeTyping();
+        }
+      }
+      let permanentGenImg = generatedUrl;
       if (permanentGenImg) {
         const saved = await fetchImageAsDataUrl(permanentGenImg);
         if (saved) permanentGenImg = saved;
@@ -1445,7 +1460,7 @@
         sendNotification('🤖 Mindbot Genius', data.reply);
       }
 
-      if (text) extractAndSaveMemory(text, data.reply);
+      if (text && !data.imageRequestId) extractAndSaveMemory(text, data.reply);
 
       const titleEl = document.getElementById('chat-title');
       const isNewConv = titleEl.classList.contains('new');
