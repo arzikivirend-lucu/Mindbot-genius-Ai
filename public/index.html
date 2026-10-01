@@ -176,11 +176,25 @@
     .memory-del { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 11px; padding: 2px 5px; border-radius: 5px; flex-shrink: 0; }
     .memory-del:hover { background: rgba(220,38,38,0.2); color: #f87171; }
     .memory-empty { text-align: center; padding: 14px 8px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); line-height: 1.6; }
+
+    /* === Persona Kustom === */
+    #persona-section { padding: 0 12px 10px; border-bottom: 1px solid var(--border); }
+    .persona-select, .persona-text { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; color: var(--text); font-size: 11px; outline: none; margin-bottom: 6px; transition: border-color 0.2s; }
+    .persona-select { font-family: 'DM Mono', monospace; }
+    .persona-text { font-family: 'Syne', sans-serif; resize: vertical; min-height: 84px; max-height: 200px; line-height: 1.5; }
+    .persona-select:focus, .persona-text:focus { border-color: var(--gold); }
+    .persona-text::placeholder { color: var(--text-dim); }
+    .persona-count { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-dim); text-align: right; margin-bottom: 6px; }
+    .persona-actions { display: flex; gap: 6px; }
+    .persona-actions .code-btn { flex: 1; padding: 6px; }
+
     @media (max-width: 768px) {
       :root { --sidebar-w: 260px; }
       .menu-toggle { display: block; }
-      #sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
+      #sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); overflow-y: auto; }
       #sidebar.open { transform: translateX(0); }
+      #conv-list { flex: none; min-height: 120px; }
+      .persona-select, .persona-text { font-size: 16px; }
       header { padding: 10px 12px; }
       .header-title { font-size: 12px; max-width: 120px; }
       .status-dot { display: none; }
@@ -361,6 +375,29 @@
     <div id="memory-list-sidebar"></div>
     <button class="code-btn" style="width:100%;padding:6px;" onclick="confirmClearMemory()">🗑️ Hapus semua</button>
   </div>
+
+  <!-- Persona Kustom -->
+  <div class="memory-section-head" onclick="togglePersonaSection()">
+    <span class="label">🎭 Persona<span class="sync-badge" id="personaActiveBadge" style="display:none;">aktif</span></span>
+    <span class="memory-toggle-icon" id="personaToggleIcon">▾</span>
+  </div>
+  <div id="persona-section">
+    <select class="persona-select" id="personaPreset" onchange="applyPersonaPreset()">
+      <option value="">— Pilih template —</option>
+      <option value="guru">👨‍🏫 Guru sabar</option>
+      <option value="coder">💻 Senior programmer</option>
+      <option value="penulis">✍️ Penulis kreatif</option>
+      <option value="santai">😎 Teman santai</option>
+      <option value="singkat">⚡ Jawab singkat</option>
+    </select>
+    <textarea class="persona-text" id="personaText" maxlength="500" placeholder="Tulis gaya & aturan AI, misalnya: Panggil aku Kak, jawab singkat, pakai bahasa santai." oninput="updatePersonaCount()"></textarea>
+    <div class="persona-count" id="personaCount">0/500</div>
+    <div class="persona-actions">
+      <button class="code-btn" onclick="savePersona()">💾 Simpan</button>
+      <button class="code-btn" onclick="clearPersona()">🗑️ Hapus</button>
+    </div>
+  </div>
+
   <div class="sidebar-section">Riwayat Percakapan</div>
   <div id="conv-list"><div class="conv-empty">Belum ada percakapan.<br/>Mulai chat pertamamu!</div></div>
   <div class="sidebar-footer">
@@ -711,6 +748,92 @@
     } catch(e) {}
   }
 
+  // =========================================================
+  // PERSONA KUSTOM
+  // Disimpan di localStorage; jika sudah login, ikut disimpan di
+  // user_metadata Supabase sehingga sinkron antar perangkat.
+  // =========================================================
+  const PERSONA_KEY = 'mbg_persona';
+  const PERSONA_MAX = 500;
+  const PERSONA_PRESETS = {
+    guru: 'Kamu adalah guru yang sabar. Jelaskan langkah demi langkah dengan contoh sederhana dan bahasa yang mudah dipahami.',
+    coder: 'Kamu adalah senior programmer. Jawab singkat dan teknis, berikan kode yang rapi, lalu jelaskan seperlunya saja.',
+    penulis: 'Kamu adalah penulis kreatif. Gunakan bahasa yang hidup, imajinatif, dan enak dibaca.',
+    santai: 'Kamu adalah teman ngobrol yang santai. Gunakan bahasa Indonesia sehari-hari yang akrab dan tidak kaku.',
+    singkat: 'Jawab sesingkat mungkin, langsung ke inti, tanpa basa-basi dan tanpa pembukaan.'
+  };
+
+  function getPersona() {
+    const meta = currentUser && currentUser.user_metadata ? currentUser.user_metadata.persona : undefined;
+    if (typeof meta === 'string') return meta;
+    try { return localStorage.getItem(PERSONA_KEY) || ''; } catch (e) { return ''; }
+  }
+
+  function updatePersonaCount() {
+    const ta = document.getElementById('personaText');
+    const cnt = document.getElementById('personaCount');
+    if (ta && cnt) cnt.textContent = ta.value.length + '/' + PERSONA_MAX;
+  }
+
+  function renderPersonaUi() {
+    const ta = document.getElementById('personaText');
+    const badge = document.getElementById('personaActiveBadge');
+    if (!ta) return;
+    // Jangan menimpa teks yang sedang diketik pengguna
+    if (document.activeElement !== ta) ta.value = getPersona();
+    updatePersonaCount();
+    if (badge) badge.style.display = getPersona() ? 'inline-block' : 'none';
+  }
+
+  function applyPersonaPreset() {
+    const sel = document.getElementById('personaPreset');
+    const preset = PERSONA_PRESETS[sel.value];
+    if (preset) {
+      document.getElementById('personaText').value = preset;
+      updatePersonaCount();
+    }
+    sel.value = '';
+  }
+
+  async function savePersona() {
+    const val = (document.getElementById('personaText').value || '').trim().slice(0, PERSONA_MAX);
+    try { localStorage.setItem(PERSONA_KEY, val); } catch (e) {}
+    if (currentUser && supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient.auth.updateUser({ data: { persona: val } });
+        if (error) throw error;
+        if (data && data.user) currentUser = data.user;
+      } catch (e) {
+        showError('Tersimpan di perangkat ini, gagal sinkron ke akun.');
+      }
+    }
+    document.getElementById('personaText').value = val;
+    renderPersonaUi();
+    showToast(val ? '🎭 Persona disimpan' : '🎭 Persona dihapus');
+  }
+
+  async function clearPersona() {
+    document.getElementById('personaText').value = '';
+    await savePersona();
+  }
+
+  function togglePersonaSection() {
+    const section = document.getElementById('persona-section');
+    const icon = document.getElementById('personaToggleIcon');
+    const collapsed = section.style.display === 'none';
+    section.style.display = collapsed ? 'block' : 'none';
+    icon.classList.toggle('collapsed', !collapsed);
+    localStorage.setItem('persona_section_collapsed', collapsed ? 'false' : 'true');
+  }
+
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'streak-toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2200);
+  }
+
   function todayKey(d = new Date()) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
@@ -1049,6 +1172,7 @@
     const prevUserId = currentUser ? currentUser.id : null;
     currentUser = session && session.user ? session.user : null;
     renderAuthAreaSidebar();
+    renderPersonaUi();
     const newUserId = currentUser ? currentUser.id : null;
 
     if (!appInitialized) {
@@ -1279,7 +1403,18 @@
       if (text) formData.append('message', text);
       formData.append('sessionId', sessionId);
       formData.append('model', currentModel);
-      formData.append('memory', JSON.stringify(await getMemory()));
+
+      // Ingatan AI + Persona Kustom.
+      // Persona dikirim sebagai item tambahan di 'memory' (supaya langsung terbaca
+      // oleh server yang sudah ada) dan juga sebagai field 'persona' tersendiri.
+      const memoryList = await getMemory();
+      const persona = getPersona();
+      if (persona) {
+        memoryList.push('INSTRUKSI PERSONA DARI PENGGUNA (ikuti gaya dan aturan ini di setiap jawaban): ' + persona);
+        formData.append('persona', persona);
+      }
+      formData.append('memory', JSON.stringify(memoryList));
+
       if (fileToSend) formData.append('file', fileToSend);
 
       const controller = new AbortController();
@@ -1495,6 +1630,11 @@
     document.getElementById('memory-section').style.display = 'none';
     document.getElementById('memoryToggleIcon').classList.add('collapsed');
   }
+  if (localStorage.getItem('persona_section_collapsed') !== 'false') {
+    document.getElementById('persona-section').style.display = 'none';
+    document.getElementById('personaToggleIcon').classList.add('collapsed');
+  }
+  renderPersonaUi();
   if (!supabaseClient) {
     (async () => {
       appInitialized = true;
@@ -1517,4 +1657,4 @@
 </div>
 
 </body>
-</html>
+  </html>
